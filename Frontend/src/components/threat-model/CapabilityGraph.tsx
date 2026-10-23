@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Box, Boxed, Inline, Stack, Text1, IconSearchRegular, skinVars, useTheme } from "@telefonica/mistica";
+import { Box, Boxed, Inline, Stack, Text1, Touchable, IconSearchRegular, skinVars, useTheme } from "@telefonica/mistica";
 import NodeDetailDrawer from "@/components/threat-model/NodeDetailDrawer";
-import CyberGraph, { type CyberGraphHandle } from "@/components/threat-model/graph/CyberGraph";
-import { primaryRoute, primaryRouteId } from "@/components/threat-model/graph/toReactFlow";
+import CyberGraph, { type CyberGraphHandle, type GraphHighlight } from "@/components/threat-model/graph/CyberGraph";
+import { findingRoute, primaryRoute, primaryRouteId } from "@/components/threat-model/graph/toReactFlow";
 import { NODE_STYLE } from "@/components/threat-model/graph/cyberGraphTheme";
+import { routeSummary } from "@/lib/results/findingDisplay";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import type { Attack, ControlInfo, Finding, GraphEdge, GraphNode } from "@/types/ThreatModel";
 
@@ -32,9 +33,13 @@ interface CapabilityGraphProps {
   /** Whether the Proposed Solution tab has data to show; when it doesn't,
    * toggling into it must leave fullscreen so the "unavailable" notice is visible. */
   solutionAvailable?: boolean;
+  findingLabelById: Map<string, string>;
+  selectedFindingId: string | null;
+  onSelectFinding: (id: string) => void;
+  onClearSelection: () => void;
 }
 
-function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, appliedControlCount, nodeControlInfo, edgeControlInfo, onToggleView, solutionAvailable }: CapabilityGraphProps) {
+function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, appliedControlCount, nodeControlInfo, edgeControlInfo, onToggleView, solutionAvailable, findingLabelById, selectedFindingId, onSelectFinding, onClearSelection }: CapabilityGraphProps) {
   const t = useTranslations("results");
   const tNode = useTranslations("node");
   const { isDarkMode } = useTheme();
@@ -60,15 +65,26 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
 
   // Primary critical route, built dynamically from the highest-severity attack:
   // its FH-id label plus the ordered nodes it traverses (mapped to real labels).
+  const nodesById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const primaryPath = useMemo(() => {
     const route = primaryRoute(attacks);
     if (!route) return null;
-    const byId = new Map(nodes.map((n) => [n.id, n]));
     const steps = route.nodeIds
-      .map((id) => byId.get(id))
+      .map((id) => nodesById.get(id))
       .filter((n): n is GraphNode => Boolean(n));
     return steps.length > 0 ? { label: route.label, steps } : null;
-  }, [attacks, nodes]);
+  }, [attacks, nodesById]);
+
+  const highlight = useMemo<GraphHighlight | null>(() => {
+    if (solved || !selectedFindingId) return null;
+    const finding = findings.find((f) => f.id === selectedFindingId);
+    if (!finding) return null;
+    return {
+      ...findingRoute(finding, edges),
+      label: findingLabelById.get(finding.id) ?? finding.ruleId,
+      summary: routeSummary(finding.path, nodesById),
+    };
+  }, [solved, selectedFindingId, findings, edges, findingLabelById, nodesById]);
 
   // Recommended controls per edge id, from findings traversing that node pair.
   // As with `nodeControls`, the solved view overrides this with the simulation's
@@ -147,6 +163,8 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
         onNodeClick={setFocusedNode}
         onToggleView={onToggleView}
         solutionAvailable={solutionAvailable}
+        highlight={highlight}
+        onClearHighlight={onClearSelection}
         labels={labels}
       />
 
@@ -196,13 +214,33 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
           <Box paddingX={16} paddingY={12}>
             <Stack space={8}>
               <Text1 medium color={skinVars.colors.error}>{t("prioritizedFindings", { count: findings.length })}</Text1>
-              <Stack space={4}>
-                {findings.map((f) => (
-                  <Inline key={f.id} space={4} wrap>
-                    <Text1 medium color={severityAccentColor(f.severity, isDarkMode)}>{f.ruleId}</Text1>
-                    <Text1 regular color={skinVars.colors.textSecondary}>{t("findingSummary", { title: f.title, score: f.score })}</Text1>
-                  </Inline>
-                ))}
+              <Stack space={2}>
+                {findings.map((f) => {
+                  const row = (
+                    <Inline space={4} wrap>
+                      <Text1 medium color={severityAccentColor(f.severity, isDarkMode)}>{findingLabelById.get(f.id) ?? f.ruleId}</Text1>
+                      <Text1 regular color={skinVars.colors.textSecondary}>{t("findingSummary", { title: f.title, score: f.score })}</Text1>
+                    </Inline>
+                  );
+                  if (f.path.length === 0) return <Box key={f.id} paddingX={8} paddingY={4}>{row}</Box>;
+                  const selected = f.id === selectedFindingId;
+                  return (
+                    <Touchable
+                      key={f.id}
+                      onPress={() => onSelectFinding(f.id)}
+                      aria-current={selected ? "true" : undefined}
+                      aria-description={t("showRouteHint")}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        borderRadius: skinVars.borderRadii.container,
+                        background: selected ? skinVars.colors.brandLow : undefined,
+                      }}
+                    >
+                      <Box paddingX={8} paddingY={4}>{row}</Box>
+                    </Touchable>
+                  );
+                })}
               </Stack>
             </Stack>
           </Box>

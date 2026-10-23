@@ -210,7 +210,7 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
       )}
 
       {!solved && findings.length > 0 && (
-        <Boxed>
+        <Boxed dataAttributes={{ testid: "prioritized-findings" }}>
           <Box paddingX={16} paddingY={12}>
             <Stack space={8}>
               <Text1 medium color={skinVars.colors.error}>{t("prioritizedFindings", { count: findings.length })}</Text1>
@@ -228,6 +228,7 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
                     <Touchable
                       key={f.id}
                       onPress={() => onSelectFinding(f.id)}
+                      dataAttributes={{ testid: "prioritized-finding" }}
                       aria-current={selected ? "true" : undefined}
                       aria-description={t("showRouteHint")}
                       style={{

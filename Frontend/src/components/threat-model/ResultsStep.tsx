@@ -181,6 +181,7 @@ function FindingCard({ finding, label, route, isDarkMode, tSeverity, scoreLabel,
   return (
     <Touchable
       onPress={() => onSelect(finding.id)}
+      dataAttributes={{ testid: "finding-card" }}
       aria-current={selected ? "true" : undefined}
       aria-description={routeHint}
       style={{

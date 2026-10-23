@@ -272,7 +272,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
   // Overlay animation classes without disturbing the (draggable) base positions.
   const renderNodes = useMemo(() => {
     if (!isPlaying) {
-      if (highlightNodes.size === 0) return rfNodes;
+      if (!highlight) return rfNodes;
       return rfNodes.map((n) => ({ ...n, className: highlightNodes.has(n.id) ? "ch-hl" : "ch-dim" }));
     }
     const step = playStep ?? 0;
@@ -283,11 +283,12 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
       const className = n.id === current ? "ch-current" : live.has(n.id) ? "ch-live" : onPath ? "" : "ch-dim";
       return { ...n, className };
     });
-  }, [isPlaying, playStep, rfNodes, built.attackNodeIds, highlightNodes]);
+  }, [isPlaying, playStep, rfNodes, built.attackNodeIds, highlight, highlightNodes]);
 
   const renderEdges = useMemo(() => {
     if (!isPlaying) {
-      if (highlightEdges.size === 0) return rfEdges;
+      // A single-node finding has no hops, yet every edge around it must fade.
+      if (!highlight) return rfEdges;
       return rfEdges.map((e) => {
         const lit = highlightEdges.has(e.id);
         return lit
@@ -302,7 +303,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
       const className = e.id === current ? "ch-edge-current" : live.has(e.id) ? "ch-edge-live" : "ch-dim";
       return { ...e, className };
     });
-  }, [isPlaying, playStep, rfEdges, built.attackEdgeIds, highlightEdges]);
+  }, [isPlaying, playStep, rfEdges, built.attackEdgeIds, highlight, highlightEdges]);
 
   const download = useCallback(() => {
     // Scope the DOM lookups to this graph's own wrapper so a second graph elsewhere
@@ -498,6 +499,8 @@ function ToolbarButton({ onClick, label, glyph, accent }: { onClick: () => void;
         fontWeight: 600,
         cursor: "pointer",
         backdropFilter: "blur(6px)",
+        whiteSpace: "nowrap",
+        flexShrink: 0,
       }}
     >
       <span style={{ fontSize: 11 }}>{glyph}</span>

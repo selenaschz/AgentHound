@@ -57,6 +57,7 @@ export interface CyberEdgeData extends Record<string, unknown> {
   controlsLabel: string;
   /** Localised per-effect tags shown next to each control in the tooltip. */
   effectLabels: EffectLabels;
+  dimmed?: boolean;
 }
 
 export type CyberNode = Node<CyberNodeData, "cyber">;

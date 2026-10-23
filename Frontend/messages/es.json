@@ -207,6 +207,8 @@
     "primaryPath": "Ruta crítica principal",
     "prioritizedFindings": "Hallazgos priorizados ({count})",
     "findingSummary": "{title} · puntuación {score}",
+    "highlightedRoute": "Ruta resaltada",
+    "clearHighlight": "Ver todo",
     "chokepointTitle": "Punto de control recomendado",
     "chokepointDesc": "Aplica {control} en {node} — elimina el {pct}% del riesgo (coste: {cost})",
     "metricsTitleFindings": "Métricas de riesgo",

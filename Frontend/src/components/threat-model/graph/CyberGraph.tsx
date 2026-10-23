@@ -22,7 +22,7 @@ import type { Attack, ControlInfo, GraphEdge, GraphNode, NodeType } from "@/type
 import { cyber, getSeverityPath, NODE_STYLE, useIsDarkMode, type PathSeverity } from "@/components/threat-model/graph/cyberGraphTheme";
 import { GLYPH, nodeTypes } from "@/components/threat-model/graph/nodeTypes";
 import { edgeTypes, SeverityPathContext } from "@/components/threat-model/graph/edgeTypes";
-import { buildGraph, type CyberNode } from "@/components/threat-model/graph/toReactFlow";
+import { buildGraph, type CyberNode, type FindingRoute } from "@/components/threat-model/graph/toReactFlow";
 import { dagreLayout } from "@/components/threat-model/graph/dagreLayout";
 
 /** Imperative handle so the parent (which owns the node-detail Drawer's open
@@ -51,6 +51,8 @@ export interface CyberGraphProps {
   /** Whether the Proposed Solution tab has data; toggling into it while false
    * leaves fullscreen so the "unavailable" notice above the canvas is visible. */
   solutionAvailable?: boolean;
+  highlight?: GraphHighlight | null;
+  onClearHighlight?: () => void;
   labels: {
     playAttack: string;
     stop: string;
@@ -75,7 +77,14 @@ export interface CyberGraphProps {
     recommendedControls: string;
     /** Per-effect tag shown next to each control in the padlock tooltip. */
     controlEffect: { total: string; partial: string };
+    highlightedRoute: string;
+    clearHighlight: string;
   };
+}
+
+export interface GraphHighlight extends FindingRoute {
+  label: string;
+  summary: string;
 }
 
 const CANVAS_H = 540;
@@ -98,7 +107,7 @@ function exitFullscreen() {
 }
 
 const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
-  { solved, nodes, edges, attacks, name, nodeControls, edgeControls, onNodeClick, onToggleView, solutionAvailable, labels },
+  { solved, nodes, edges, attacks, name, nodeControls, edgeControls, onNodeClick, onToggleView, solutionAvailable, highlight, onClearHighlight, labels },
   ref,
 ) {
   const isDark = useIsDarkMode();
@@ -196,14 +205,31 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
     onToggleView();
   }, [onToggleView, solved, solutionAvailable]);
 
+  const highlightNodes = useMemo(() => new Set(highlight?.nodeIds), [highlight]);
+  const highlightEdges = useMemo(() => new Set(highlight?.edgeIds), [highlight]);
+
   // Re-fit whenever the (already dagre-positioned) nodes change or fullscreen
   // is toggled. A single rAF is enough: `layoutedNodes`/`built` are derived
   // during render (see above and the reset block below), so by the time this
   // effect runs the DOM already reflects the final layout in a single commit.
   useEffect(() => {
-    const raf = requestAnimationFrame(() => fitView({ padding: 0.08, duration: 400 }));
+    const raf = requestAnimationFrame(() =>
+      highlightNodes.size > 0
+        ? fitView({ nodes: [...highlightNodes].map((id) => ({ id })), padding: 0.3, maxZoom: 1.2, duration: 400 })
+        : fitView({ padding: 0.08, duration: 400 }),
+    );
     return () => cancelAnimationFrame(raf);
-  }, [layoutedNodes, isFullscreen, fitView]);
+  }, [layoutedNodes, isFullscreen, highlightNodes, fitView]);
+
+  const hasHighlight = highlight != null;
+  useEffect(() => {
+    if (!hasHighlight || !onClearHighlight) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClearHighlight();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [hasHighlight, onClearHighlight]);
 
   // Reset the canvas whenever the source graph changes (e.g. Findings ↔ Solution).
   // Done during render via the "adjust state on prop change" pattern rather than
@@ -245,7 +271,10 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
 
   // Overlay animation classes without disturbing the (draggable) base positions.
   const renderNodes = useMemo(() => {
-    if (!isPlaying) return rfNodes;
+    if (!isPlaying) {
+      if (highlightNodes.size === 0) return rfNodes;
+      return rfNodes.map((n) => ({ ...n, className: highlightNodes.has(n.id) ? "ch-hl" : "ch-dim" }));
+    }
     const step = playStep ?? 0;
     const live = new Set(built.attackNodeIds.slice(0, step + 1));
     const current = built.attackNodeIds[step];
@@ -254,10 +283,18 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
       const className = n.id === current ? "ch-current" : live.has(n.id) ? "ch-live" : onPath ? "" : "ch-dim";
       return { ...n, className };
     });
-  }, [isPlaying, playStep, rfNodes, built.attackNodeIds]);
+  }, [isPlaying, playStep, rfNodes, built.attackNodeIds, highlightNodes]);
 
   const renderEdges = useMemo(() => {
-    if (!isPlaying) return rfEdges;
+    if (!isPlaying) {
+      if (highlightEdges.size === 0) return rfEdges;
+      return rfEdges.map((e) => {
+        const lit = highlightEdges.has(e.id);
+        return lit
+          ? { ...e, className: "ch-edge-hl", zIndex: 5 }
+          : { ...e, className: "ch-dim", data: e.data && { ...e.data, dimmed: true } };
+      });
+    }
     const step = playStep ?? 0;
     const live = new Set(built.attackEdgeIds.slice(0, step));
     const current = built.attackEdgeIds[step - 1];
@@ -265,7 +302,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
       const className = e.id === current ? "ch-edge-current" : live.has(e.id) ? "ch-edge-live" : "ch-dim";
       return { ...e, className };
     });
-  }, [isPlaying, playStep, rfEdges, built.attackEdgeIds]);
+  }, [isPlaying, playStep, rfEdges, built.attackEdgeIds, highlightEdges]);
 
   const download = useCallback(() => {
     // Scope the DOM lookups to this graph's own wrapper so a second graph elsewhere
@@ -381,6 +418,23 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
           </div>
         </Panel>
 
+        {highlight && !isPlaying && (
+          <Panel position="bottom-center">
+            <div style={highlightBox} role="status">
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                <span style={legendHeading}>{labels.highlightedRoute}</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <span style={highlightChip}>{highlight.label}</span>
+                  <span style={highlightSummary} title={highlight.summary}>{highlight.summary}</span>
+                </span>
+              </div>
+              {onClearHighlight && (
+                <ToolbarButton onClick={onClearHighlight} label={labels.clearHighlight} glyph="✕" />
+              )}
+            </div>
+          </Panel>
+        )}
+
         <Panel position="top-left">
           <div style={legendBox}>
             {solved ? (
@@ -476,6 +530,33 @@ const fullscreenTitleBox: React.CSSProperties = {
   overflow: "hidden",
   textOverflow: "ellipsis",
   maxWidth: "40vw",
+};
+
+const highlightBox: React.CSSProperties = {
+  ...legendBox,
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 16,
+  maxWidth: "min(720px, 80vw)",
+};
+
+const highlightChip: React.CSSProperties = {
+  padding: "1px 7px",
+  borderRadius: 999,
+  border: `1px solid ${cyber.textPrimary}`,
+  color: cyber.textPrimary,
+  fontSize: 11,
+  fontWeight: 700,
+  whiteSpace: "nowrap",
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+};
+
+const highlightSummary: React.CSSProperties = {
+  fontSize: 12,
+  color: cyber.textSecondary,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
 };
 
 const legendHeading: React.CSSProperties = {
@@ -575,6 +656,8 @@ const CYBER_CSS = `
 .react-flow__node.ch-live .ch-node { box-shadow: 0 0 0 1.5px ${cyber.danger}, 0 0 20px 2px ${cyber.dangerGlow} !important; }
 .react-flow__edge.ch-edge-current path.react-flow__edge-path { stroke-width: 3.4 !important; filter: drop-shadow(0 0 6px ${cyber.danger}); }
 .react-flow__edge.ch-edge-live path.react-flow__edge-path { stroke-width: 2.8 !important; }
+.react-flow__node.ch-hl .ch-node { box-shadow: 0 0 0 2px ${cyber.textPrimary} !important; }
+.react-flow__edge.ch-edge-hl path.react-flow__edge-path { stroke-width: 3.6 !important; opacity: 1 !important; }
 .ch-controls button { background: ${cyber.surface}; border-bottom: 1px solid ${cyber.laneBorder}; color: ${cyber.textPrimary}; }
 .ch-controls button:hover { background: ${cyber.surfaceHover}; }
 .ch-controls button svg { fill: ${cyber.textPrimary}; }

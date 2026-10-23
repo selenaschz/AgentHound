@@ -124,6 +124,8 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
       total: tNode("controlEffect.total"),
       partial: tNode("controlEffect.partial"),
     },
+    highlightedRoute: t("highlightedRoute"),
+    clearHighlight: t("clearHighlight"),
   }), [t, tNode, attacks]);
 
   return (

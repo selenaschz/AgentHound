@@ -1,6 +1,6 @@
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
 import type { Severity } from "@/lib/severity";
-import type { Attack, ControlInfo, GraphEdge, GraphNode } from "@/types/ThreatModel";
+import type { Attack, ControlInfo, Finding, GraphEdge, GraphNode } from "@/types/ThreatModel";
 import {
   cyber,
   SCALE_X,
@@ -92,6 +92,42 @@ export function primaryRouteId(attacks: Attack[]): string {
 export function primaryRoute(attacks: Attack[]): { label: string; nodeIds: string[] } | null {
   const a = primaryAttack(attacks);
   return a ? { label: a.label || a.id, nodeIds: a.nodes } : null;
+}
+
+export interface FindingRoute {
+  nodeIds: string[];
+  edgeIds: string[];
+}
+
+// The finding's own edge ids tell apart duplicates that take parallel edges;
+// without them, match consecutive `path` pairs in either direction.
+export function findingRoute(finding: Pick<Finding, "path" | "edges">, edges: GraphEdge[]): FindingRoute {
+  const byId = new Map(edges.map((e) => [e.id, e]));
+  let routeEdges = (finding.edges ?? []).flatMap((id) => byId.get(id) ?? []);
+  if (routeEdges.length === 0) {
+    const hops = new Set<string>();
+    finding.path.slice(0, -1).forEach((id, i) => {
+      const next = finding.path[i + 1] ?? "";
+      hops.add(key(id, next)).add(key(next, id));
+    });
+    routeEdges = edges.filter((e) => hops.has(key(e.f, e.t)));
+  }
+  const nodeIds = new Set(finding.path);
+  routeEdges.forEach((e) => nodeIds.add(e.f).add(e.t));
+  return { nodeIds: [...nodeIds], edgeIds: routeEdges.map((e) => e.id) };
+}
+
+export function findingLabels(findings: Pick<Finding, "id" | "ruleId">[]): Map<string, string> {
+  const totals = new Map<string, number>();
+  findings.forEach((f) => totals.set(f.ruleId, (totals.get(f.ruleId) ?? 0) + 1));
+  const seen = new Map<string, number>();
+  const labels = new Map<string, string>();
+  findings.forEach((f) => {
+    const n = (seen.get(f.ruleId) ?? 0) + 1;
+    seen.set(f.ruleId, n);
+    labels.set(f.id, (totals.get(f.ruleId) ?? 0) > 1 ? `${f.ruleId} #${n}` : f.ruleId);
+  });
+  return labels;
 }
 
 /**

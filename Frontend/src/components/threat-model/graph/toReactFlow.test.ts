@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { findingLabels, findingRoute } from "./toReactFlow";
+import { findingRoute } from "./toReactFlow";
 import type { GraphEdge } from "@/types/ThreatModel";
 
 const edges: GraphEdge[] = [
@@ -30,20 +30,5 @@ describe("findingRoute", () => {
 
   it("includes edge endpoints missing from a display-ordered path", () => {
     expect(findingRoute({ path: ["b"], edges: ["e3", "e4"] }, edges).nodeIds).toEqual(["b", "c", "d"]);
-  });
-});
-
-describe("findingLabels", () => {
-  it("numbers findings that share a rule and leaves unique rules bare", () => {
-    const labels = findingLabels([
-      { id: "f1", ruleId: "FH-001" },
-      { id: "f2", ruleId: "FH-002" },
-      { id: "f3", ruleId: "FH-001" },
-    ]);
-    expect([...labels.entries()]).toEqual([
-      ["f1", "FH-001 #1"],
-      ["f2", "FH-002"],
-      ["f3", "FH-001 #2"],
-    ]);
   });
 });

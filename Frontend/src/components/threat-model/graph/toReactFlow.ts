@@ -118,19 +118,6 @@ export function findingRoute(finding: Pick<Finding, "path" | "edges">, edges: Gr
   return { nodeIds: [...nodeIds], edgeIds: routeEdges.map((e) => e.id) };
 }
 
-export function findingLabels(findings: Pick<Finding, "id" | "ruleId">[]): Map<string, string> {
-  const totals = new Map<string, number>();
-  findings.forEach((f) => totals.set(f.ruleId, (totals.get(f.ruleId) ?? 0) + 1));
-  const seen = new Map<string, number>();
-  const labels = new Map<string, string>();
-  findings.forEach((f) => {
-    const n = (seen.get(f.ruleId) ?? 0) + 1;
-    seen.set(f.ruleId, n);
-    labels.set(f.id, (totals.get(f.ruleId) ?? 0) > 1 ? `${f.ruleId} #${n}` : f.ruleId);
-  });
-  return labels;
-}
-
 /**
  * Resolve an edge's rendering. Mirrors the bhat_agentic_2026 report: in the
  * findings view every hop carrying a finding is colored by its severity, and the

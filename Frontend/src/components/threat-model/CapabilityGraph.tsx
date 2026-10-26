@@ -109,6 +109,7 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
 
   const labels = useMemo(() => ({
     playAttack: t("playAttack"),
+    playRoute: (label: string) => t("playRoute", { id: label }),
     stop: t("stopAttack"),
     fit: t("fitView"),
     fullscreen: t("fullscreen"),

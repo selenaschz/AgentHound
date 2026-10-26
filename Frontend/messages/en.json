@@ -177,6 +177,7 @@
     "downloadSvg": "Download SVG",
     "downloadPng": "PNG",
     "playAttack": "Play attack",
+    "playRoute": "Play {id}",
     "stopAttack": "Stop",
     "fitView": "Fit",
     "fullscreen": "Fullscreen",

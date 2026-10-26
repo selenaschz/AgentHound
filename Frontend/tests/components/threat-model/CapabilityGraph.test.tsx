@@ -112,6 +112,12 @@ describe("CapabilityGraph — graph highlight", () => {
     expect(onClearSelection).toHaveBeenCalledOnce();
   });
 
+  it("names the selected finding on the canvas' play action", () => {
+    render({ selectedFindingId: "f2" });
+
+    expect(canvas.props?.labels.playRoute(canvas.props.highlight!.label)).toBe("Reproducir FH-001 #2");
+  });
+
   it("drops the highlight in the solved view", () => {
     render({ selectedFindingId: "f1", solved: true });
 

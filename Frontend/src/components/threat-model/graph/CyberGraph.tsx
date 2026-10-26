@@ -55,6 +55,7 @@ export interface CyberGraphProps {
   onClearHighlight?: () => void;
   labels: {
     playAttack: string;
+    playRoute: (label: string) => string;
     stop: string;
     fit: string;
     fullscreen: string;
@@ -160,7 +161,8 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(built.edges);
-  const [playStep, setPlayStep] = useState<number | null>(null);
+  const [playback, setPlayback] = useState<{ route: FindingRoute; step: number; run: number } | null>(null);
+  const playRuns = useRef(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const { getNodes, fitView } = useReactFlow();
 
@@ -241,13 +243,13 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
     setPrevBuilt(built);
     setRfNodes(layoutedNodes);
     setRfEdges(built.edges);
-    setPlayStep(null);
+    setPlayback(null);
   }
 
   const stop = useCallback(() => {
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
-    setPlayStep(null);
+    setPlayback(null);
   }, []);
 
   useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
@@ -257,29 +259,32 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
     [built.attackNodeIds, built.attackEdgeIds],
   );
 
+  const playRoute: FindingRoute = highlight ?? primaryRoute;
+
   const play = useCallback(() => {
-    if (primaryRoute.nodeIds.length === 0) return;
+    if (playRoute.nodeIds.length === 0) return;
     if (timer.current) clearInterval(timer.current);
-    setPlayStep(0);
+    const run = ++playRuns.current;
+    setPlayback({ route: playRoute, step: 0, run });
     let i = 0;
     timer.current = setInterval(() => {
       i += 1;
-      if (i >= primaryRoute.nodeIds.length) {
+      if (i >= playRoute.nodeIds.length) {
         if (timer.current) clearInterval(timer.current);
         timer.current = null;
-        window.setTimeout(() => setPlayStep(null), 1600);
+        window.setTimeout(() => setPlayback((p) => (p?.run === run ? null : p)), 1600);
         return;
       }
-      setPlayStep(i);
+      setPlayback((p) => (p?.run === run ? { ...p, step: i } : p));
     }, 760);
-  }, [primaryRoute]);
+  }, [playRoute]);
 
-  const isPlaying = playStep !== null;
+  const isPlaying = playback !== null;
   const frame = useMemo(
-    () => (playStep === null ? null : playbackFrame(primaryRoute, playStep, rfEdges)),
-    [playStep, primaryRoute, rfEdges],
+    () => (playback ? playbackFrame(playback.route, playback.step, rfEdges) : null),
+    [playback, rfEdges],
   );
-  const playedNodes = useMemo(() => new Set(primaryRoute.nodeIds), [primaryRoute]);
+  const playedNodes = useMemo(() => new Set(playback?.route.nodeIds), [playback?.route]);
 
   // Overlay animation classes without disturbing the (draggable) base positions.
   const renderNodes = useMemo(() => {
@@ -337,7 +342,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
     });
   }, [getNodes]);
 
-  const canPlay = !solved && primaryRoute.nodeIds.length > 0;
+  const canPlay = !solved && playRoute.nodeIds.length > 0;
 
   return (
     <div
@@ -409,7 +414,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
               isPlaying ? (
                 <ToolbarButton onClick={stop} label={labels.stop} accent={cyber.danger} glyph="◼" />
               ) : (
-                <ToolbarButton onClick={play} label={labels.playAttack} accent={cyber.danger} glyph="▶" />
+                <ToolbarButton onClick={play} label={highlight ? labels.playRoute(highlight.label) : labels.playAttack} accent={cyber.danger} glyph="▶" />
               )
             )}
             {isFullscreen && onToggleView && (

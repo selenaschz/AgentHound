@@ -19,11 +19,13 @@ const row = (page: Page, label: string) =>
 const card = (page: Page, label: string) =>
   page.getByTestId("finding-card").filter({ hasText: new RegExp(`${label}(?!\\d)`) });
 
-// Restacking the edges after a highlight shifts anti-aliasing slightly, hence the tolerance.
+// Restacking the edges after their classes change shifts anti-aliasing slightly.
+const RESTACKED = { maxDiffPixelRatio: 0.005 };
+
 async function expectNormalView(page: Page) {
   await expect(routePanel(page)).toHaveCount(0);
   await expect(canvas(page).locator(".ch-hl, .ch-edge-hl, .ch-dim")).toHaveCount(0);
-  await expect(canvas(page)).toHaveScreenshot("graph-default.png", { maxDiffPixelRatio: 0.005 });
+  await expect(canvas(page)).toHaveScreenshot("graph-default.png", RESTACKED);
 }
 
 async function openAttackGroup(page: Page) {
@@ -130,5 +132,40 @@ test.describe("Finding route highlight", () => {
 
     await expect(routePanel(page)).toContainText("FH-011 #2");
     await expect(canvas(page)).toHaveScreenshot("graph-fh-011-2-dark.png");
+  });
+
+  test("lets the attack playback take over and brings the highlight back when it stops", async ({ page }) => {
+    await openResults(page);
+    await row(page, "FH-011 #2").click();
+    await expect(routePanel(page)).toBeVisible();
+
+    await canvas(page).getByRole("button", { name: "Reproducir ataque" }).click();
+
+    await expect(routePanel(page)).toHaveCount(0);
+    await expect(canvas(page).locator(".react-flow__node.ch-hl")).toHaveCount(0);
+    await expect(canvas(page).locator(".react-flow__node.ch-current")).toHaveCount(1);
+
+    await canvas(page).getByRole("button", { name: "Detener" }).click();
+
+    await expect(routePanel(page)).toContainText("FH-011 #2");
+    await expect(canvas(page).locator(".react-flow__node.ch-current")).toHaveCount(0);
+    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-2.png", RESTACKED);
+  });
+
+  test("keeps the highlight in fullscreen and clears it without leaving fullscreen", async ({ page }) => {
+    await openResults(page);
+    await row(page, "FH-011 #1").click();
+
+    await canvas(page).getByRole("button", { name: "Pantalla completa" }).click();
+
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.hasAttribute("data-ch-canvas"))).toBe(true);
+    await expect(routePanel(page)).toContainText("FH-011 #1");
+    await expect(page).toHaveScreenshot("graph-fh-011-1-fullscreen.png");
+
+    await routePanel(page).getByRole("button", { name: /Ver todo/ }).click();
+
+    await expect(routePanel(page)).toHaveCount(0);
+    await expect(canvas(page).locator(".ch-hl, .ch-edge-hl, .ch-dim")).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
   });
 });

@@ -118,6 +118,33 @@ export function findingRoute(finding: Pick<Finding, "path" | "edges">, edges: Gr
   return { nodeIds: [...nodeIds], edgeIds: routeEdges.map((e) => e.id) };
 }
 
+export interface PlaybackFrame {
+  currentNode: string | undefined;
+  liveNodes: Set<string>;
+  currentEdges: Set<string>;
+  liveEdges: Set<string>;
+}
+
+// An edge lights up once both its ends are reached, which holds for parallel
+// edges and for routes whose edges are not listed in path order.
+export function playbackFrame(
+  route: FindingRoute,
+  step: number,
+  edges: Pick<CyberEdge, "id" | "source" | "target">[],
+): PlaybackFrame {
+  const currentNode = route.nodeIds[step];
+  const liveNodes = new Set(route.nodeIds.slice(0, step + 1));
+  const routeEdgeIds = new Set(route.edgeIds);
+  const currentEdges = new Set<string>();
+  const liveEdges = new Set<string>();
+  for (const e of edges) {
+    if (!routeEdgeIds.has(e.id) || !liveNodes.has(e.source) || !liveNodes.has(e.target)) continue;
+    liveEdges.add(e.id);
+    if (e.source === currentNode || e.target === currentNode) currentEdges.add(e.id);
+  }
+  return { currentNode, liveNodes, currentEdges, liveEdges };
+}
+
 /**
  * Resolve an edge's rendering. Mirrors the bhat_agentic_2026 report: in the
  * findings view every hop carrying a finding is colored by its severity, and the

@@ -22,7 +22,7 @@ import type { Attack, ControlInfo, GraphEdge, GraphNode, NodeType } from "@/type
 import { cyber, getSeverityPath, NODE_STYLE, useIsDarkMode, type PathSeverity } from "@/components/threat-model/graph/cyberGraphTheme";
 import { GLYPH, nodeTypes } from "@/components/threat-model/graph/nodeTypes";
 import { edgeTypes, SeverityPathContext } from "@/components/threat-model/graph/edgeTypes";
-import { buildGraph, type CyberNode, type FindingRoute } from "@/components/threat-model/graph/toReactFlow";
+import { buildGraph, playbackFrame, type CyberNode, type FindingRoute } from "@/components/threat-model/graph/toReactFlow";
 import { dagreLayout } from "@/components/threat-model/graph/dagreLayout";
 
 /** Imperative handle so the parent (which owns the node-detail Drawer's open
@@ -252,14 +252,19 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
 
   useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
 
+  const primaryRoute = useMemo<FindingRoute>(
+    () => ({ nodeIds: built.attackNodeIds, edgeIds: built.attackEdgeIds }),
+    [built.attackNodeIds, built.attackEdgeIds],
+  );
+
   const play = useCallback(() => {
-    if (built.attackNodeIds.length === 0) return;
+    if (primaryRoute.nodeIds.length === 0) return;
     if (timer.current) clearInterval(timer.current);
     setPlayStep(0);
     let i = 0;
     timer.current = setInterval(() => {
       i += 1;
-      if (i >= built.attackNodeIds.length) {
+      if (i >= primaryRoute.nodeIds.length) {
         if (timer.current) clearInterval(timer.current);
         timer.current = null;
         window.setTimeout(() => setPlayStep(null), 1600);
@@ -267,28 +272,29 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
       }
       setPlayStep(i);
     }, 760);
-  }, [built.attackNodeIds]);
+  }, [primaryRoute]);
 
   const isPlaying = playStep !== null;
+  const frame = useMemo(
+    () => (playStep === null ? null : playbackFrame(primaryRoute, playStep, rfEdges)),
+    [playStep, primaryRoute, rfEdges],
+  );
+  const playedNodes = useMemo(() => new Set(primaryRoute.nodeIds), [primaryRoute]);
 
   // Overlay animation classes without disturbing the (draggable) base positions.
   const renderNodes = useMemo(() => {
-    if (!isPlaying) {
+    if (!frame) {
       if (!highlight) return rfNodes;
       return rfNodes.map((n) => ({ ...n, className: highlightNodes.has(n.id) ? "ch-hl" : "ch-dim" }));
     }
-    const step = playStep ?? 0;
-    const live = new Set(built.attackNodeIds.slice(0, step + 1));
-    const current = built.attackNodeIds[step];
     return rfNodes.map((n) => {
-      const onPath = built.attackNodeIds.includes(n.id);
-      const className = n.id === current ? "ch-current" : live.has(n.id) ? "ch-live" : onPath ? "" : "ch-dim";
+      const className = n.id === frame.currentNode ? "ch-current" : frame.liveNodes.has(n.id) ? "ch-live" : playedNodes.has(n.id) ? "" : "ch-dim";
       return { ...n, className };
     });
-  }, [isPlaying, playStep, rfNodes, built.attackNodeIds, highlight, highlightNodes]);
+  }, [frame, playedNodes, rfNodes, highlight, highlightNodes]);
 
   const renderEdges = useMemo(() => {
-    if (!isPlaying) {
+    if (!frame) {
       // A single-node finding has no hops, yet every edge around it must fade.
       if (!highlight) return rfEdges;
       return rfEdges.map((e) => {
@@ -298,14 +304,11 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
           : { ...e, className: "ch-dim", data: e.data && { ...e.data, dimmed: true } };
       });
     }
-    const step = playStep ?? 0;
-    const live = new Set(built.attackEdgeIds.slice(0, step));
-    const current = built.attackEdgeIds[step - 1];
     return rfEdges.map((e) => {
-      const className = e.id === current ? "ch-edge-current" : live.has(e.id) ? "ch-edge-live" : "ch-dim";
+      const className = frame.currentEdges.has(e.id) ? "ch-edge-current" : frame.liveEdges.has(e.id) ? "ch-edge-live" : "ch-dim";
       return { ...e, className };
     });
-  }, [isPlaying, playStep, rfEdges, built.attackEdgeIds, highlight, highlightEdges]);
+  }, [frame, rfEdges, highlight, highlightEdges]);
 
   const download = useCallback(() => {
     // Scope the DOM lookups to this graph's own wrapper so a second graph elsewhere
@@ -334,7 +337,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
     });
   }, [getNodes]);
 
-  const canPlay = !solved && built.attackNodeIds.length > 0;
+  const canPlay = !solved && primaryRoute.nodeIds.length > 0;
 
   return (
     <div

@@ -16,6 +16,8 @@ const canvas = (page: Page) => page.locator("[data-ch-canvas]");
 const routePanel = (page: Page) => canvas(page).getByRole("status");
 const row = (page: Page, label: string) =>
   page.getByTestId("prioritized-finding").filter({ hasText: new RegExp(`^${label}(?!\\d)`) });
+const nodeIds = async (page: Page, classes: string) =>
+  (await canvas(page).locator(`.react-flow__node:is(${classes})`).evaluateAll((els) => els.map((el) => el.dataset.id ?? ""))).sort();
 const card = (page: Page, label: string) =>
   page.getByTestId("finding-card").filter({ hasText: new RegExp(`${label}(?!\\d)`) });
 
@@ -152,7 +154,7 @@ test.describe("Finding route highlight", () => {
     await row(page, "FH-011 #2").click();
     await expect(routePanel(page)).toBeVisible();
 
-    await canvas(page).getByRole("button", { name: "Reproducir ataque" }).click();
+    await canvas(page).getByRole("button", { name: "Reproducir FH-011 #2" }).click();
 
     await expect(routePanel(page)).toHaveCount(0);
     await expect(canvas(page).locator(".react-flow__node.ch-hl")).toHaveCount(0);
@@ -163,6 +165,23 @@ test.describe("Finding route highlight", () => {
     await expect(routePanel(page)).toContainText("FH-011 #2");
     await expect(canvas(page).locator(".react-flow__node.ch-current")).toHaveCount(0);
     await expect(canvas(page)).toHaveScreenshot("graph-fh-011-2.png", RESTACKED);
+  });
+
+  test("plays the selected finding's route instead of the primary attack", async ({ page }) => {
+    await openResults(page);
+    await expect(canvas(page).getByRole("button", { name: "Reproducir ataque" })).toBeVisible();
+
+    for (const label of ["FH-011 #2", "FH-002"]) {
+      await row(page, label).click();
+      await expect(routePanel(page)).toContainText(label);
+      const route = await nodeIds(page, ".ch-hl");
+
+      await canvas(page).getByRole("button", { name: `Reproducir ${label}` }).click();
+
+      await expect.poll(() => nodeIds(page, ".ch-current, .ch-live")).toEqual(route);
+      await canvas(page).getByRole("button", { name: "Detener" }).click();
+      await expect(routePanel(page)).toContainText(label);
+    }
   });
 
   test("keeps the highlight in fullscreen and clears it without leaving fullscreen", async ({ page }) => {

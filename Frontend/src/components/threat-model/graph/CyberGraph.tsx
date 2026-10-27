@@ -93,7 +93,8 @@ export interface GraphHighlight extends FindingRoute {
 
 type PlayedRoute = FindingRoute & { label: string; summary?: string };
 
-const CANVAS_H = 540;
+// Grows with tall screens: large dagre layouts are bounded by height.
+const CANVAS_H = "clamp(540px, 70vh, 820px)";
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2.5;
 // Fitting ignores the zoom floor, otherwise large graphs never fit whole.

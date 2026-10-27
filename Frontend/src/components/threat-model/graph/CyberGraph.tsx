@@ -15,6 +15,7 @@ import {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  useStore,
 } from "@xyflow/react";
 import { toPng } from "html-to-image";
 import { applyAlpha } from "@telefonica/mistica";
@@ -93,6 +94,10 @@ export interface GraphHighlight extends FindingRoute {
 type PlayedRoute = FindingRoute & { label: string; summary?: string };
 
 const CANVAS_H = 540;
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 2.5;
+// Fitting ignores the zoom floor, otherwise large graphs never fit whole.
+const FIT_OPTIONS = { padding: 0.08, minZoom: 0 };
 
 // Safari still exposes the Fullscreen API under the webkit prefix, so fall back to
 // the prefixed members when the standard ones are absent.
@@ -170,6 +175,15 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const { getNodes, fitView } = useReactFlow();
 
+  // Zoom at which the whole graph fits; the floor drops to it so wheel zoom
+  // does not snap back past a fit on large graphs.
+  const fitZoom = useStore((s) => {
+    if (!s.width || !s.height || s.nodeLookup.size === 0) return MIN_ZOOM;
+    const bounds = getNodesBounds([...s.nodeLookup.keys()], { nodeLookup: s.nodeLookup });
+    return getViewportForBounds(bounds, s.width, s.height, 0, MAX_ZOOM, FIT_OPTIONS.padding).zoom;
+  });
+  const minZoom = Math.min(MIN_ZOOM, fitZoom);
+
   // Native Fullscreen API on the canvas wrapper — this covers the whole
   // screen (including the app sidebar), unlike a CSS-only overlay.
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -221,8 +235,8 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
   useEffect(() => {
     const raf = requestAnimationFrame(() =>
       highlightNodes.size > 0
-        ? fitView({ nodes: [...highlightNodes].map((id) => ({ id })), padding: 0.3, maxZoom: 1.2, duration: 400 })
-        : fitView({ padding: 0.08, duration: 400 }),
+        ? fitView({ nodes: [...highlightNodes].map((id) => ({ id })), padding: 0.3, minZoom: 0, maxZoom: 1.2, duration: 400 })
+        : fitView({ ...FIT_OPTIONS, duration: 400 }),
     );
     return () => cancelAnimationFrame(raf);
   }, [layoutedNodes, isFullscreen, highlightNodes, fitView]);
@@ -331,7 +345,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
     const bounds = getNodesBounds(getNodes());
     const w = 1800;
     const h = 1000;
-    const vp = getViewportForBounds(bounds, w, h, 0.4, 2.5, 0.12);
+    const vp = getViewportForBounds(bounds, w, h, 0, MAX_ZOOM, 0.12);
     // `cyber.bg` is a `var(--colorBackground)` reference — html-to-image needs a
     // resolved literal for its rasterised backgroundColor, so read the canvas
     // wrapper's actual computed (theme-resolved) background instead.
@@ -385,9 +399,9 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
-        fitViewOptions={{ padding: 0.08 }}
-        minZoom={0.25}
-        maxZoom={2.5}
+        fitViewOptions={FIT_OPTIONS}
+        minZoom={minZoom}
+        maxZoom={MAX_ZOOM}
         nodesConnectable={false}
         elementsSelectable
         proOptions={{ hideAttribution: true }}
@@ -431,7 +445,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
                 glyph="⇄"
               />
             )}
-            <ToolbarButton onClick={() => fitView({ padding: 0.08, duration: 400 })} label={labels.fit} glyph="⤢" />
+            <ToolbarButton onClick={() => fitView({ ...FIT_OPTIONS, duration: 400 })} label={labels.fit} glyph="⤢" />
             <ToolbarButton onClick={download} label={labels.download} glyph="↓" />
           </div>
         </Panel>

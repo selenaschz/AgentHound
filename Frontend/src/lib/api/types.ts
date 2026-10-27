@@ -8,14 +8,23 @@
  */
 
 /** A rule the uploaded file's framework can't reach, or only reaches once the
- * file declares a property (plan Phase 3.2, `catalogs/adapter_coverage.yaml`).
+ * file declares a property (`catalogs/adapter_coverage.yaml`).
  * `not_expressible`: the adapter can't produce the shape the rule needs.
- * `needs_declaration`: `message` names the property to declare. Always empty
- * for the generic format, which covers the full rule catalog. */
+ * `needs_declaration`: `properties` lists the properties to declare.
+ * `ignored_property`: a key in the file that looks like a declaration (a typo,
+ * or a property of another node type) was dropped; `rules` is empty.
+ * Always empty for the generic format. `message` is English; build translated
+ * text from the structured fields instead. */
 export interface CoverageWarning {
-  kind: "not_expressible" | "needs_declaration";
+  kind: "not_expressible" | "needs_declaration" | "ignored_property";
   rules: string[];
+  properties: string[];
   message: string;
+  /** `ignored_property` only: the node the key was on. */
+  node?: string;
+  node_type?: string;
+  /** `ignored_property` only: the property the key resembles, if any. */
+  suggestion?: string | null;
 }
 
 /** Summary block returned by `POST /analyses` (spec section 12.1). */
@@ -130,7 +139,7 @@ export interface BackendFinding {
   group_id: string;
 }
 
-/** Repeated occurrences of one root cause (M-13). `group_by: "rule"` collapses
+/** Repeated occurrences of one root cause. `group_by: "rule"` collapses
  * every finding of a rule (policy-absence rules, one per agent/tool/input);
  * `"source"` groups by rule and the first node of the path, which is
  * `anchor_node_id`. Ordered by `max_score` descending. */

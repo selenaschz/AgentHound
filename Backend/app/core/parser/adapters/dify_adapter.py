@@ -27,7 +27,6 @@ from ...ir.models import (
 from ._common import (
     IRBuilder,
     IdFactory,
-    apply_declared_properties,
     infer_asset_properties,
     infer_input_properties,
     infer_output_properties,
@@ -95,23 +94,25 @@ def load(data: dict[str, Any], analysis_id: str) -> AnalysisIR:
         if node_type in _INPUT_TYPES:
             nid = ids.make(NodeType.INPUT, title)
             props = infer_input_properties(title)
-            apply_declared_properties(props, section, NodeType.INPUT)
+            builder.declare(props, section, NodeType.INPUT, title)
             builder.add_node(nid, NodeType.INPUT, title, props)
             node_map[dify_id] = (nid, NodeType.INPUT)
         elif node_type in _AGENT_TYPES:
             nid = ids.make(NodeType.AGENT, title)
             props = {"role_type": "worker", "trust_level": "internal_logic", "autonomy_level": "full_auto", "guardrails": []}
-            apply_declared_properties(props, section, NodeType.AGENT)
+            builder.declare(props, section, NodeType.AGENT, title)
             builder.add_node(nid, NodeType.AGENT, title, props)
             node_map[dify_id] = (nid, NodeType.AGENT)
         elif node_type in _TOOL_TYPES:
             props = infer_tool_properties(title)
-            apply_declared_properties(props, section, NodeType.TOOL)
             if node_type == "http-request" and tool_effect(props) not in {"send", "fetchWeb"}:
+                # An HTTP request leaves the system whatever its title says.
+                # Applied before the declared values so the file still wins.
                 props["capability_kinds"] = ["send", "invokeTool"]
                 props["target_boundary"] = "external"
                 props["access_kind"] = "external_call"
                 props["side_effect"] = True
+            builder.declare(props, section, NodeType.TOOL, title)
             nid = ids.make(NodeType.TOOL, title)
             builder.add_node(nid, NodeType.TOOL, title, props)
             node_map[dify_id] = (nid, NodeType.TOOL)
@@ -119,7 +120,7 @@ def load(data: dict[str, Any], analysis_id: str) -> AnalysisIR:
         elif node_type in _ASSET_TYPES:
             nid = ids.make(NodeType.DATA_ASSET, title)
             props = infer_asset_properties(title)
-            apply_declared_properties(props, section, NodeType.DATA_ASSET)
+            builder.declare(props, section, NodeType.DATA_ASSET, title)
             builder.add_node(nid, NodeType.DATA_ASSET, title, props)
             node_map[dify_id] = (nid, NodeType.DATA_ASSET)
         elif node_type in _OUTPUT_TYPES:
@@ -129,7 +130,7 @@ def load(data: dict[str, Any], analysis_id: str) -> AnalysisIR:
             boundary = section.get("boundary")
             external = boundary is not None and str(boundary).strip().lower() == "external"
             props = infer_output_properties(title, external=external)
-            apply_declared_properties(props, section, NodeType.OUTPUT)
+            builder.declare(props, section, NodeType.OUTPUT, title)
             builder.add_node(nid, NodeType.OUTPUT, title, props)
             node_map[dify_id] = (nid, NodeType.OUTPUT)
         # Unsupported node kinds are skipped; their edges drop out below.
@@ -168,4 +169,5 @@ def load(data: dict[str, Any], analysis_id: str) -> AnalysisIR:
         metadata=Metadata(name=name),
         nodes=builder.nodes,
         edges=builder.edges,
+        parse_warnings=builder.warnings,
     )

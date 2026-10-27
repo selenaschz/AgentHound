@@ -212,7 +212,7 @@ tasks: {}
     assert "FH-003" not in _rule_ids(result.findings)
 
 
-# --- LangGraph shared memory (M-10) -----------------------------------------
+# --- LangGraph shared memory -----------------------------------------------
 
 _LANGGRAPH_MEMORY = """
 graph:
@@ -235,6 +235,31 @@ def test_langgraph_shared_memory_fires_memory_rules():
     assert {"FH-009", "FH-020"} <= _rule_ids(result.findings)
     caps = {(e.source, e.target): e.capability for e in result.ir.edges}
     assert caps[("memory_shared_memory", "agent_worker")] == "readMemory"
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    ["scope: organization", "memory_kind: shared_between_agents", "shared_with_agents: [intake, worker]"],
+)
+def test_langgraph_every_shared_memory_signal_fires_memory_rules(declaration):
+    # is_shared_memory() accepts four signals; the adapter must keep all of them.
+    yaml_text = _LANGGRAPH_MEMORY.format(shared="false").replace("shared: false", declaration)
+    result = analyze_text(yaml_text, framework_hint="langgraph")
+    assert {"FH-009", "FH-020"} <= _rule_ids(result.findings)
+    fh020 = next(f for f in result.findings if f.rule_id == "FH-020")
+    key, value = (part.strip() for part in declaration.split(":", 1))
+    if key == "shared_with_agents":
+        assert fh020.evidence[key] == ["intake", "worker"]
+    elif key == "memory_kind":
+        assert fh020.evidence[key] == value
+
+
+def test_fh020_evidence_reports_the_shared_flag():
+    # scope keeps its "session" default; the evidence must say why it's shared.
+    result = analyze_text(_LANGGRAPH_MEMORY.format(shared="true"), framework_hint="langgraph")
+    fh020 = next(f for f in result.findings if f.rule_id == "FH-020")
+    assert fh020.evidence["shared"] is True
+    assert fh020.evidence["scope"] == "session"
 
 
 def test_langgraph_unshared_memory_does_not_fire_memory_rules():
@@ -275,6 +300,10 @@ tasks: {}
     # Both the invoke hop and the tool's fetchWeb hop are highlighted.
     capabilities = {e.id: e.capability for e in result.ir.edges}
     assert {capabilities[eid] for eid in fh008[0].edges} == {"invokeTool", "fetchWeb"}
+    # Every highlighted edge has both ends on the path, so playback reaches it.
+    ends = {e.id: (e.source, e.target) for e in result.ir.edges}
+    for eid in fh008[0].edges:
+        assert set(ends[eid]) <= set(fh008[0].path)
 
 
 def test_crewai_browser_tool_with_allowlist_does_not_fire_fh008():
@@ -317,7 +346,7 @@ workflow:
     assert "FH-025" in _rule_ids(result.findings)
 
 
-# --- declared properties reach the analysis (M-11) --------------------------
+# --- declared properties reach the analysis ---------------------------------
 
 
 def test_crewai_regulated_data_fires_fh026():
@@ -373,6 +402,131 @@ tasks: {{}}
     result = analyze_text(yaml_text, framework_hint="crewai")
     assert verb in {e.capability for e in result.ir.edges}
     assert "FH-012" in _rule_ids(result.findings)
+
+
+@pytest.mark.parametrize("verb", ["deployRelease", "moveResource"])
+def test_declared_publish_capability_is_irreversible_and_not_a_message(verb):
+    # The verb implies an irreversible side effect (FH-032 for deployRelease),
+    # and its destination isn't a message output (no FH-022).
+    yaml_text = f"""
+agents:
+  releaser:
+    role: Releaser
+    inputs: ["Inbound email"]
+    tools: [{{name: release.tool, capability_kinds: [{verb}]}}]
+tasks: {{}}
+"""
+    result = analyze_text(yaml_text, framework_hint="crewai")
+    tool = next(n for n in result.ir.nodes if n.type.value == "tool")
+    assert tool.properties["side_effect"] is True
+    assert tool.properties["side_effect_reversible"] is False
+    fired = _rule_ids(result.findings)
+    assert "FH-022" not in fired
+    assert ("FH-032" in fired) == (verb == "deployRelease")
+
+
+def test_declared_reversibility_overrides_the_publish_default():
+    yaml_text = """
+agents:
+  releaser:
+    role: Releaser
+    tools: [{name: release.tool, capability_kinds: [deployRelease], side_effect_reversible: true}]
+tasks: {}
+"""
+    result = analyze_text(yaml_text, framework_hint="crewai")
+    tool = next(n for n in result.ir.nodes if n.type.value == "tool")
+    assert tool.properties["side_effect_reversible"] is True
+    assert "FH-032" not in _rule_ids(result.findings)
+
+
+def test_dify_http_request_keeps_declared_properties():
+    # http-request defaults to an external send, but what the file declares wins.
+    dsl = """
+workflow:
+  graph:
+    nodes:
+      - {id: s, data: {type: start, title: In}}
+      - {id: l, data: {type: llm, title: Agent}}
+      - id: h
+        data: {type: http-request, title: Inventory API, capability_kinds: [read],
+               target_boundary: internal, side_effect: false}
+      - {id: d, data: {type: http-request, title: Partner API}}
+    edges:
+      - {source: s, target: l}
+      - {source: l, target: h}
+      - {source: l, target: d}
+"""
+    result = analyze_text(dsl, framework_hint="dify")
+    tools = {n.name: n.properties for n in result.ir.nodes if n.type.value == "tool"}
+    declared = tools["Inventory API"]
+    assert declared["capability_kinds"] == ["read"]
+    assert declared["target_boundary"] == "internal"
+    assert declared["side_effect"] is False
+    # Undeclared, it's still treated as an external send.
+    assert tools["Partner API"]["capability_kinds"] == ["send", "invokeTool"]
+    assert tools["Partner API"]["target_boundary"] == "external"
+
+
+# --- ignored property declarations -------------------------------------------
+
+
+def _ignored(result):
+    return [w for w in result.ir.parse_warnings if w["kind"] == "ignored_property"]
+
+
+def test_typo_in_declared_property_is_reported():
+    yaml_text = """
+agents:
+  clerk:
+    role: Clerk
+    data_assets: [{name: Patients, contains_regulated_dta: [gdpr]}]
+tasks: {}
+"""
+    result = analyze_text(yaml_text, framework_hint="crewai")
+    assert "FH-026" not in _rule_ids(result.findings)
+    [warning] = _ignored(result)
+    assert warning["properties"] == ["contains_regulated_dta"]
+    assert warning["suggestion"] == "contains_regulated_data"
+    assert warning["node"] == "Patients"
+    assert warning["node_type"] == "data_asset"
+    assert warning["rules"] == []
+
+
+def test_property_of_another_node_type_is_reported():
+    yaml_text = """
+graph:
+  nodes:
+    - {name: intake, type: agent, recipient_type: public_channel}
+  edges: []
+"""
+    result = analyze_text(yaml_text, framework_hint="langgraph")
+    [warning] = _ignored(result)
+    assert warning["properties"] == ["recipient_type"]
+    assert warning["suggestion"] is None
+    assert warning["node_type"] == "agent"
+
+
+def test_dify_typo_is_reported():
+    dsl = """
+workflow:
+  graph:
+    nodes:
+      - {id: l, data: {type: llm, title: Agent, exposure_boundry: external}}
+    edges: []
+"""
+    result = analyze_text(dsl, framework_hint="dify")
+    [warning] = _ignored(result)
+    assert warning["suggestion"] == "exposure_boundary"
+
+
+@pytest.mark.parametrize(
+    "fixture",
+    ["crewai_risky.yaml", "crewai_safe.yaml", "dify_risky.yaml", "dify_safe.yaml",
+     "langgraph_risky.yaml", "langgraph_safe.yaml"],
+)
+def test_framework_native_keys_are_not_reported(fixture):
+    # backstory, goal, title, delegates_to... belong to the framework.
+    assert _ignored(analyze_text(fixture_text(fixture))) == []
 
 
 def test_dify_declared_properties_are_kept():

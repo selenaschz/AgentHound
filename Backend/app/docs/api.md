@@ -40,19 +40,38 @@ Response:
                "critical": 0, "high": 0, "medium": 0, "max_score": 0.0 },
   "warnings": [
     { "kind": "needs_declaration", "rules": ["FH-026"],
-      "message": "Declare `contains_regulated_data: [gdpr]` on the data asset." }
+      "properties": ["contains_regulated_data"],
+      "message": "Declare `contains_regulated_data: [gdpr]` on the data asset." },
+    { "kind": "ignored_property", "rules": [],
+      "properties": ["contains_regulated_dta"],
+      "node": "Patients", "node_type": "data_asset",
+      "suggestion": "contains_regulated_data",
+      "message": "`contains_regulated_dta` on data_asset 'Patients' is not a known property and was ignored; did you mean `contains_regulated_data`?" }
   ]
 }
 ```
 
-`warnings` lists the rules the file's framework can't reach, from
+`warnings` first lists the rules the file's framework can't reach, from
 [`catalogs/adapter_coverage.yaml`](../catalogs/adapter_coverage.yaml).
 `kind` is `not_expressible` (the adapter can't produce the shape the rule needs)
 or `needs_declaration` (the rule fires once the file declares the property the
-`message` names). It's always `[]` for the generic format, which covers the full
-rule catalog. The warnings depend only on the framework, so `GET
-/analyses/{analysis_id}` and `POST .../analyze` return the same array, including
-for analyses saved before the field existed.
+`message` names). These are always absent for the generic format, which covers
+the full rule catalog. They depend only on the framework, so they're also
+returned for analyses saved before the field existed.
+
+Then come the file's own `ignored_property` entries: a key on a framework node
+that looks like a property declaration but was dropped, either a near-miss of a
+property the node accepts (`suggestion` names it) or a property that belongs to
+another node type (`suggestion` is `null`). Other unknown keys are taken to be
+the framework's own (`backstory`, `title`...) and aren't reported. The generic
+format validates its properties in the normalizer instead, so it never returns
+these.
+
+Every entry has `kind`, `rules`, `properties` and `message`. `message` is
+English; a client that translates should build its text from `kind`, `rules`
+and `properties` (plus `node`, `node_type` and `suggestion` on
+`ignored_property`). `GET /analyses/{analysis_id}` and `POST .../analyze` return
+the same array.
 
 Common errors: `EMPTY_INPUT`, `INVALID_YAML`, `INVALID_NODE_TYPE`,
 `UNKNOWN_CAPABILITY`, `INVALID_IR` (400).
@@ -229,6 +248,13 @@ it. The stored analysis is never mutated. Response:
 `risk_reduction.absolute`/`percentage` sum the scores of every finding, so a
 cause that repeats N times counts N times. `by_group` is the same reduction with
 each root-cause group counted once, at its highest score.
+
+Because a group counts at its highest score, a partial fix doesn't move
+`by_group` until the group's worst finding is gone. This matters most for the
+`group_by: rule` groups, which hold one finding per agent, tool or input: with
+22 agents behind FH-028, mitigating 21 of them leaves that group's contribution
+unchanged, and it drops only when the last one is fixed. Use the top-level
+figure to see progress on individual findings.
 
 The returned `graph` includes the applied controls as `type: control` nodes and
 flags the affected edges `blocked`/`mitigated`. Errors: `UNKNOWN_CONTROL`,

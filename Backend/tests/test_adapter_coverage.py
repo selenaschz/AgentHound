@@ -1,4 +1,4 @@
-"""``catalogs/adapter_coverage.yaml`` matches what each adapter can reach (plan 3.2).
+"""``catalogs/adapter_coverage.yaml`` matches what each adapter can reach.
 
 Each ``coverage_<framework>.yaml`` fixture is written to reach every rule its
 adapter can express, using the declarations the catalog names. So for each
@@ -14,7 +14,8 @@ from fastapi.testclient import TestClient
 
 from app.core.catalogs import adapter_coverage_catalog, rule_catalog
 from app.core.coverage import coverage_warnings
-from app.core.ir.models import SourceFramework
+from app.core.ir.models import NodeType, SourceFramework
+from app.core.parser.adapters._common import declarable_properties
 from app.core.pipeline import analyze_text
 from app.main import app
 
@@ -61,6 +62,15 @@ def test_catalog_entries_are_well_formed():
         assert gap["rules"] and set(gap["rules"]) <= rules, gap
         assert gap["frameworks"] and set(gap["frameworks"]) <= valid, gap
         assert str(gap["message"]).strip(), gap
+        # needs_declaration names its properties so a client can render its own
+        # text; each one must be a real property and appear in the message.
+        if gap["kind"] == "needs_declaration":
+            assert gap["properties"], gap
+            for prop in gap["properties"]:
+                assert any(prop in declarable_properties(t) for t in NodeType), (gap, prop)
+                assert f"`{prop}" in gap["message"], (gap, prop)
+        else:
+            assert not gap.get("properties"), gap
 
 
 def test_a_rule_is_not_both_expressible_and_not_for_one_framework():
@@ -94,11 +104,11 @@ def test_generic_has_no_warnings():
     assert coverage_warnings(SourceFramework.GENERIC) == []
 
 
-def test_warnings_carry_kind_rules_and_one_line_message():
+def test_warnings_carry_kind_rules_properties_and_one_line_message():
     warnings = coverage_warnings(SourceFramework.CREWAI)
     assert warnings
     for warning in warnings:
-        assert set(warning) == {"kind", "rules", "message"}
+        assert set(warning) == {"kind", "rules", "message", "properties"}
         assert "\n" not in warning["message"]
     declared = {r for w in warnings if w["kind"] == "needs_declaration" for r in w["rules"]}
     assert {"FH-012", "FH-017", "FH-025", "FH-026"} <= declared
@@ -119,6 +129,23 @@ def test_api_returns_warnings_on_parse_detail_and_analyze():
     analyzed = client.post(f"/analyses/{analysis_id}/analyze")
     assert analyzed.status_code == 200, analyzed.text
     assert analyzed.json()["warnings"] == expected
+
+
+def test_api_appends_ignored_property_warnings_after_coverage():
+    text = "agents:\n  clerk:\n    role: Clerk\n    data_assets: [{name: Patients, sensitivty: high}]\ntasks: {}\n"
+    created = client.post("/analyses", files={"file": ("crew.yaml", text, "application/x-yaml")})
+    assert created.status_code == 200, created.text
+    warnings = created.json()["warnings"]
+    coverage = coverage_warnings(SourceFramework.CREWAI)
+    assert warnings[: len(coverage)] == coverage
+    [ignored] = warnings[len(coverage) :]
+    assert ignored["kind"] == "ignored_property"
+    assert ignored["suggestion"] == "sensitivity"
+
+    # Stored with the analysis, so the detail and analyze responses repeat it.
+    analysis_id = created.json()["analysis_id"]
+    assert client.get(f"/analyses/{analysis_id}").json()["warnings"] == warnings
+    assert client.post(f"/analyses/{analysis_id}/analyze").json()["warnings"] == warnings
 
 
 def test_api_generic_upload_has_empty_warnings():

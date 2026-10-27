@@ -38,7 +38,6 @@ from ...ir.models import (
 from ._common import (
     IRBuilder,
     IdFactory,
-    apply_declared_properties,
     as_list,
     infer_asset_properties,
     infer_input_properties,
@@ -97,14 +96,14 @@ def _build_node(builder: IRBuilder, ids: IdFactory, name: str, payload: Mapping[
             "guardrails": [],
             "has_scoped_delegation": False,
         }
-        apply_declared_properties(agent_props, payload, NodeType.AGENT)
+        builder.declare(agent_props, payload, NodeType.AGENT, name)
         builder.add_node(nid, NodeType.AGENT, name, agent_props)
         for raw_tool in as_list(payload.get("tools")):
             tname = raw_tool.get("name") if isinstance(raw_tool, Mapping) else str(raw_tool)
             if not tname:
                 continue
             props = infer_tool_properties(str(tname))
-            apply_declared_properties(props, raw_tool, NodeType.TOOL)
+            builder.declare(props, raw_tool, NodeType.TOOL, str(tname))
             tool_id = ids.make(NodeType.TOOL, str(tname))
             builder.add_node(tool_id, NodeType.TOOL, str(tname), props)
             route_tool_effect(builder, ids, nid, tool_id, props)
@@ -113,14 +112,14 @@ def _build_node(builder: IRBuilder, ids: IdFactory, name: str, payload: Mapping[
     if node_type == NodeType.INPUT:
         nid = ids.make(NodeType.INPUT, name)
         props = infer_input_properties(name)
-        apply_declared_properties(props, payload, NodeType.INPUT)
+        builder.declare(props, payload, NodeType.INPUT, name)
         builder.add_node(nid, NodeType.INPUT, name, props)
         return nid
 
     if node_type == NodeType.DATA_ASSET:
         nid = ids.make(NodeType.DATA_ASSET, name)
         props = infer_asset_properties(name)
-        apply_declared_properties(props, payload, NodeType.DATA_ASSET)
+        builder.declare(props, payload, NodeType.DATA_ASSET, name)
         builder.add_node(nid, NodeType.DATA_ASSET, name, props)
         return nid
 
@@ -132,20 +131,20 @@ def _build_node(builder: IRBuilder, ids: IdFactory, name: str, payload: Mapping[
         boundary = payload.get("boundary") if "boundary" in payload else None
         external = None if boundary is None else str(boundary).strip().lower() == "external"
         props = infer_output_properties(name, external=external)
-        apply_declared_properties(props, payload, NodeType.OUTPUT)
+        builder.declare(props, payload, NodeType.OUTPUT, name)
         builder.add_node(nid, NodeType.OUTPUT, name, props)
         return nid
 
     if node_type == NodeType.MEMORY:
         nid = ids.make(NodeType.MEMORY, name)
         props = {"sensitivity": "medium", "shared": False}
-        apply_declared_properties(props, payload, NodeType.MEMORY)
+        builder.declare(props, payload, NodeType.MEMORY, name)
         builder.add_node(nid, NodeType.MEMORY, name, props)
         return nid
 
     nid = ids.make(NodeType.CONTROL, name)
     props = {"status": "present", "effect": "total"}
-    apply_declared_properties(props, payload, NodeType.CONTROL)
+    builder.declare(props, payload, NodeType.CONTROL, name)
     builder.add_node(nid, NodeType.CONTROL, name, props)
     return nid
 
@@ -240,4 +239,5 @@ def load(data: dict[str, Any], analysis_id: str) -> AnalysisIR:
         metadata=Metadata(name=str(data.get("name") or "LangGraph app")),
         nodes=builder.nodes,
         edges=builder.edges,
+        parse_warnings=builder.warnings,
     )

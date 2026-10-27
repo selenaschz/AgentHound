@@ -14,6 +14,7 @@ externality and reversibility live on node properties, never in the verb.
 
 from __future__ import annotations
 
+import difflib
 import re
 from collections.abc import Mapping
 from typing import Any
@@ -31,11 +32,26 @@ _EXTRA_DECLARABLE: dict[NodeType, tuple[str, ...]] = {
     NodeType.TOOL: ("capability_kinds", "access_kind"),
     NodeType.DATA_ASSET: ("asset_kind",),
     NodeType.OUTPUT: ("output_kind",),
+    # The two is_shared_memory() signals that have no catalog default.
+    NodeType.MEMORY: ("memory_kind", "shared_with_agents"),
 }
 
 # Declarable properties whose value is a list of strings. A scalar is wrapped so
 # rules do a membership test, not a substring match over a string.
-_LIST_PROPERTIES = {"capability_kinds"}
+_LIST_PROPERTIES = {"capability_kinds", "shared_with_agents"}
+
+# Declaring one of these verbs on a tool means it publishes or moves something
+# out of the system: a side effect that can't simply be undone. FH-032 keys on
+# side_effect_reversible, which otherwise keeps its reversible default.
+_IRREVERSIBLE_VERBS = {"deployRelease", "moveResource"}
+
+# output_kind of the destination a deployRelease/moveResource tool writes to.
+DEPLOYMENT_TARGET = "deployment_target"
+
+# How close an unknown key must be to a declarable property to be reported as
+# a likely typo. Framework files carry many native keys (backstory, desc,
+# model...); only near-misses of a property name are worth a warning.
+_TYPO_CUTOFF = 0.85
 
 
 def slugify(value: str) -> str:
@@ -67,7 +83,8 @@ def apply_declared_properties(props: dict[str, Any], raw: Any, node_type: NodeTy
 
     Declared values win over inferred ones. Unknown keys are ignored so a
     structural key (``tools``, ``inputs``...) or a typo cannot clobber a derived
-    property. List-valued properties are coerced to a list of strings.
+    property; ``ignored_declarations`` reports the likely mistakes among them.
+    List-valued properties are coerced to a list of strings.
     """
     if not isinstance(raw, Mapping):
         return
@@ -80,6 +97,59 @@ def apply_declared_properties(props: dict[str, Any], raw: Any, node_type: NodeTy
         if value is None:
             continue
         props[key] = [str(v) for v in as_list(value)] if key in list_keys else value
+
+    if node_type == NodeType.TOOL and _IRREVERSIBLE_VERBS & set(as_list(raw.get("capability_kinds"))):
+        for key, implied in (("side_effect", True), ("side_effect_reversible", False)):
+            if raw.get(key) is None:
+                props[key] = implied
+
+
+def ignored_declarations(raw: Any, node_type: NodeType) -> list[dict[str, Any]]:
+    """Keys in ``raw`` that look like a property declaration but are dropped.
+
+    Two cases are reported, each as ``{property, suggestion}``:
+
+    - a catalogued property of another node type (``suggestion`` is None), and
+    - a near-miss of a property this node type accepts, i.e. a likely typo
+      (``suggestion`` is the property it resembles).
+
+    Every other unknown key is taken to be the framework's own (``backstory``,
+    ``title``, ``tools``...) and stays silent.
+    """
+    if not isinstance(raw, Mapping):
+        return []
+    accepted = declarable_properties(node_type)
+    elsewhere = set().union(*(declarable_properties(t) for t in NodeType if t != node_type)) - accepted
+    ignored: list[dict[str, Any]] = []
+    for key in raw:
+        key = str(key)
+        if key in accepted:
+            continue
+        if key in elsewhere:
+            ignored.append({"property": key, "suggestion": None})
+            continue
+        close = difflib.get_close_matches(key, accepted, n=1, cutoff=_TYPO_CUTOFF)
+        if close:
+            ignored.append({"property": key, "suggestion": close[0]})
+    return ignored
+
+
+def ignored_property_warning(node_type: NodeType, name: str, item: dict[str, Any]) -> dict[str, Any]:
+    """The ``warnings[]`` entry for one ``ignored_declarations`` item."""
+    key, suggestion = item["property"], item["suggestion"]
+    if suggestion:
+        message = f"`{key}` on {node_type.value} '{name}' is not a known property and was ignored; did you mean `{suggestion}`?"
+    else:
+        message = f"`{key}` is not read on {node_type.value} nodes, so it was ignored on '{name}'."
+    return {
+        "kind": "ignored_property",
+        "rules": [],
+        "message": message,
+        "properties": [key],
+        "node": name,
+        "node_type": node_type.value,
+        "suggestion": suggestion,
+    }
 
 
 class IdFactory:
@@ -299,9 +369,21 @@ class IRBuilder:
     def __init__(self) -> None:
         self.nodes: list[Node] = []
         self.edges: list[Edge] = []
+        # ignored_property warnings, one per (node type, node name, key).
+        self.warnings: list[dict[str, Any]] = []
         self._node_ids: set[str] = set()
         self._edge_ids: set[str] = set()
+        self._warned: set[tuple[str, str, str]] = set()
         self._edge_seq = 0
+
+    def declare(self, props: dict[str, Any], raw: Any, node_type: NodeType, name: str) -> None:
+        """``apply_declared_properties`` plus a warning for each ignored key."""
+        apply_declared_properties(props, raw, node_type)
+        for item in ignored_declarations(raw, node_type):
+            seen = (node_type.value, name, item["property"])
+            if seen not in self._warned:
+                self._warned.add(seen)
+                self.warnings.append(ignored_property_warning(node_type, name, item))
 
     def add_node(self, node_id: str, node_type: NodeType, name: str, properties: dict[str, Any]) -> str:
         if node_id not in self._node_ids:
@@ -353,14 +435,12 @@ def synthesize_tool_effect(
 
     if effect in {"deployRelease", "moveResource"}:
         # Publishing a release or moving a resource lands outside the system,
-        # which is what FH-012 (external publication) keys on.
+        # which is what FH-012 (external publication) keys on. It's not a
+        # message, so FH-022's content filter / PII redaction doesn't apply.
         out_id = ids.make(NodeType.OUTPUT, f"{tool_name} destination")
-        builder.add_node(
-            out_id,
-            NodeType.OUTPUT,
-            f"{tool_name} destination",
-            infer_output_properties(tool_name, external=True),
-        )
+        out_props = infer_output_properties(tool_name, external=True)
+        out_props["output_kind"] = DEPLOYMENT_TARGET
+        builder.add_node(out_id, NodeType.OUTPUT, f"{tool_name} destination", out_props)
         builder.add_edge(tool_id, out_id, effect)
         return
 

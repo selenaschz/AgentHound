@@ -165,7 +165,7 @@ implemented on the `new-catalog-rules` branch.
   adapter writes it and it is a catalogued memory property, but the helper did
   not read it, so LangGraph shared memory never fired FH-009/FH-020.)
 
-## Adapter/rule alignment (review of the v0.1.0 case studies)
+## Adapter/rule alignment
 
 - **LangGraph memory -> agent is `readMemory`.** It was labelled `dataFlow`,
   but FH-009 requires `readMemory` on that hop, so memory poisoning was
@@ -186,14 +186,29 @@ implemented on the `new-catalog-rules` branch.
   `exposure_boundary` (FH-017), `idempotent` (FH-031). `apply_declared_properties()`
   now copies any property catalogued for the node type in
   `node_properties.yaml`, plus a few descriptive extras. Declared values win
-  over inferred ones; unknown keys are still ignored. Dify reads them from each
-  node's `data` block.
+  over inferred ones. Dify reads them from each node's `data` block, and an
+  `http-request` node's external-send defaults apply only to the keys it
+  doesn't declare. Memory also accepts `memory_kind` and `shared_with_agents`,
+  the two `is_shared_memory()` signals with no catalog default.
+
+- **Ignored declarations are reported.** Unknown keys are still dropped, so a
+  structural key can't clobber a derived property, but a dropped key that looks
+  like a declaration now comes back as an `ignored_property` warning: a near-miss
+  of an accepted property (difflib ratio >= 0.85, so `contains_regulated_dta`
+  suggests `contains_regulated_data`) or a property of another node type. Other
+  unknown keys are the framework's own (`backstory`, `title`...) and stay
+  silent; on the bundled examples none are reported. The
+  warnings depend on the file, so they're stored on the IR (`parse_warnings`).
 
 - **Declared `deployRelease`/`moveResource` are routed.** A tool declared with
   either verb in `capability_kinds` used to get only an `invokeTool` edge, so
   FH-012 could not fire from a framework file. The tool now gains an external
   destination output reached by that verb. No tool name infers these verbs; they
-  have to be declared.
+  have to be declared. Declaring either one also sets `side_effect: true` and
+  `side_effect_reversible: false` unless the file states them, so FH-032 sees a
+  deployment tool as irreversible. The destination is marked
+  `output_kind: deployment_target`, which FH-022 skips: it carries no message
+  content to filter or redact.
 
 - **Graph nodes carry `finding_ids` and `risk_level`.** Node-scoped findings
   have no edges, so they coloured nothing on the graph. Nodes now carry the same
@@ -205,20 +220,22 @@ implemented on the `new-catalog-rules` branch.
   rules now detect the verb on an edge in either direction via
   `has_interpret_intent()`, with fixtures covering the inbound case.
 
-## Engine review follow-ups (backend-updates)
+## Engine follow-ups
 
-- **Scoring left as published.** The external review (M-12/M-14) showed many
-  critical findings tie at the 10.0 ceiling. The team chose to keep the score,
-  weights and clamp exactly as in the paper (§VI) and accept the ties. Known
+- **Scoring left as published.** On large architectures many critical findings
+  tie at the 10.0 ceiling. The score, weights and clamp stay exactly as in the
+  paper (§VI) and the ties are accepted. Known
   side effect: the simulator subtracts mitigation credit from the clamped score,
   so on a saturated finding it overstates the percentage reduction.
 
-- **Root-cause grouping (M-13).** The "root-cause de-duplication" noted above as
+- **Root-cause grouping.** The "root-cause de-duplication" noted above as
   optional is now implemented as a grouping layer, not de-duplication: no
   finding, score or severity changes. Each finding gets a `group_id`, and the
   API returns `groups[]`. The key is declared per rule (`group_by` in
   `rules.yaml`): `rule` for the seven policy-absence rules that fire once per
   agent/tool/input, `source` (rule + first path node) for everything else. On
-  the three 64-node case studies this takes 110–238 findings down to 45–88
+  three 64-node test architectures this takes 110–238 findings down to 45–88
   groups. Simulation adds `risk_reduction.by_group`, which counts each group
-  once; the per-finding figure the paper reports is unchanged.
+  once at its highest score; the per-finding figure the paper reports is
+  unchanged. A partial fix therefore doesn't move `by_group` until a group's
+  worst finding is gone (see `api.md`).

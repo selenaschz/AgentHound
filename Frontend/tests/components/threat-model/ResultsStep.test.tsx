@@ -44,6 +44,13 @@ describe("ResultsStep — finding cards", () => {
     expect(cardFor("FH-001 #2")).toBeDefined();
   });
 
+  it("shows each finding's id next to its label", () => {
+    openAttackGroup();
+
+    const texts = Array.from(cardFor("FH-001 #2")!.querySelectorAll("*"), (el) => el.textContent);
+    expect(texts).toContain("f2");
+  });
+
   it("selects a card's finding in the graph and toggles it off on a second press", () => {
     openAttackGroup();
     const scroll = vi.spyOn(HTMLElement.prototype, "scrollIntoView");

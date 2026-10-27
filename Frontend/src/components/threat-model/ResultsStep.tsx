@@ -148,6 +148,7 @@ function FindingCard({ finding, label, route, isDarkMode, tSeverity, scoreLabel,
             <Inline space={8} alignItems="center" wrap verticalSpace={4}>
               <SeverityBadge severity={finding.severity} small>{tSeverity(finding.severity)}</SeverityBadge>
               <Text1 medium color={skinVars.colors.textSecondary}>{label}</Text1>
+              <Text1 regular color={skinVars.colors.textSecondary}>{finding.id}</Text1>
               <Tag type="inactive" small>{formatSnakeCase(finding.category)}</Tag>
             </Inline>
             <Text2 medium color={accent}>{scoreLabel}: {finding.score}</Text2>

@@ -120,6 +120,10 @@ class Finding(BaseModel):
     owasp_agentic: list[str] = Field(default_factory=list)
     owasp_llm: list[str] = Field(default_factory=list)
     mitre_atlas: list[str] = Field(default_factory=list)
+    group_id: str = Field(
+        default="",
+        description="Root-cause group this finding belongs to (see rules/grouping.py).",
+    )
 
     @computed_field
     @property

@@ -11,6 +11,7 @@ import networkx as nx
 from ..graph.traversal import CapabilityGraph
 from ..ir.models import Finding
 from . import edge_rules, node_rules, path_rules
+from .grouping import group_findings
 
 # Registered rule callables.
 # Phase A-C: FH-001/002/003/006/010/011/014.
@@ -80,5 +81,9 @@ def run_rules(graph: nx.MultiDiGraph, max_depth: int = 8) -> list[Finding]:
 
     for index, finding in enumerate(findings, start=1):
         finding.id = f"finding_{index:03d}"
+
+    # Root-cause groups (M-13) are numbered after the final ordering so a
+    # group's first member is its highest-scoring finding.
+    group_findings(findings)
 
     return findings

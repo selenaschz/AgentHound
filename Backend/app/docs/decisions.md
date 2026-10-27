@@ -204,3 +204,21 @@ implemented on the `new-catalog-rules` branch.
   and no adapter emitted it, so FH-015/FH-033 could silently never fire. Both
   rules now detect the verb on an edge in either direction via
   `has_interpret_intent()`, with fixtures covering the inbound case.
+
+## Engine review follow-ups (backend-updates)
+
+- **Scoring left as published.** The external review (M-12/M-14) showed many
+  critical findings tie at the 10.0 ceiling. The team chose to keep the score,
+  weights and clamp exactly as in the paper (§VI) and accept the ties. Known
+  side effect: the simulator subtracts mitigation credit from the clamped score,
+  so on a saturated finding it overstates the percentage reduction.
+
+- **Root-cause grouping (M-13).** The "root-cause de-duplication" noted above as
+  optional is now implemented as a grouping layer, not de-duplication: no
+  finding, score or severity changes. Each finding gets a `group_id`, and the
+  API returns `groups[]`. The key is declared per rule (`group_by` in
+  `rules.yaml`): `rule` for the seven policy-absence rules that fire once per
+  agent/tool/input, `source` (rule + first path node) for everything else. On
+  the three 64-node case studies this takes 110–238 findings down to 45–88
+  groups. Simulation adds `risk_reduction.by_group`, which counts each group
+  once; the per-finding figure the paper reports is unchanged.

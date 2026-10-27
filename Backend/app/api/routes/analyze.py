@@ -14,6 +14,7 @@ from fastapi import APIRouter, File, Form, UploadFile
 from ...core.graph.serializer import serialize_graph
 from ...core.ir.models import AnalyzeRequest
 from ...core.pipeline import analyze_graph, analyze_stored, parse_text
+from ...core.rules.grouping import group_findings
 from ...core.storage.repository import repository
 from ..errors import as_http_error
 
@@ -139,6 +140,7 @@ def analyze_analysis(analysis_id: str, request: AnalyzeRequest | None = None) ->
         result = analyze_stored(stored)
     else:
         result = analyze_graph(stored, request.nodes, request.edges)
+    groups = group_findings(result.findings)
     return {
         "analysis_id": result.ir.analysis_id,
         "status": "completed",
@@ -146,4 +148,5 @@ def analyze_analysis(analysis_id: str, request: AnalyzeRequest | None = None) ->
         "summary": result.summary().model_dump(),
         "graph": serialize_graph(result.ir, result.findings),
         "findings": [f.model_dump() for f in result.findings],
+        "groups": groups,
     }

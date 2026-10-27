@@ -73,9 +73,12 @@ Response (same shape as `/analyze` produces for the results view):
   "summary": { "nodes": 7, "edges": 6, "findings": 3,
                "critical": 1, "high": 2, "medium": 0, "max_score": 10.0 },
   "graph": { "nodes": [], "edges": [] },
-  "findings": [ { "id", "rule_id", ... } ]
+  "findings": [ { "id", "rule_id", "group_id", ... } ],
+  "groups": [ { "group_id", "rule_id", "count", ... } ]
 }
 ```
+
+`groups` is described under `GET .../findings`.
 
 The stored analysis is overwritten under the same id, so subsequent
 `GET .../graph`, `GET .../findings` and the control endpoints reflect the
@@ -110,10 +113,24 @@ Returns findings ordered by `score` descending:
 
 ```json
 { "findings": [ { "id", "rule_id", "title", "severity", "score", "category",
-                  "finding_class", "path": [], "edges": [], "derivation",
+                  "finding_class", "group_id", "path": [], "edges": [], "derivation",
                   "evidence": {}, "recommended_controls": [], "owasp_agentic": [],
-                  "owasp_llm": [], "mitre_atlas": [] } ] }
+                  "owasp_llm": [], "mitre_atlas": [] } ],
+  "groups": [ { "group_id", "rule_id", "title", "group_by", "anchor_node_id",
+                "finding_class", "count", "max_score", "severity",
+                "representative_finding_id", "finding_ids": [] } ] }
 ```
+
+`groups` collapses repeated occurrences of one root cause (`core/rules/grouping.py`).
+Each finding's `group_id` names its group. A rule's `group_by` in `rules.yaml`
+sets the key: `rule` puts every finding of that rule in one group (the
+policy-absence rules FH-021/022/027/028/033/034/035, which fire once per
+agent/tool/input), and `source` (the default) groups by rule and the first node
+of the finding's `path`, so the routes from one entry point to several sinks
+form one group. `anchor_node_id` is that first node, or `null` for `rule`
+groups. Groups are ordered by `max_score` descending; `representative_finding_id`
+is the group's highest-scoring finding. Grouping changes no score, severity or
+finding. `/analyze` returns the same `groups` array.
 
 `finding_class` is a derived label, not a stored field: `"attack"` for an
 exploitable capability path, or `"hygiene"` for a hygiene/compliance signal (the
@@ -185,7 +202,8 @@ it. The stored analysis is never mutated. Response:
   ],
   "before": { "finding_count": 3, "critical_count": 1, "max_score": 10.0 },
   "after":  { "finding_count": 2, "critical_count": 0, "max_score": 8.8 },
-  "risk_reduction": { "absolute": 10.0, "percentage": 36.2 },
+  "risk_reduction": { "absolute": 10.0, "percentage": 36.2,
+                      "by_group": { "absolute": 10.0, "percentage": 41.0 } },
   "broken_paths": [
     { "finding_id": "finding_001", "rule_id": "FH-001",
       "broken_by": "humanInTheLoop", "target_node_id": "output_email_candidate" }
@@ -193,6 +211,10 @@ it. The stored analysis is never mutated. Response:
   "graph": { "nodes": [], "edges": [] }
 }
 ```
+
+`risk_reduction.absolute`/`percentage` sum the scores of every finding, so a
+cause that repeats N times counts N times. `by_group` is the same reduction with
+each root-cause group counted once, at its highest score.
 
 The returned `graph` includes the applied controls as `type: control` nodes and
 flags the affected edges `blocked`/`mitigated`. Errors: `UNKNOWN_CONTROL`,

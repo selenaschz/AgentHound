@@ -113,10 +113,31 @@ export interface BackendFinding {
   mitre_atlas: string[];
   /** Derived channel: "attack" for exploitable paths, "hygiene" for compliance gaps. */
   finding_class: "attack" | "hygiene";
+  /** Root-cause group this finding belongs to (see {@link FindingGroup}). */
+  group_id: string;
+}
+
+/** Repeated occurrences of one root cause (M-13). `group_by: "rule"` collapses
+ * every finding of a rule (policy-absence rules, one per agent/tool/input);
+ * `"source"` groups by rule and the first node of the path, which is
+ * `anchor_node_id`. Ordered by `max_score` descending. */
+export interface FindingGroup {
+  group_id: string;
+  rule_id: string;
+  title: string;
+  group_by: "rule" | "source";
+  anchor_node_id: string | null;
+  finding_class: "attack" | "hygiene";
+  count: number;
+  max_score: number;
+  severity: string;
+  representative_finding_id: string;
+  finding_ids: string[];
 }
 
 export interface FindingsResponse {
   findings: BackendFinding[];
+  groups: FindingGroup[];
 }
 
 // --- Phase 2: control recommendation + simulation (spec sections 12.5-12.6) --
@@ -173,6 +194,11 @@ export interface SimSummary {
 export interface RiskReduction {
   absolute: number;
   percentage: number;
+  /** Same reduction with each root-cause group counted once at its max score. */
+  by_group: {
+    absolute: number;
+    percentage: number;
+  };
 }
 
 /** A before-finding whose (rule_id, path) no longer appears after the
@@ -235,6 +261,7 @@ export interface AnalyzeResponse {
   summary: BackendSummary;
   graph: BackendGraph;
   findings: BackendFinding[];
+  groups: FindingGroup[];
 }
 
 /** The error envelope every non-2xx response is expected to carry (spec

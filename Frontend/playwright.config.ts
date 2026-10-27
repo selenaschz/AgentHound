@@ -36,7 +36,7 @@ export default defineConfig({
   webServer: {
     // Dedicated port so an already running local server is never reused.
     command: "next build && next start --port 3013",
-    env: { NEXT_DISABLE_STANDALONE: "1" },
+    env: { NEXT_DISABLE_STANDALONE: "1", NEXT_DIST_DIR: ".next-visual" },
     url: "http://localhost:3013",
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

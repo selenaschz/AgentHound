@@ -1,0 +1,15 @@
+{
+  "analysis_id": "ops-destructive",
+  "name": "IT Ops Assistant (risky)",
+  "source_framework": "langgraph",
+  "uploaded_at": "2026-10-23T09:00:00+00:00",
+  "summary": {
+    "nodes": 9,
+    "edges": 8,
+    "findings": 17,
+    "critical": 2,
+    "high": 8,
+    "medium": 5,
+    "max_score": 10.0
+  }
+}

@@ -22,7 +22,7 @@ import type { Attack, ControlInfo, GraphEdge, GraphNode, NodeType } from "@/type
 import { cyber, getSeverityPath, NODE_STYLE, useIsDarkMode, type PathSeverity } from "@/components/threat-model/graph/cyberGraphTheme";
 import { GLYPH, nodeTypes } from "@/components/threat-model/graph/nodeTypes";
 import { edgeTypes, SeverityPathContext } from "@/components/threat-model/graph/edgeTypes";
-import { buildGraph, type CyberNode } from "@/components/threat-model/graph/toReactFlow";
+import { buildGraph, playbackFrame, primaryRouteId, type CyberNode, type FindingRoute } from "@/components/threat-model/graph/toReactFlow";
 import { dagreLayout } from "@/components/threat-model/graph/dagreLayout";
 
 /** Imperative handle so the parent (which owns the node-detail Drawer's open
@@ -51,8 +51,11 @@ export interface CyberGraphProps {
   /** Whether the Proposed Solution tab has data; toggling into it while false
    * leaves fullscreen so the "unavailable" notice above the canvas is visible. */
   solutionAvailable?: boolean;
+  highlight?: GraphHighlight | null;
+  onClearHighlight?: () => void;
   labels: {
     playAttack: string;
+    playRoute: (label: string) => string;
     stop: string;
     fit: string;
     fullscreen: string;
@@ -75,8 +78,19 @@ export interface CyberGraphProps {
     recommendedControls: string;
     /** Per-effect tag shown next to each control in the padlock tooltip. */
     controlEffect: { total: string; partial: string };
+    highlightedRoute: string;
+    playingRoute: string;
+    nextRoute: (label: string) => string;
+    clearHighlight: string;
   };
 }
+
+export interface GraphHighlight extends FindingRoute {
+  label: string;
+  summary: string;
+}
+
+type PlayedRoute = FindingRoute & { label: string; summary?: string };
 
 const CANVAS_H = 540;
 
@@ -98,7 +112,7 @@ function exitFullscreen() {
 }
 
 const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
-  { solved, nodes, edges, attacks, name, nodeControls, edgeControls, onNodeClick, onToggleView, solutionAvailable, labels },
+  { solved, nodes, edges, attacks, name, nodeControls, edgeControls, onNodeClick, onToggleView, solutionAvailable, highlight, onClearHighlight, labels },
   ref,
 ) {
   const isDark = useIsDarkMode();
@@ -151,7 +165,8 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(built.edges);
-  const [playStep, setPlayStep] = useState<number | null>(null);
+  const [playback, setPlayback] = useState<{ route: PlayedRoute; step: number; run: number } | null>(null);
+  const playRuns = useRef(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const { getNodes, fitView } = useReactFlow();
 
@@ -196,14 +211,33 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
     onToggleView();
   }, [onToggleView, solved, solutionAvailable]);
 
+  const highlightNodes = useMemo(() => new Set(highlight?.nodeIds), [highlight]);
+  const highlightEdges = useMemo(() => new Set(highlight?.edgeIds), [highlight]);
+
   // Re-fit whenever the (already dagre-positioned) nodes change or fullscreen
   // is toggled. A single rAF is enough: `layoutedNodes`/`built` are derived
   // during render (see above and the reset block below), so by the time this
   // effect runs the DOM already reflects the final layout in a single commit.
   useEffect(() => {
-    const raf = requestAnimationFrame(() => fitView({ padding: 0.08, duration: 400 }));
+    const raf = requestAnimationFrame(() =>
+      highlightNodes.size > 0
+        ? fitView({ nodes: [...highlightNodes].map((id) => ({ id })), padding: 0.3, maxZoom: 1.2, duration: 400 })
+        : fitView({ padding: 0.08, duration: 400 }),
+    );
     return () => cancelAnimationFrame(raf);
-  }, [layoutedNodes, isFullscreen, fitView]);
+  }, [layoutedNodes, isFullscreen, highlightNodes, fitView]);
+
+  const hasHighlight = highlight != null;
+  useEffect(() => {
+    if (!hasHighlight || !onClearHighlight) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      onClearHighlight();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [hasHighlight, onClearHighlight]);
 
   // Reset the canvas whenever the source graph changes (e.g. Findings ↔ Solution).
   // Done during render via the "adjust state on prop change" pattern rather than
@@ -213,59 +247,80 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
     setPrevBuilt(built);
     setRfNodes(layoutedNodes);
     setRfEdges(built.edges);
-    setPlayStep(null);
+    setPlayback(null);
   }
 
   const stop = useCallback(() => {
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
-    setPlayStep(null);
+    setPlayback(null);
   }, []);
 
   useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
 
+  const primaryRoute = useMemo<PlayedRoute>(
+    () => ({ nodeIds: built.attackNodeIds, edgeIds: built.attackEdgeIds, label: primaryRouteId(attacks) }),
+    [built.attackNodeIds, built.attackEdgeIds, attacks],
+  );
+
+  const playRoute: PlayedRoute = highlight ?? primaryRoute;
+
   const play = useCallback(() => {
-    if (built.attackNodeIds.length === 0) return;
+    if (playRoute.nodeIds.length === 0) return;
     if (timer.current) clearInterval(timer.current);
-    setPlayStep(0);
+    const run = ++playRuns.current;
+    setPlayback({ route: playRoute, step: 0, run });
     let i = 0;
     timer.current = setInterval(() => {
       i += 1;
-      if (i >= built.attackNodeIds.length) {
+      if (i >= playRoute.nodeIds.length) {
         if (timer.current) clearInterval(timer.current);
         timer.current = null;
-        window.setTimeout(() => setPlayStep(null), 1600);
+        window.setTimeout(() => setPlayback((p) => (p?.run === run ? null : p)), 1600);
         return;
       }
-      setPlayStep(i);
+      setPlayback((p) => (p?.run === run ? { ...p, step: i } : p));
     }, 760);
-  }, [built.attackNodeIds]);
+  }, [playRoute]);
 
-  const isPlaying = playStep !== null;
+  const isPlaying = playback !== null;
+  const frame = useMemo(
+    () => (playback ? playbackFrame(playback.route, playback.step, rfEdges) : null),
+    [playback, rfEdges],
+  );
+  const playedNodes = useMemo(() => new Set(playback?.route.nodeIds), [playback?.route]);
+  const shownRoute = playback?.route ?? highlight;
+  // A selection made mid-run only takes over once the run ends.
+  const nextRoute = playback && highlight && highlight.label !== playback.route.label ? highlight : null;
 
   // Overlay animation classes without disturbing the (draggable) base positions.
   const renderNodes = useMemo(() => {
-    if (!isPlaying) return rfNodes;
-    const step = playStep ?? 0;
-    const live = new Set(built.attackNodeIds.slice(0, step + 1));
-    const current = built.attackNodeIds[step];
+    if (!frame) {
+      if (!highlight) return rfNodes;
+      return rfNodes.map((n) => ({ ...n, className: highlightNodes.has(n.id) ? "ch-hl" : "ch-dim" }));
+    }
     return rfNodes.map((n) => {
-      const onPath = built.attackNodeIds.includes(n.id);
-      const className = n.id === current ? "ch-current" : live.has(n.id) ? "ch-live" : onPath ? "" : "ch-dim";
+      const className = n.id === frame.currentNode ? "ch-current" : frame.liveNodes.has(n.id) ? "ch-live" : playedNodes.has(n.id) ? "" : "ch-dim";
       return { ...n, className };
     });
-  }, [isPlaying, playStep, rfNodes, built.attackNodeIds]);
+  }, [frame, playedNodes, rfNodes, highlight, highlightNodes]);
 
   const renderEdges = useMemo(() => {
-    if (!isPlaying) return rfEdges;
-    const step = playStep ?? 0;
-    const live = new Set(built.attackEdgeIds.slice(0, step));
-    const current = built.attackEdgeIds[step - 1];
+    if (!frame) {
+      // A single-node finding has no hops, yet every edge around it must fade.
+      if (!highlight) return rfEdges;
+      return rfEdges.map((e) => {
+        const lit = highlightEdges.has(e.id);
+        return lit
+          ? { ...e, className: "ch-edge-hl", zIndex: 5 }
+          : { ...e, className: "ch-dim", data: e.data && { ...e.data, dimmed: true } };
+      });
+    }
     return rfEdges.map((e) => {
-      const className = e.id === current ? "ch-edge-current" : live.has(e.id) ? "ch-edge-live" : "ch-dim";
+      const className = frame.currentEdges.has(e.id) ? "ch-edge-current" : frame.liveEdges.has(e.id) ? "ch-edge-live" : "ch-dim";
       return { ...e, className };
     });
-  }, [isPlaying, playStep, rfEdges, built.attackEdgeIds]);
+  }, [frame, rfEdges, highlight, highlightEdges]);
 
   const download = useCallback(() => {
     // Scope the DOM lookups to this graph's own wrapper so a second graph elsewhere
@@ -294,7 +349,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
     });
   }, [getNodes]);
 
-  const canPlay = !solved && built.attackNodeIds.length > 0;
+  const canPlay = !solved && playRoute.nodeIds.length > 0;
 
   return (
     <div
@@ -366,7 +421,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
               isPlaying ? (
                 <ToolbarButton onClick={stop} label={labels.stop} accent={cyber.danger} glyph="◼" />
               ) : (
-                <ToolbarButton onClick={play} label={labels.playAttack} accent={cyber.danger} glyph="▶" />
+                <ToolbarButton onClick={play} label={highlight ? labels.playRoute(highlight.label) : labels.playAttack} accent={cyber.danger} glyph="▶" />
               )
             )}
             {isFullscreen && onToggleView && (
@@ -380,6 +435,26 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
             <ToolbarButton onClick={download} label={labels.download} glyph="↓" />
           </div>
         </Panel>
+
+        {shownRoute && (
+          <Panel position="bottom-center">
+            <div style={highlightBox} role="status">
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                <span style={legendHeading}>{isPlaying ? labels.playingRoute : labels.highlightedRoute}</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <span style={highlightChip}>{shownRoute.label}</span>
+                  {shownRoute.summary && (
+                    <span style={highlightSummary} title={shownRoute.summary}>{shownRoute.summary}</span>
+                  )}
+                </span>
+                {nextRoute && <span style={highlightSummary}>{labels.nextRoute(nextRoute.label)}</span>}
+              </div>
+              {!isPlaying && onClearHighlight && (
+                <ToolbarButton onClick={onClearHighlight} label={labels.clearHighlight} glyph="✕" />
+              )}
+            </div>
+          </Panel>
+        )}
 
         <Panel position="top-left">
           <div style={legendBox}>
@@ -444,6 +519,8 @@ function ToolbarButton({ onClick, label, glyph, accent }: { onClick: () => void;
         fontWeight: 600,
         cursor: "pointer",
         backdropFilter: "blur(6px)",
+        whiteSpace: "nowrap",
+        flexShrink: 0,
       }}
     >
       <span style={{ fontSize: 11 }}>{glyph}</span>
@@ -476,6 +553,33 @@ const fullscreenTitleBox: React.CSSProperties = {
   overflow: "hidden",
   textOverflow: "ellipsis",
   maxWidth: "40vw",
+};
+
+const highlightBox: React.CSSProperties = {
+  ...legendBox,
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 16,
+  maxWidth: "min(720px, 80vw)",
+};
+
+const highlightChip: React.CSSProperties = {
+  padding: "1px 7px",
+  borderRadius: 999,
+  border: `1px solid ${cyber.textPrimary}`,
+  color: cyber.textPrimary,
+  fontSize: 11,
+  fontWeight: 700,
+  whiteSpace: "nowrap",
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+};
+
+const highlightSummary: React.CSSProperties = {
+  fontSize: 12,
+  color: cyber.textSecondary,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
 };
 
 const legendHeading: React.CSSProperties = {
@@ -575,6 +679,8 @@ const CYBER_CSS = `
 .react-flow__node.ch-live .ch-node { box-shadow: 0 0 0 1.5px ${cyber.danger}, 0 0 20px 2px ${cyber.dangerGlow} !important; }
 .react-flow__edge.ch-edge-current path.react-flow__edge-path { stroke-width: 3.4 !important; filter: drop-shadow(0 0 6px ${cyber.danger}); }
 .react-flow__edge.ch-edge-live path.react-flow__edge-path { stroke-width: 2.8 !important; }
+.react-flow__node.ch-hl .ch-node { box-shadow: 0 0 0 2px ${cyber.textPrimary} !important; }
+.react-flow__edge.ch-edge-hl path.react-flow__edge-path { stroke-width: 3.6 !important; opacity: 1 !important; }
 .ch-controls button { background: ${cyber.surface}; border-bottom: 1px solid ${cyber.laneBorder}; color: ${cyber.textPrimary}; }
 .ch-controls button:hover { background: ${cyber.surfaceHover}; }
 .ch-controls button svg { fill: ${cyber.textPrimary}; }

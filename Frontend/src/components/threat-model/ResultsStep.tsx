@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import {
@@ -33,6 +33,7 @@ import {
   Text6,
   Timeline,
   TimelineItem,
+  Touchable,
   skinVars,
   useTheme,
 } from "@telefonica/mistica";
@@ -41,6 +42,7 @@ import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import InlineError from "@/components/ui/InlineError";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import { formatSnakeCase } from "@/lib/format";
+import { findingLabels, routeSummary } from "@/lib/results/findingDisplay";
 import { SEVERITY_STYLES } from "@/lib/severity";
 import type { AnalysisResult, ChokepointRec } from "@/lib/api/adapters";
 import {
@@ -123,30 +125,37 @@ function BeforeAfterCard({ label, Icon, color, rows, headerBadge }: BeforeAfterC
 
 interface FindingCardProps {
   finding: Finding;
+  label: string;
+  route: string;
   isDarkMode: boolean;
   tSeverity: (key: string) => string;
   scoreLabel: string;
+  routeHint: string;
+  selected: boolean;
+  onSelect?: (id: string) => void;
 }
 
-function FindingCard({ finding, isDarkMode, tSeverity, scoreLabel }: FindingCardProps) {
+function FindingCard({ finding, label, route, isDarkMode, tSeverity, scoreLabel, routeHint, selected, onSelect }: FindingCardProps) {
   const accent = severityAccentColor(finding.severity, isDarkMode);
   const hasRefs = Boolean(
     finding.owaspAgentic?.length || finding.owaspLlm?.length || finding.mitre?.length,
   );
-  return (
+  const card = (
     <Boxed>
       <Box paddingX={20} paddingY={16}>
         <Stack space={12}>
           <Inline space="between" alignItems="center">
             <Inline space={8} alignItems="center" wrap verticalSpace={4}>
               <SeverityBadge severity={finding.severity} small>{tSeverity(finding.severity)}</SeverityBadge>
-              <Text1 medium color={skinVars.colors.textSecondary}>{finding.ruleId}</Text1>
+              <Text1 medium color={skinVars.colors.textSecondary}>{label}</Text1>
+              <Text1 regular color={skinVars.colors.textSecondary}>{finding.id}</Text1>
               <Tag type="inactive" small>{formatSnakeCase(finding.category)}</Tag>
             </Inline>
             <Text2 medium color={accent}>{scoreLabel}: {finding.score}</Text2>
           </Inline>
           <Stack space={4}>
             <Text2 medium>{finding.title}</Text2>
+            {route && <Text1 regular color={skinVars.colors.textSecondary}>{route}</Text1>}
             {finding.desc && <Text1 regular color={skinVars.colors.textSecondary}>{finding.desc}</Text1>}
             {finding.evidence && Object.keys(finding.evidence).length > 0 && (
               <Inline space={4} wrap verticalSpace={4}>
@@ -168,6 +177,24 @@ function FindingCard({ finding, isDarkMode, tSeverity, scoreLabel }: FindingCard
         </Stack>
       </Box>
     </Boxed>
+  );
+  if (!onSelect) return card;
+  return (
+    <Touchable
+      onPress={() => onSelect(finding.id)}
+      dataAttributes={{ testid: "finding-card" }}
+      aria-current={selected ? "true" : undefined}
+      aria-description={routeHint}
+      style={{
+        display: "block",
+        width: "100%",
+        borderRadius: skinVars.borderRadii.container,
+        outline: selected ? `2px solid ${skinVars.colors.borderSelected}` : undefined,
+        outlineOffset: 2,
+      }}
+    >
+      {card}
+    </Touchable>
   );
 }
 
@@ -200,6 +227,16 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
   const [tab, setTab] = useState(0);
   const solved = tab === 1;
   const view = solved ? "solution" : "findings";
+
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
+  const graphSectionRef = useRef<HTMLDivElement>(null);
+  const selectFinding = useCallback((id: string) => {
+    setSelectedFindingId((current) => (current === id ? null : id));
+    graphSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, []);
+  const clearSelection = useCallback(() => setSelectedFindingId(null), []);
+  const labelById = useMemo(() => findingLabels(result?.findings ?? []), [result]);
+  const nodesById = useMemo(() => new Map((result?.nodes ?? []).map((n) => [n.id, n])), [result]);
 
   if (!result) {
     return <InlineError message={tCommon("error.description")} />;
@@ -242,25 +279,31 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
         <InlineError message={tCommon("error.description")} />
       ) : (
         <Stack space={32}>
-          <Stack space={16}>
-            <Stack space={4}>
-              <Text4 medium as="h2">{solved ? t("graphTitleSolution") : t("graphTitleFindings")}</Text4>
-              <Text2 regular color={skinVars.colors.textSecondary}>{solved ? t("graphDescSolution") : t("graphDescFindings")}</Text2>
+          <div ref={graphSectionRef} style={{ scrollMarginTop: 16, scrollMarginBottom: 16 }}>
+            <Stack space={16}>
+              <Stack space={4}>
+                <Text4 medium as="h2">{solved ? t("graphTitleSolution") : t("graphTitleFindings")}</Text4>
+                <Text2 regular color={skinVars.colors.textSecondary}>{solved ? t("graphDescSolution") : t("graphDescFindings")}</Text2>
+              </Stack>
+              <CapabilityGraph
+                solved={solved}
+                nodes={solved && sol ? sol.nodes : result.nodes}
+                edges={solved && sol ? sol.edges : result.edges}
+                findings={findings}
+                name={result.name}
+                attacks={solved && sol ? sol.attacks : result.attacks}
+                appliedControlCount={solved && sol ? sol.appliedControlCount : undefined}
+                nodeControlInfo={solved && sol ? sol.nodeControlInfo : undefined}
+                edgeControlInfo={solved && sol ? sol.edgeControlInfo : undefined}
+                onToggleView={() => setTab(solved ? 0 : 1)}
+                solutionAvailable={Boolean(sol)}
+                findingLabelById={labelById}
+                selectedFindingId={selectedFindingId}
+                onSelectFinding={selectFinding}
+                onClearSelection={clearSelection}
+              />
             </Stack>
-            <CapabilityGraph
-              solved={solved}
-              nodes={solved && sol ? sol.nodes : result.nodes}
-              edges={solved && sol ? sol.edges : result.edges}
-              findings={findings}
-              name={result.name}
-              attacks={solved && sol ? sol.attacks : result.attacks}
-              appliedControlCount={solved && sol ? sol.appliedControlCount : undefined}
-              nodeControlInfo={solved && sol ? sol.nodeControlInfo : undefined}
-              edgeControlInfo={solved && sol ? sol.edgeControlInfo : undefined}
-              onToggleView={() => setTab(solved ? 0 : 1)}
-              solutionAvailable={Boolean(sol)}
-            />
-          </Stack>
+          </div>
 
           <Stack space={16}>
             <Text4 medium as="h2">{solved ? t("metricsTitleSolution") : t("metricsTitleFindings")}</Text4>
@@ -379,9 +422,14 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                           <FindingCard
                             key={f.id}
                             finding={f}
+                            label={labelById.get(f.id) ?? f.ruleId}
+                            route={routeSummary(f.path, nodesById)}
                             isDarkMode={isDarkMode}
                             tSeverity={tSeverity}
                             scoreLabel={t("tableHeaders.score")}
+                            routeHint={t("showRouteHint")}
+                            selected={f.id === selectedFindingId}
+                            onSelect={f.path.length > 0 ? selectFinding : undefined}
                           />
                         ))}
                       </Stack>

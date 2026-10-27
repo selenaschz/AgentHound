@@ -19,7 +19,14 @@ pnpm build       # production build
 pnpm start       # serve the production build
 pnpm test:ts     # type-check (tsc --noEmit)
 pnpm lint        # eslint
+pnpm test        # unit (Node) and component (jsdom) tests with Vitest
+pnpm test:visual # Playwright visual regression tests against a production build
 ```
+
+The visual baselines (`tests/visual/**/*-chromium-darwin.png`) were generated on
+macOS, so for now `pnpm test:visual` only passes there. On Linux or Windows,
+generate local baselines first with `pnpm test:visual:update` and do not commit them.
+The visual run builds into `.next-visual/`, so it leaves the regular `.next/` alone.
 
 ## Configuration
 

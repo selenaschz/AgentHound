@@ -142,6 +142,8 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
       partial: tNode("controlEffect.partial"),
     },
     highlightedRoute: t("highlightedRoute"),
+    playingRoute: t("playingRoute"),
+    nextRoute: (label: string) => t("nextRoute", { id: label }),
     clearHighlight: t("clearHighlight"),
   }), [t, tNode, attacks]);
 

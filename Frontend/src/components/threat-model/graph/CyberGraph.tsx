@@ -22,7 +22,7 @@ import type { Attack, ControlInfo, GraphEdge, GraphNode, NodeType } from "@/type
 import { cyber, getSeverityPath, NODE_STYLE, useIsDarkMode, type PathSeverity } from "@/components/threat-model/graph/cyberGraphTheme";
 import { GLYPH, nodeTypes } from "@/components/threat-model/graph/nodeTypes";
 import { edgeTypes, SeverityPathContext } from "@/components/threat-model/graph/edgeTypes";
-import { buildGraph, playbackFrame, type CyberNode, type FindingRoute } from "@/components/threat-model/graph/toReactFlow";
+import { buildGraph, playbackFrame, primaryRouteId, type CyberNode, type FindingRoute } from "@/components/threat-model/graph/toReactFlow";
 import { dagreLayout } from "@/components/threat-model/graph/dagreLayout";
 
 /** Imperative handle so the parent (which owns the node-detail Drawer's open
@@ -79,6 +79,8 @@ export interface CyberGraphProps {
     /** Per-effect tag shown next to each control in the padlock tooltip. */
     controlEffect: { total: string; partial: string };
     highlightedRoute: string;
+    playingRoute: string;
+    nextRoute: (label: string) => string;
     clearHighlight: string;
   };
 }
@@ -87,6 +89,8 @@ export interface GraphHighlight extends FindingRoute {
   label: string;
   summary: string;
 }
+
+type PlayedRoute = FindingRoute & { label: string; summary?: string };
 
 const CANVAS_H = 540;
 
@@ -161,7 +165,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(built.edges);
-  const [playback, setPlayback] = useState<{ route: FindingRoute; step: number; run: number } | null>(null);
+  const [playback, setPlayback] = useState<{ route: PlayedRoute; step: number; run: number } | null>(null);
   const playRuns = useRef(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const { getNodes, fitView } = useReactFlow();
@@ -254,12 +258,12 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
 
   useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
 
-  const primaryRoute = useMemo<FindingRoute>(
-    () => ({ nodeIds: built.attackNodeIds, edgeIds: built.attackEdgeIds }),
-    [built.attackNodeIds, built.attackEdgeIds],
+  const primaryRoute = useMemo<PlayedRoute>(
+    () => ({ nodeIds: built.attackNodeIds, edgeIds: built.attackEdgeIds, label: primaryRouteId(attacks) }),
+    [built.attackNodeIds, built.attackEdgeIds, attacks],
   );
 
-  const playRoute: FindingRoute = highlight ?? primaryRoute;
+  const playRoute: PlayedRoute = highlight ?? primaryRoute;
 
   const play = useCallback(() => {
     if (playRoute.nodeIds.length === 0) return;
@@ -285,6 +289,9 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
     [playback, rfEdges],
   );
   const playedNodes = useMemo(() => new Set(playback?.route.nodeIds), [playback?.route]);
+  const shownRoute = playback?.route ?? highlight;
+  // A selection made mid-run only takes over once the run ends.
+  const nextRoute = playback && highlight && highlight.label !== playback.route.label ? highlight : null;
 
   // Overlay animation classes without disturbing the (draggable) base positions.
   const renderNodes = useMemo(() => {
@@ -429,17 +436,20 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
           </div>
         </Panel>
 
-        {highlight && !isPlaying && (
+        {shownRoute && (
           <Panel position="bottom-center">
             <div style={highlightBox} role="status">
               <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                <span style={legendHeading}>{labels.highlightedRoute}</span>
+                <span style={legendHeading}>{isPlaying ? labels.playingRoute : labels.highlightedRoute}</span>
                 <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                  <span style={highlightChip}>{highlight.label}</span>
-                  <span style={highlightSummary} title={highlight.summary}>{highlight.summary}</span>
+                  <span style={highlightChip}>{shownRoute.label}</span>
+                  {shownRoute.summary && (
+                    <span style={highlightSummary} title={shownRoute.summary}>{shownRoute.summary}</span>
+                  )}
                 </span>
+                {nextRoute && <span style={highlightSummary}>{labels.nextRoute(nextRoute.label)}</span>}
               </div>
-              {onClearHighlight && (
+              {!isPlaying && onClearHighlight && (
                 <ToolbarButton onClick={onClearHighlight} label={labels.clearHighlight} glyph="✕" />
               )}
             </div>

@@ -156,7 +156,9 @@ test.describe("Finding route highlight", () => {
 
     await canvas(page).getByRole("button", { name: "Reproducir FH-011 #2" }).click();
 
-    await expect(routePanel(page)).toHaveCount(0);
+    await expect(routePanel(page)).toContainText("Reproduciendo ruta");
+    await expect(routePanel(page)).toContainText("FH-011 #2");
+    await expect(routePanel(page).getByRole("button", { name: /Ver todo/ })).toHaveCount(0);
     await expect(canvas(page).locator(".react-flow__node.ch-hl")).toHaveCount(0);
     await expect(canvas(page).locator(".react-flow__node.ch-current")).toHaveCount(1);
 
@@ -196,6 +198,8 @@ test.describe("Finding route highlight", () => {
     await row(page, "FH-002").click();
 
     await expect(canvas(page).getByRole("button", { name: "Detener" })).toBeVisible();
+    await expect(routePanel(page)).toContainText("FH-011 #2");
+    await expect(routePanel(page)).toContainText("FH-002 se resaltará al terminar");
     await expect.poll(() => nodeIds(page, ".ch-current, .ch-live")).toEqual(started);
     await canvas(page).getByRole("button", { name: "Detener" }).click();
     await expect(routePanel(page)).toContainText("FH-002");

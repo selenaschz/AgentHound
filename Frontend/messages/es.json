@@ -209,6 +209,8 @@
     "prioritizedFindings": "Hallazgos priorizados ({count})",
     "findingSummary": "{title} · puntuación {score}",
     "highlightedRoute": "Ruta resaltada",
+    "playingRoute": "Reproduciendo ruta",
+    "nextRoute": "{id} se resaltará al terminar",
     "clearHighlight": "Ver todo",
     "showRouteHint": "Resalta su ruta en el grafo; vuelve a pulsar para ver el grafo completo",
     "chokepointTitle": "Punto de control recomendado",

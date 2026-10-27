@@ -444,9 +444,15 @@ export function toAnalyzeRequest(nodes: GraphNode[], edges: GraphEdge[]): Analyz
  * null; the caller recomputes the Proposed Solution against the analysis. */
 export function toAnalyzedResult(resp: AnalyzeResponse): AnalysisResult {
   return toAnalysisResult(
-    { analysis_id: resp.analysis_id, status: resp.status, name: resp.name, summary: resp.summary },
+    {
+      analysis_id: resp.analysis_id,
+      status: resp.status,
+      name: resp.name,
+      summary: resp.summary,
+      warnings: resp.warnings,
+    },
     resp.graph,
-    { findings: resp.findings },
+    { findings: resp.findings, groups: resp.groups },
   );
 }
 

@@ -184,6 +184,24 @@ test.describe("Finding route highlight", () => {
     }
   });
 
+  test("does not let an earlier run's delayed reset cut a replay short", async ({ page }) => {
+    await page.clock.install();
+    await openResults(page);
+    await row(page, "FH-011 #2").click();
+    const steps = (await nodeIds(page, ".ch-hl")).length;
+    const play = canvas(page).getByRole("button", { name: "Reproducir FH-011 #2" });
+    const stop = canvas(page).getByRole("button", { name: "Detener" });
+
+    await play.click();
+    await page.clock.runFor(760 * steps);
+    await stop.click();
+    await play.click();
+    await page.clock.runFor(1600);
+
+    await expect(stop).toBeVisible();
+    await expect(canvas(page).locator(".react-flow__node.ch-current")).toHaveCount(1);
+  });
+
   test("keeps the highlight in fullscreen and clears it without leaving fullscreen", async ({ page }) => {
     await openResults(page);
     await row(page, "FH-011 #1").click();

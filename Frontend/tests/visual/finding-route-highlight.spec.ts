@@ -184,6 +184,23 @@ test.describe("Finding route highlight", () => {
     }
   });
 
+  test("finishes the route it started when another finding is selected mid-run", async ({ page }) => {
+    await openResults(page);
+    await row(page, "FH-002").click();
+    const other = await nodeIds(page, ".ch-hl");
+    await row(page, "FH-011 #2").click();
+    const started = await nodeIds(page, ".ch-hl");
+    expect(started).not.toEqual(other);
+
+    await canvas(page).getByRole("button", { name: "Reproducir FH-011 #2" }).click();
+    await row(page, "FH-002").click();
+
+    await expect(canvas(page).getByRole("button", { name: "Detener" })).toBeVisible();
+    await expect.poll(() => nodeIds(page, ".ch-current, .ch-live")).toEqual(started);
+    await canvas(page).getByRole("button", { name: "Detener" }).click();
+    await expect(routePanel(page)).toContainText("FH-002");
+  });
+
   test("does not let an earlier run's delayed reset cut a replay short", async ({ page }) => {
     await page.clock.install();
     await openResults(page);

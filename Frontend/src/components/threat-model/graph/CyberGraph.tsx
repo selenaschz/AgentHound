@@ -225,7 +225,9 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
   useEffect(() => {
     if (!hasHighlight || !onClearHighlight) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClearHighlight();
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      onClearHighlight();
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);

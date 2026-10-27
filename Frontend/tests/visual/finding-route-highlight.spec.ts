@@ -124,6 +124,19 @@ test.describe("Finding route highlight", () => {
     await expectNormalView(page);
   });
 
+  test("keeps the highlight when Escape closes a node's drawer", async ({ page }) => {
+    await openResults(page);
+    await row(page, "FH-011 #1").click();
+    await expect(routePanel(page)).toBeVisible();
+
+    await canvas(page).locator(".react-flow__node.ch-hl").first().click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(routePanel(page)).toContainText("FH-011 #1");
+  });
+
   test("keeps the highlight legible in dark mode", async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("colorScheme", "dark"));
     await openResults(page);

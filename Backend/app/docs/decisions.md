@@ -159,9 +159,45 @@ implemented on the `new-catalog-rules` branch.
   `shared_between_agents` against `scope`, but that literal is a `memory_kind`
   value, so the rules only fired for `organization`/`global` scopes. A shared
   `is_shared_memory()` helper now treats memory as shared when any of
-  `memory_kind == shared_between_agents`, a non-empty `shared_with_agents`, or
-  `scope in {organization, global}` holds. Catalog 04 patterns were updated to
-  match.
+  `shared: true`, `memory_kind == shared_between_agents`, a non-empty
+  `shared_with_agents`, or `scope in {organization, global}` holds. Catalog 04
+  patterns were updated to match. (`shared` was added later: the LangGraph
+  adapter writes it and it is a catalogued memory property, but the helper did
+  not read it, so LangGraph shared memory never fired FH-009/FH-020.)
+
+## Adapter/rule alignment (review of the v0.1.0 case studies)
+
+- **LangGraph memory -> agent is `readMemory`.** It was labelled `dataFlow`,
+  but FH-009 requires `readMemory` on that hop, so memory poisoning was
+  unreachable from LangGraph even with shared memory recognised.
+
+- **Rules match tool-mediated effects.** The adapters never put an effect verb on
+  the agent -> tool hop; they emit `agent -invokeTool-> tool -<verb>-> target`.
+  FH-008 (fetchWeb on the agent -> tool hop) and FH-025 (agent -> asset `read`)
+  were written for the generic shape only and could not fire from tools in a
+  framework file. Both now also match the adapter shape via
+  `tool_mediated_hops()`, and include the tool's own hop in `edges`. The
+  generic shape still matches as before.
+
+- **Adapters copy every catalogued property.** Each adapter used to copy a fixed
+  list of keys per node type (four for a CrewAI asset, none at all for Dify),
+  silently dropping properties the rules read: `contains_regulated_data`
+  (FH-026), `recipient_type` (FH-013), `authentication_scope` and
+  `exposure_boundary` (FH-017), `idempotent` (FH-031). `apply_declared_properties()`
+  now copies any property catalogued for the node type in
+  `node_properties.yaml`, plus a few descriptive extras. Declared values win
+  over inferred ones; unknown keys are still ignored. Dify reads them from each
+  node's `data` block.
+
+- **Declared `deployRelease`/`moveResource` are routed.** A tool declared with
+  either verb in `capability_kinds` used to get only an `invokeTool` edge, so
+  FH-012 could not fire from a framework file. The tool now gains an external
+  destination output reached by that verb. No tool name infers these verbs; they
+  have to be declared.
+
+- **Graph nodes carry `finding_ids` and `risk_level`.** Node-scoped findings
+  have no edges, so they coloured nothing on the graph. Nodes now carry the same
+  per-finding index as edges.
 
 - **`interpretIntent` direction tolerance.** The backend catalog orients
   `interpretIntent` as agent→input while the frontend groups it as input→agent,

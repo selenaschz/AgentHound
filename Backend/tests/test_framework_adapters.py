@@ -212,6 +212,189 @@ tasks: {}
     assert "FH-003" not in _rule_ids(result.findings)
 
 
+# --- LangGraph shared memory (M-10) -----------------------------------------
+
+_LANGGRAPH_MEMORY = """
+graph:
+  entry_point: intake
+  nodes:
+    - {{name: intake, type: agent}}
+    - {{name: worker, type: agent, tools: ["gmail.send"]}}
+    - {{name: shared_memory, type: memory, shared: {shared}, sensitivity: high}}
+  edges:
+    - {{source: START, target: intake}}
+    - {{source: intake, target: shared_memory}}
+    - {{source: shared_memory, target: worker}}
+"""
+
+
+def test_langgraph_shared_memory_fires_memory_rules():
+    # `shared: true` must count as shared memory (FH-020), and the memory -> agent
+    # hop must be readMemory so the poisoning path is traversable (FH-009).
+    result = analyze_text(_LANGGRAPH_MEMORY.format(shared="true"), framework_hint="langgraph")
+    assert {"FH-009", "FH-020"} <= _rule_ids(result.findings)
+    caps = {(e.source, e.target): e.capability for e in result.ir.edges}
+    assert caps[("memory_shared_memory", "agent_worker")] == "readMemory"
+
+
+def test_langgraph_unshared_memory_does_not_fire_memory_rules():
+    result = analyze_text(_LANGGRAPH_MEMORY.format(shared="false"), framework_hint="langgraph")
+    assert not {"FH-009", "FH-020"} & _rule_ids(result.findings)
+
+
+def test_langgraph_memory_keeps_declared_properties():
+    yaml_text = """
+graph:
+  nodes:
+    - {name: notes, type: memory, scope: organization, write_validated: true, retention_ttl_days: 30}
+  edges: []
+"""
+    result = analyze_text(yaml_text, framework_hint="langgraph")
+    memory = next(n for n in result.ir.nodes if n.type.value == "memory")
+    assert memory.properties["scope"] == "organization"
+    assert memory.properties["write_validated"] is True
+    assert memory.properties["retention_ttl_days"] == 30
+    # write_validated suppresses FH-020 even though the scope is shared.
+    assert "FH-020" not in _rule_ids(result.findings)
+
+
+# --- tool-mediated FH-008 / FH-025 ------------------------------------------
+
+
+def test_crewai_browser_tool_without_allowlist_fires_fh008():
+    # Adapters emit agent -invokeTool-> tool -fetchWeb-> asset; FH-008 used to
+    # look only for fetchWeb on the agent -> tool hop and never fired.
+    yaml_text = """
+agents:
+  researcher: {role: Researcher, tools: ["browser.visit"]}
+tasks: {}
+"""
+    result = analyze_text(yaml_text, framework_hint="crewai")
+    fh008 = [f for f in result.findings if f.rule_id == "FH-008"]
+    assert len(fh008) == 1
+    # Both the invoke hop and the tool's fetchWeb hop are highlighted.
+    capabilities = {e.id: e.capability for e in result.ir.edges}
+    assert {capabilities[eid] for eid in fh008[0].edges} == {"invokeTool", "fetchWeb"}
+
+
+def test_crewai_browser_tool_with_allowlist_does_not_fire_fh008():
+    yaml_text = """
+agents:
+  researcher: {role: Researcher, tools: [{name: browser.visit, allowlist_present: true}]}
+tasks: {}
+"""
+    result = analyze_text(yaml_text, framework_hint="crewai")
+    assert "FH-008" not in _rule_ids(result.findings)
+
+
+def test_crewai_tool_read_of_external_asset_fires_fh025():
+    yaml_text = """
+agents:
+  analyst:
+    role: Analyst
+    tools: [{name: db.query, reads_asset: {name: Partner DB, boundary: external}}]
+tasks: {}
+"""
+    result = analyze_text(yaml_text, framework_hint="crewai")
+    fh025 = [f for f in result.findings if f.rule_id == "FH-025"]
+    assert len(fh025) == 1
+    assert fh025[0].path == ["agent_analyst", "tool_db_query", "asset_partner_db"]
+
+
+def test_dify_external_knowledge_fires_fh025():
+    dsl = """
+workflow:
+  graph:
+    nodes:
+      - {id: s, data: {type: start, title: In}}
+      - {id: l, data: {type: llm, title: Answerer}}
+      - {id: k, data: {type: knowledge-retrieval, title: Vendor KB, boundary: external}}
+    edges:
+      - {source: s, target: l}
+      - {source: l, target: k}
+"""
+    result = analyze_text(dsl, framework_hint="dify")
+    assert "FH-025" in _rule_ids(result.findings)
+
+
+# --- declared properties reach the analysis (M-11) --------------------------
+
+
+def test_crewai_regulated_data_fires_fh026():
+    yaml_text = """
+agents:
+  clerk:
+    role: Clerk
+    data_assets: [{name: Patients, sensitivity: critical, contains_regulated_data: [gdpr]}]
+tasks: {}
+"""
+    result = analyze_text(yaml_text, framework_hint="crewai")
+    assert "FH-026" in _rule_ids(result.findings)
+
+
+def test_crewai_public_channel_recipient_is_kept():
+    yaml_text = """
+agents:
+  bot:
+    role: Bot
+    outputs: [{name: Community forum, boundary: external, recipient_type: public_channel}]
+tasks: {}
+"""
+    result = analyze_text(yaml_text, framework_hint="crewai")
+    output = next(n for n in result.ir.nodes if n.type.value == "output")
+    assert output.properties["recipient_type"] == "public_channel"
+
+
+def test_crewai_elevated_tool_from_exposed_agent_fires_fh017():
+    yaml_text = """
+agents:
+  frontdesk:
+    role: Front desk
+    exposure_boundary: external
+    tools: [{name: admin.console, authentication_scope: elevated}]
+tasks: {}
+"""
+    result = analyze_text(yaml_text, framework_hint="crewai")
+    assert "FH-017" in _rule_ids(result.findings)
+
+
+@pytest.mark.parametrize("verb", ["deployRelease", "moveResource"])
+def test_crewai_declared_publish_capability_fires_fh012(verb):
+    # A declared deployRelease/moveResource used to produce only invokeTool, so
+    # external publication (FH-012) was unreachable from any framework file.
+    yaml_text = f"""
+agents:
+  releaser:
+    role: Releaser
+    inputs: ["Inbound email"]
+    tools: [{{name: release.tool, capability_kinds: [{verb}]}}]
+tasks: {{}}
+"""
+    result = analyze_text(yaml_text, framework_hint="crewai")
+    assert verb in {e.capability for e in result.ir.edges}
+    assert "FH-012" in _rule_ids(result.findings)
+
+
+def test_dify_declared_properties_are_kept():
+    dsl = """
+workflow:
+  graph:
+    nodes:
+      - {id: s, data: {type: start, title: In, trust_level: semi_trusted}}
+      - {id: l, data: {type: llm, title: Agent, exposure_boundary: external}}
+      - {id: a, data: {type: answer, title: Reply, boundary: external}}
+    edges:
+      - {source: s, target: l}
+      - {source: l, target: a}
+"""
+    result = analyze_text(dsl, framework_hint="dify")
+    props = {n.type.value: n.properties for n in result.ir.nodes}
+    assert props["input"]["trust_level"] == "semi_trusted"
+    assert props["agent"]["exposure_boundary"] == "external"
+    assert props["output"]["boundary"] == "external"
+    assert props["output"]["output_kind"] == "external_action"
+
+
 def test_empty_crewai_agents_rejected():
     from app.core.ir.models import IRValidationError
 

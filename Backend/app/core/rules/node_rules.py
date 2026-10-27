@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from ..graph.traversal import CapabilityGraph
 from ..ir.models import Finding
-from .common import agents_on_path, as_bool, has_control_targeting, has_interpret_intent, is_shared_memory, max_sensitivity, node_props, node_type
+from .common import agents_on_path, as_bool, has_control_targeting, has_interpret_intent, is_shared_memory, max_sensitivity, node_props, node_type, tool_mediated_hops
 from .registry import make_finding
 from .scoring import ScoreInputs, compute_score, severity_from_score
 
@@ -135,11 +135,17 @@ def fh_008(cg: CapabilityGraph) -> list[Finding]:
     seen: set[str] = set()
 
     for agent in cg.nodes_of_type("agent"):
-        for v in cg.graph.successors(agent):
-            if node_type(cg, v) != "tool":
-                continue
-            if "fetchWeb" not in cg.hop_capabilities(agent, v):
-                continue
+        # Generic files put fetchWeb on the agent -> tool hop; the framework
+        # adapters put it on the tool's own outgoing hop. Match both.
+        # tool -> the tool's own fetchWeb edge ids (empty for the direct shape).
+        fetch_tools: dict[str, list[str]] = {
+            v: []
+            for v in cg.graph.successors(agent)
+            if node_type(cg, v) == "tool" and "fetchWeb" in cg.hop_capabilities(agent, v)
+        }
+        for tool, target in tool_mediated_hops(cg, agent, "fetchWeb"):
+            fetch_tools.setdefault(tool, []).extend(cg.hop_edge_ids_for(tool, target, "fetchWeb"))
+        for v, fetch_edges in sorted(fetch_tools.items()):
             if as_bool(node_props(cg, v).get("allowlist_present", False)):
                 continue
             if "contentValidation" in node_props(cg, agent).get("guardrails", []):
@@ -165,7 +171,7 @@ def fh_008(cg: CapabilityGraph) -> list[Finding]:
                     severity=severity_from_score(score),
                     score=score,
                     path=[agent, v],
-                    edges=cg.hop_edge_ids(agent, v),
+                    edges=cg.hop_edge_ids(agent, v) + fetch_edges,
                     evidence={
                         "tool_id": v,
                         "agent_id": agent,

@@ -87,6 +87,31 @@ def test_graph_endpoint_frontend_shape():
     node = next(n for n in graph["nodes"] if n["id"] == "input_web_form")
     assert "untrusted" in node["badges"]
     assert all({"risk_level", "blocked", "finding_ids"} <= e.keys() for e in graph["edges"])
+    assert all({"risk_level", "finding_ids"} <= n.keys() for n in graph["nodes"])
+
+
+def test_graph_nodes_carry_node_scoped_findings():
+    # Node-scoped findings have no edges, so they can only be shown on the node
+    # itself (M-09). Every finding must be listed on each node of its path.
+    analysis_id = _create_analyzed("hiresmart_generic.yaml")
+    findings = client.get(f"/analyses/{analysis_id}/findings").json()["findings"]
+    graph = client.get(f"/analyses/{analysis_id}/graph").json()
+    nodes = {n["id"]: n for n in graph["nodes"]}
+
+    edgeless = [f for f in findings if not f["edges"]]
+    assert edgeless, "fixture should produce at least one node-scoped finding"
+    for finding in findings:
+        for node_id in finding["path"]:
+            assert finding["id"] in nodes[node_id]["finding_ids"]
+    # A node's risk_level is the highest severity among its findings.
+    rank = ["info", "low", "medium", "high", "critical"]
+    for node in nodes.values():
+        expected = max(
+            (f["severity"] for f in findings if f["id"] in node["finding_ids"]),
+            key=rank.index,
+            default="info",
+        )
+        assert node["risk_level"] == expected
 
 
 def test_findings_endpoint_sorted_and_detail():

@@ -18,24 +18,24 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
+from ...catalogs import default_properties
 from ...ir.models import Edge, Node, NodeType
 from ...ir.normalizer import capabilities_for_tool
 
-# Tool properties an adapter is allowed to override from raw YAML. Only these are
-# copied onto an inferred tool node, so a stray key cannot clobber a derived
-# property (e.g. capability_kinds). Shared by every framework adapter.
-TOOL_OVERRIDE_FIELDS = (
-    "operation_kind",
-    "access_kind",
-    "target_boundary",
-    "side_effect",
-    "side_effect_reversible",
-    "requires_approval",
-    "sandbox_enabled",
-    "allowlist_present",
-    "audit_logging_enabled",
-    "capability_kinds",
-)
+# Descriptive properties an adapter may copy from raw YAML on top of the
+# risk-relevant ones catalogued in node_properties.yaml. These are the
+# uncatalogued keys the adapters already copied before the catalog-driven
+# helper; they carry no safe default, so they are not in the catalog.
+_EXTRA_DECLARABLE: dict[NodeType, tuple[str, ...]] = {
+    NodeType.INPUT: ("source_type",),
+    NodeType.TOOL: ("capability_kinds", "access_kind"),
+    NodeType.DATA_ASSET: ("asset_kind",),
+    NodeType.OUTPUT: ("output_kind",),
+}
+
+# Declarable properties whose value is a list of strings. A scalar is wrapped so
+# rules do a membership test, not a substring match over a string.
+_LIST_PROPERTIES = {"capability_kinds"}
 
 
 def slugify(value: str) -> str:
@@ -52,18 +52,34 @@ def as_list(value: Any) -> list[Any]:
     return [value]
 
 
-def apply_tool_overrides(props: dict[str, Any], raw_tool: Mapping[str, Any]) -> None:
-    """Copy whitelisted tool-property overrides from raw YAML onto ``props``.
+def declarable_properties(node_type: NodeType) -> set[str]:
+    """Property names a framework file may declare for a node of this type.
 
-    Only known fields are applied (a stray key must not overwrite a derived
-    property), and ``capability_kinds`` is coerced to a list so a scalar override
-    does not turn the membership test in ``_primary_effect`` into a substring
-    match over a string.
+    Every property catalogued for the type in ``node_properties.yaml`` plus the
+    few descriptive extras above. Deriving the set from the catalog means a new
+    catalogued property is accepted by every adapter without touching them.
     """
-    for key in TOOL_OVERRIDE_FIELDS:
-        if key in raw_tool:
-            value = raw_tool[key]
-            props[key] = as_list(value) if key == "capability_kinds" else value
+    return set(default_properties(node_type.value)) | set(_EXTRA_DECLARABLE.get(node_type, ()))
+
+
+def apply_declared_properties(props: dict[str, Any], raw: Any, node_type: NodeType) -> None:
+    """Copy the declarable properties present in ``raw`` onto ``props``.
+
+    Declared values win over inferred ones. Unknown keys are ignored so a
+    structural key (``tools``, ``inputs``...) or a typo cannot clobber a derived
+    property. List-valued properties are coerced to a list of strings.
+    """
+    if not isinstance(raw, Mapping):
+        return
+    list_keys = _LIST_PROPERTIES | {
+        key for key, value in default_properties(node_type.value).items() if isinstance(value, list)
+    }
+    for key in declarable_properties(node_type):
+        value = raw.get(key)
+        # An explicit null reads as "not declared": keep the inferred value.
+        if value is None:
+            continue
+        props[key] = [str(v) for v in as_list(value)] if key in list_keys else value
 
 
 class IdFactory:
@@ -111,6 +127,10 @@ class IdFactory:
 _EFFECT_PRECEDENCE = [
     "executeCode",
     "deleteResource",
+    # Only ever present when declared via capability_kinds: no tool name maps
+    # to them. Routed to an external destination so FH-012 can see the hop.
+    "deployRelease",
+    "moveResource",
     "modifyResource",
     "createResource",
     "send",
@@ -330,6 +350,19 @@ def synthesize_tool_effect(
     """
     effect = tool_effect(tool_props)
     tool_name = _display_name(builder, tool_id)
+
+    if effect in {"deployRelease", "moveResource"}:
+        # Publishing a release or moving a resource lands outside the system,
+        # which is what FH-012 (external publication) keys on.
+        out_id = ids.make(NodeType.OUTPUT, f"{tool_name} destination")
+        builder.add_node(
+            out_id,
+            NodeType.OUTPUT,
+            f"{tool_name} destination",
+            infer_output_properties(tool_name, external=True),
+        )
+        builder.add_edge(tool_id, out_id, effect)
+        return
 
     if effect in {"send", "createResource"}:
         # Case-insensitive: this runs during adapter build, before the normalizer

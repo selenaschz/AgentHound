@@ -60,6 +60,12 @@ export interface BackendGraphNode {
   label: string;
   type: string;
   risk_score: number;
+  /** Highest severity among the findings whose path contains this node
+   * (`info` when none). Node-scoped findings have no edges, so this is where
+   * they become visible. */
+  risk_level: string;
+  /** Ids of every finding whose path contains this node. */
+  finding_ids: string[];
   properties: Record<string, unknown>;
   badges: string[];
 }

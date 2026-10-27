@@ -89,7 +89,8 @@ Returns the normalized graph in the frontend shape:
 
 ```json
 {
-  "nodes": [{ "id", "label", "type", "risk_score", "properties", "badges": [] }],
+  "nodes": [{ "id", "label", "type", "risk_score", "risk_level",
+              "finding_ids": [], "properties", "badges": [] }],
   "edges": [{ "id", "source", "target", "label", "capability", "properties",
               "risk_level", "blocked": false, "mitigated": false,
               "finding_ids": [] }]
@@ -98,6 +99,10 @@ Returns the normalized graph in the frontend shape:
 
 `404 ANALYSIS_NOT_FOUND` if the id is unknown. `blocked`/`mitigated` are always
 false here; they are set by the control simulator (§12.6).
+
+A node's `finding_ids` lists every finding whose `path` contains it, and its
+`risk_level` is the highest severity among them (`info` when none). This is the
+only place a node-scoped finding shows up, since those findings have no edges.
 
 ## GET /analyses/{analysis_id}/findings  (spec §12.3)
 

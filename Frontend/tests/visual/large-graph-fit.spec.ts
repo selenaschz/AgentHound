@@ -39,7 +39,16 @@ async function expectWholeGraphVisible(page: Page) {
       expect(b.bottom).toBeLessThanOrEqual(frame.y + frame.height);
       expect(b.right).toBeLessThanOrEqual(frame.x + frame.width);
     }
-  }).toPass();
+  }).toPass({ timeout: 5_000 });
+}
+
+const zoom = (page: Page) =>
+  canvas(page).locator(".react-flow__viewport").evaluate((el) => new DOMMatrixReadOnly(getComputedStyle(el).transform).a);
+
+async function settledZoom(page: Page) {
+  let previous = NaN;
+  await expect.poll(async () => previous === (previous = await zoom(page)), { intervals: [250] }).toBe(true);
+  return previous;
 }
 
 test.beforeEach(async ({ page, context, baseURL }) => {
@@ -72,10 +81,14 @@ test.describe("Large graph fit", () => {
 
   test("does not snap past the fit when zooming out from it", async ({ page }) => {
     await expectWholeGraphVisible(page);
+    const fit = await settledZoom(page);
     await canvas(page).hover();
 
     await page.mouse.wheel(0, 400);
 
+    // Waits for the wheel to land, so a snap back up cannot be missed.
+    await expect.poll(() => zoom(page)).not.toBe(fit);
+    expect(await settledZoom(page)).toBeLessThan(fit);
     await expectWholeGraphVisible(page);
   });
 });

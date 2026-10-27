@@ -99,6 +99,7 @@ const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2.5;
 // Fitting ignores the zoom floor, otherwise large graphs never fit whole.
 const FIT_OPTIONS = { padding: 0.08, minZoom: 0 };
+const ROUTE_FIT_OPTIONS = { padding: 0.3, minZoom: 0, maxZoom: 1.2 };
 
 // Safari still exposes the Fullscreen API under the webkit prefix, so fall back to
 // the prefixed members when the standard ones are absent.
@@ -177,11 +178,12 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
   const { getNodes, fitView } = useReactFlow();
 
   // Zoom at which the whole graph fits; the floor drops to it so wheel zoom
-  // does not snap back past a fit on large graphs.
+  // does not snap back past a fit on large graphs. It uses the route padding,
+  // the larger one, so a route's fit never lands below it either.
   const fitZoom = useStore((s) => {
     if (!s.width || !s.height || s.nodeLookup.size === 0) return MIN_ZOOM;
     const bounds = getNodesBounds([...s.nodeLookup.keys()], { nodeLookup: s.nodeLookup });
-    return getViewportForBounds(bounds, s.width, s.height, 0, MAX_ZOOM, FIT_OPTIONS.padding).zoom;
+    return getViewportForBounds(bounds, s.width, s.height, 0, MAX_ZOOM, ROUTE_FIT_OPTIONS.padding).zoom;
   });
   const minZoom = Math.min(MIN_ZOOM, fitZoom);
 
@@ -236,7 +238,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
   useEffect(() => {
     const raf = requestAnimationFrame(() =>
       highlightNodes.size > 0
-        ? fitView({ nodes: [...highlightNodes].map((id) => ({ id })), padding: 0.3, minZoom: 0, maxZoom: 1.2, duration: 400 })
+        ? fitView({ nodes: [...highlightNodes].map((id) => ({ id })), ...ROUTE_FIT_OPTIONS, duration: 400 })
         : fitView({ ...FIT_OPTIONS, duration: 400 }),
     );
     return () => cancelAnimationFrame(raf);

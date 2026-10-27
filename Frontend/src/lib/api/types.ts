@@ -7,6 +7,17 @@
  * `@/lib/api/adapters`.
  */
 
+/** A rule the uploaded file's framework can't reach, or only reaches once the
+ * file declares a property (plan Phase 3.2, `catalogs/adapter_coverage.yaml`).
+ * `not_expressible`: the adapter can't produce the shape the rule needs.
+ * `needs_declaration`: `message` names the property to declare. Always empty
+ * for the generic format, which covers the full rule catalog. */
+export interface CoverageWarning {
+  kind: "not_expressible" | "needs_declaration";
+  rules: string[];
+  message: string;
+}
+
 /** Summary block returned by `POST /analyses` (spec section 12.1). */
 export interface BackendSummary {
   nodes: number;
@@ -28,6 +39,7 @@ export interface AnalysisListItem {
   source_framework: string;
   uploaded_at: string;
   summary: BackendSummary;
+  warnings: CoverageWarning[];
 }
 
 /** Response of `GET /analyses`: every stored analysis, most recent upload first. */
@@ -51,6 +63,7 @@ export interface CreateAnalysisResponse {
   /** Authoritative analysis name (the submitted name, or the YAML's metadata.name). */
   name: string;
   summary: BackendSummary;
+  warnings: CoverageWarning[];
 }
 
 /** A node in the normalized graph (spec section 12.2). `type` is a backend
@@ -262,6 +275,7 @@ export interface AnalyzeResponse {
   graph: BackendGraph;
   findings: BackendFinding[];
   groups: FindingGroup[];
+  warnings: CoverageWarning[];
 }
 
 /** The error envelope every non-2xx response is expected to carry (spec

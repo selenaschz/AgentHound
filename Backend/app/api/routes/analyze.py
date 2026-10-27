@@ -11,6 +11,7 @@ import os
 
 from fastapi import APIRouter, File, Form, UploadFile
 
+from ...core.coverage import coverage_warnings
 from ...core.graph.serializer import serialize_graph
 from ...core.ir.models import AnalyzeRequest
 from ...core.pipeline import analyze_graph, analyze_stored, parse_text
@@ -73,6 +74,7 @@ def create_analysis(
             "status": "parsed",
             "name": result.ir.metadata.name,
             "summary": result.summary().model_dump(),
+            "warnings": coverage_warnings(result.ir.source_framework),
         }
     finally:
         # Release the underlying spooled temp file/descriptor on every path,
@@ -89,6 +91,7 @@ def _list_item(result) -> dict:
         "source_framework": result.ir.source_framework.value,
         "uploaded_at": result.ir.metadata.uploaded_at.isoformat(),
         "summary": result.summary().model_dump(),
+        "warnings": coverage_warnings(result.ir.source_framework),
     }
 
 
@@ -149,4 +152,5 @@ def analyze_analysis(analysis_id: str, request: AnalyzeRequest | None = None) ->
         "graph": serialize_graph(result.ir, result.findings),
         "findings": [f.model_dump() for f in result.findings],
         "groups": groups,
+        "warnings": coverage_warnings(result.ir.source_framework),
     }

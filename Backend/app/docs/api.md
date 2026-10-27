@@ -37,9 +37,22 @@ Response:
   "status": "parsed",
   "name": "HireSmart Copilot",
   "summary": { "nodes": 7, "edges": 6, "findings": 0,
-               "critical": 0, "high": 0, "medium": 0, "max_score": 0.0 }
+               "critical": 0, "high": 0, "medium": 0, "max_score": 0.0 },
+  "warnings": [
+    { "kind": "needs_declaration", "rules": ["FH-026"],
+      "message": "Declare `contains_regulated_data: [gdpr]` on the data asset." }
+  ]
 }
 ```
+
+`warnings` lists the rules the file's framework can't reach, from
+[`catalogs/adapter_coverage.yaml`](../catalogs/adapter_coverage.yaml).
+`kind` is `not_expressible` (the adapter can't produce the shape the rule needs)
+or `needs_declaration` (the rule fires once the file declares the property the
+`message` names). It's always `[]` for the generic format, which covers the full
+rule catalog. The warnings depend only on the framework, so `GET
+/analyses/{analysis_id}` and `POST .../analyze` return the same array, including
+for analyses saved before the field existed.
 
 Common errors: `EMPTY_INPUT`, `INVALID_YAML`, `INVALID_NODE_TYPE`,
 `UNKNOWN_CAPABILITY`, `INVALID_IR` (400).
@@ -74,11 +87,12 @@ Response (same shape as `/analyze` produces for the results view):
                "critical": 1, "high": 2, "medium": 0, "max_score": 10.0 },
   "graph": { "nodes": [], "edges": [] },
   "findings": [ { "id", "rule_id", "group_id", ... } ],
-  "groups": [ { "group_id", "rule_id", "count", ... } ]
+  "groups": [ { "group_id", "rule_id", "count", ... } ],
+  "warnings": [ { "kind", "rules", "message" } ]
 }
 ```
 
-`groups` is described under `GET .../findings`.
+`groups` is described under `GET .../findings`; `warnings` under `POST /analyses`.
 
 The stored analysis is overwritten under the same id, so subsequent
 `GET .../graph`, `GET .../findings` and the control endpoints reflect the

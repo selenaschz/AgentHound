@@ -1,4 +1,4 @@
-"""Root-cause grouping of findings (PDF M-13).
+"""Root-cause grouping of findings.
 
 A large architecture repeats the same cause many times: a policy-absence rule
 fires once per agent (FH-028/FH-035 22 times each in a 25-agent hospital), and a

@@ -1,4 +1,4 @@
-"""``evaluated_by`` in capabilities.yaml matches the rule code (PDF M-15).
+"""``evaluated_by`` in capabilities.yaml matches the rule code.
 
 The annotation is maintained by hand, so this test re-derives it from the rule
 modules: for every ``fh_NNN`` function it collects the verb string literals the

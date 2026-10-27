@@ -193,7 +193,7 @@ def _reduction(before_total: float, after_total: float) -> dict:
 def _risk_reduction(before: list[Finding], after: list[Finding]) -> dict:
     # The top-level figure sums every finding, so a cause that repeats N times
     # counts N times. ``by_group`` counts each root-cause group once at its
-    # highest score (M-13) so repeated occurrences don't inflate the total.
+    # highest score so repeated occurrences don't inflate the total.
     reduction = _reduction(sum(f.score for f in before), sum(f.score for f in after))
     reduction["by_group"] = _reduction(grouped_total(before), grouped_total(after))
     return reduction

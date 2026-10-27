@@ -1,4 +1,4 @@
-"""Root-cause grouping of findings (PDF M-13, ``app/core/rules/grouping.py``)."""
+"""Root-cause grouping of findings (``app/core/rules/grouping.py``)."""
 
 from __future__ import annotations
 

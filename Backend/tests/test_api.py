@@ -92,7 +92,7 @@ def test_graph_endpoint_frontend_shape():
 
 def test_graph_nodes_carry_node_scoped_findings():
     # Node-scoped findings have no edges, so they can only be shown on the node
-    # itself (M-09). Every finding must be listed on each node of its path.
+    # itself. Every finding must be listed on each node of its path.
     analysis_id = _create_analyzed("hiresmart_generic.yaml")
     findings = client.get(f"/analyses/{analysis_id}/findings").json()["findings"]
     graph = client.get(f"/analyses/{analysis_id}/graph").json()

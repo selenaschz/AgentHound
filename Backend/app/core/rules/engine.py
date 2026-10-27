@@ -82,7 +82,7 @@ def run_rules(graph: nx.MultiDiGraph, max_depth: int = 8) -> list[Finding]:
     for index, finding in enumerate(findings, start=1):
         finding.id = f"finding_{index:03d}"
 
-    # Root-cause groups (M-13) are numbered after the final ordering so a
+    # Root-cause groups are numbered after the final ordering so a
     # group's first member is its highest-scoring finding.
     group_findings(findings)
 

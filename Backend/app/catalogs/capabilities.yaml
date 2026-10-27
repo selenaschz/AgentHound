@@ -5,7 +5,7 @@
 # "sendExternal"); they are derived from the target node's properties.
 #
 # Each entry documents the verb and the node kinds it typically connects.
-# `evaluated_by` lists the rules whose logic checks for the verb (PDF M-15). An
+# `evaluated_by` lists the rules whose logic checks for the verb. An
 # empty list means the verb is vocabulary only: it is accepted on edges and
 # shown in the graph, but no rule fires because of it. Kept in sync with the
 # rule modules by tests/test_capability_catalog.py.

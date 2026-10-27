@@ -26,7 +26,7 @@ def test_apply_declared_properties_only_copies_declarable_keys():
 
 
 def test_apply_declared_properties_accepts_every_catalogued_property():
-    # Properties the rules read but the old per-adapter lists dropped (M-11).
+    # Properties the rules read but the old per-adapter lists dropped.
     tool = infer_tool_properties("payments.charge")
     apply_declared_properties(tool, {"authentication_scope": "elevated", "idempotent": False}, NodeType.TOOL)
     assert tool["authentication_scope"] == "elevated"

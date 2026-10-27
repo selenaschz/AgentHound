@@ -11,7 +11,7 @@ generic, CrewAI, LangGraph and Dify), so the effect of an adapter or rule change
 shows up as a diff between two runs:
 
     cd Backend
-    python scripts/coverage_matrix.py ../ejemplos_distintos_frameworks1
+    python scripts/coverage_matrix.py <dir-with-yaml-files>
     python scripts/coverage_matrix.py ../examples --rules   # also list rule ids
 """
 

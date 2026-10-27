@@ -31,7 +31,7 @@ Models live in [`core/ir/models.py`](../core/ir/models.py).
 
 Defined in [`catalogs/capabilities.yaml`](../catalogs/capabilities.yaml): 53
 verbs in nine phases of the agent cycle. Each verb's `evaluated_by` lists the
-rules that check for it (PDF M-15). Only 18 verbs have a non-empty list; the
+rules that check for it. Only 18 verbs have a non-empty list; the
 rest are vocabulary only: accepted on edges and drawn in the graph, but no rule
 fires because of them. `tests/test_capability_catalog.py` re-derives the lists
 from the rule modules and fails when they drift.

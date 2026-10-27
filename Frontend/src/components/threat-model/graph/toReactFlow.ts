@@ -100,8 +100,8 @@ export interface FindingRoute {
   edgeIds: string[];
 }
 
-// The finding's own edge ids tell apart duplicates that take parallel edges;
-// without them, match consecutive `path` pairs in either direction.
+// Prefer the finding's own edge ids (the backend lists every parallel edge of
+// each hop); without them, match consecutive `path` pairs in either direction.
 export function findingRoute(finding: Pick<Finding, "path" | "edges">, edges: GraphEdge[]): FindingRoute {
   const byId = new Map(edges.map((e) => [e.id, e]));
   let routeEdges = (finding.edges ?? []).flatMap((id) => byId.get(id) ?? []);

@@ -1,7 +1,7 @@
 import type { AnalysisResult } from "@/lib/api/adapters";
 import type { Finding, GraphEdge, GraphNode } from "@/types/ThreatModel";
 
-// e1 and e2 are parallel edges: f1 and f2 differ only in which one they take.
+// f1 and f2 share a rule and differ in their last node, as real duplicates do.
 export const nodes: GraphNode[] = [
   { id: "input", type: "input", label: "Email\nentrante", x: 0, y: 0 },
   { id: "planner", type: "agent", label: "Planner", x: 1, y: 0 },
@@ -11,7 +11,6 @@ export const nodes: GraphNode[] = [
 
 export const edges: GraphEdge[] = [
   { id: "e1", f: "input", t: "planner" },
-  { id: "e2", f: "input", t: "planner" },
   { id: "e3", f: "planner", t: "crm" },
   { id: "e4", f: "planner", t: "logs" },
 ];
@@ -31,7 +30,7 @@ function finding(overrides: Partial<Finding> & Pick<Finding, "id" | "ruleId">): 
 
 export const findings: Finding[] = [
   finding({ id: "f1", ruleId: "FH-001", edges: ["e1", "e3"] }),
-  finding({ id: "f2", ruleId: "FH-001", edges: ["e2", "e3"] }),
+  finding({ id: "f2", ruleId: "FH-001", path: ["input", "planner", "logs"], edges: ["e1", "e4"] }),
   finding({ id: "f3", ruleId: "FH-004", severity: "high", title: "Escritura en logs", path: ["planner", "logs"], edges: ["e4"], score: 7.2 }),
   finding({ id: "f4", ruleId: "HY-002", severity: "low", title: "Sin auditoría", path: [], edges: [], score: 2, findingClass: "hygiene" }),
 ];

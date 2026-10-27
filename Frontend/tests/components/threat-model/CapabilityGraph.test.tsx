@@ -99,7 +99,8 @@ describe("CapabilityGraph — graph highlight", () => {
       label: "FH-001 #1",
       summary: "Email entrante → Planner → CRM",
     });
-    expect(second?.edgeIds).toEqual(["e2", "e3"]);
+    expect(second?.nodeIds).toEqual(["input", "planner", "logs"]);
+    expect(second?.edgeIds).toEqual(["e1", "e4"]);
     expect(second?.label).toBe("FH-001 #2");
   });
 

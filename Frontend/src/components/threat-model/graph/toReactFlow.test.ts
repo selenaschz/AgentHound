@@ -11,12 +11,11 @@ const edges: GraphEdge[] = [
 ];
 
 describe("findingRoute", () => {
-  it("uses the finding's own edge ids, telling parallel hops apart", () => {
-    expect(findingRoute({ path: ["a", "b", "c"], edges: ["e1", "e3"] }, edges)).toEqual({
+  it("uses the finding's own edge ids, including every parallel edge of a hop", () => {
+    expect(findingRoute({ path: ["a", "b", "c"], edges: ["e1", "e2", "e3"] }, edges)).toEqual({
       nodeIds: ["a", "b", "c"],
-      edgeIds: ["e1", "e3"],
+      edgeIds: ["e1", "e2", "e3"],
     });
-    expect(findingRoute({ path: ["a", "b", "c"], edges: ["e2", "e3"] }, edges).edgeIds).toEqual(["e2", "e3"]);
   });
 
   it("drops edge ids that are not in the rendered graph", () => {

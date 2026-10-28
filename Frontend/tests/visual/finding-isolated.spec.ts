@@ -14,7 +14,6 @@ const row = (page: Page, label: string) =>
 const nodeIds = async (page: Page) =>
   (await canvas(page).locator(".react-flow__node").evaluateAll((els) => els.map((el) => el.dataset.id ?? ""))).sort();
 
-// finding_001 (FH-011 #1) crosses 5 of the fixture's 9 nodes.
 const FH_011_1_ROUTE = [
   "agent_ops_executor",
   "agent_ticket_intake",
@@ -83,6 +82,36 @@ test.describe("Isolated finding", () => {
 
     await expect(routePanel(page)).toHaveCount(0);
     await expect(canvas(page).locator(".react-flow__node")).toHaveCount(9);
+  });
+
+  test("isolates without leaving fullscreen", async ({ page }) => {
+    await openResults(page);
+    await row(page, "FH-011 #1").click();
+    await canvas(page).getByRole("button", { name: "Pantalla completa" }).click();
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.hasAttribute("data-ch-canvas"))).toBe(true);
+
+    await canvas(page).getByRole("button", { name: "Aislar ruta" }).click();
+
+    await expect.poll(() => nodeIds(page)).toEqual(FH_011_1_ROUTE);
+    await expect(routePanel(page)).toContainText("Hallazgo aislado");
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
+    await expect(page).toHaveScreenshot("graph-fh-011-1-isolated-fullscreen.png");
+
+    await canvas(page).getByRole("button", { name: "Ver en contexto" }).click();
+
+    await expect(canvas(page).locator(".react-flow__node")).toHaveCount(9);
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
+  });
+
+  test("keeps the isolated route legible in dark mode", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("colorScheme", "dark"));
+    await openResults(page);
+    await row(page, "FH-011 #1").click();
+
+    await canvas(page).getByRole("button", { name: "Aislar ruta" }).click();
+
+    await expect.poll(() => nodeIds(page)).toEqual(FH_011_1_ROUTE);
+    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-1-isolated-dark.png");
   });
 
   test("keeps the whole graph and offers a retry when the subgraph cannot load", async ({ page }) => {

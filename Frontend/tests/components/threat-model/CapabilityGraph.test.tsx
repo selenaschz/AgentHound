@@ -37,14 +37,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function render({ selectedFindingId = null as string | null, solved = false } = {}) {
+function render({ selectedFindingId = null as string | null, solved = false, findingList = findings } = {}) {
   view.render(
     <CapabilityGraph
       analysisId="a1"
       solved={solved}
       nodes={nodes}
       edges={edges}
-      findings={findings}
+      findings={findingList}
       attacks={[]}
       findingLabelById={labels}
       selectedFindingId={selectedFindingId}
@@ -136,7 +136,6 @@ describe("CapabilityGraph — graph highlight", () => {
   });
 });
 
-// f1's path subgraph as the backend serves it: only input → planner → crm.
 const f1Detail: FindingDetailResponse = {
   finding: {
     id: "f1", rule_id: "FH-001", title: findings[0]!.title, severity: "critical", score: 9.1,
@@ -155,6 +154,23 @@ const f1Detail: FindingDetailResponse = {
     ],
   },
 };
+
+const f2Detail: FindingDetailResponse = {
+  finding: { ...f1Detail.finding, id: "f2", path: ["input", "planner", "logs"], edges: ["e1", "e4"] },
+  path_graph: {
+    nodes: f1Detail.path_graph.nodes.map((n) => (n.id === "crm" ? { ...n, id: "logs", label: "logs" } : n)),
+    edges: [
+      f1Detail.path_graph.edges[0]!,
+      { ...f1Detail.path_graph.edges[1]!, id: "e4", target: "logs" },
+    ],
+  },
+};
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
+}
 
 async function settle() {
   await act(async () => {});
@@ -241,6 +257,44 @@ describe("CapabilityGraph — isolated finding", () => {
 
     expect(canvas.props?.isolated).toBe(false);
     expect(canvas.props?.nodes).toHaveLength(nodes.length);
+  });
+
+  it("drops a slow response for a finding the user has already moved on from", async () => {
+    const slowF1 = deferred<FindingDetailResponse>();
+    const fastF2 = deferred<FindingDetailResponse>();
+    getFindingMock.mockReturnValueOnce(slowF1.promise).mockReturnValueOnce(fastF2.promise);
+    render({ selectedFindingId: "f1" });
+    isolate();
+    await settle();
+
+    render({ selectedFindingId: "f2" });
+    await settle();
+    const f1Signal = getFindingMock.mock.calls[0]![2]!.signal!;
+    expect(f1Signal.aborted).toBe(true);
+
+    fastF2.resolve(f2Detail);
+    await settle();
+    slowF1.resolve(f1Detail);
+    await settle();
+
+    expect(canvas.props?.isolated).toBe(true);
+    expect(canvas.props?.nodes.map((n) => n.id)).toEqual(["input", "planner", "logs"]);
+    expect(canvas.props?.highlight).toMatchObject({ edgeIds: ["e1", "e4"], label: "FH-001 #2" });
+  });
+
+  it("refetches after a re-analysis instead of reusing the previous run's subgraph", async () => {
+    getFindingMock.mockResolvedValueOnce(f1Detail).mockResolvedValueOnce(f2Detail);
+    render({ selectedFindingId: "f1" });
+    isolate();
+    await settle();
+    expect(canvas.props?.nodes.map((n) => n.id)).toEqual(["input", "planner", "crm"]);
+
+    render({ selectedFindingId: "f1", findingList: [...findings] });
+    expect(canvas.props?.isolating).toBe(true);
+    await settle();
+
+    expect(getFindingMock).toHaveBeenCalledTimes(2);
+    expect(canvas.props?.nodes.map((n) => n.id)).toEqual(["input", "planner", "logs"]);
   });
 
   it("keeps the whole graph and offers a retry when the subgraph fails to load", async () => {

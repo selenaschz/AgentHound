@@ -124,7 +124,7 @@ function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, onClose
             <Text1 medium color={skinVars.colors.textSecondary}>{t("attackPaths")}</Text1>
             <Stack space={8}>
               {nodeFindings.map((f) => (
-                <Boxed key={f.id}>
+                <Boxed key={f.id} dataAttributes={{ testid: "node-finding" }}>
                   <Box padding={12}>
                     <Stack space={4}>
                       <Inline space={8} alignItems="center" wrap verticalSpace={4}>

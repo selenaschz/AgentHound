@@ -474,7 +474,7 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                     content={
                       <Stack space={8}>
                         {findings.map((f) => (
-                          <Boxed key={f.id}>
+                          <Boxed key={f.id} dataAttributes={{ testid: "resolved-finding" }}>
                             <Box padding={16}>
                               <Stack space={8}>
                                 <Inline space={8} alignItems="center">

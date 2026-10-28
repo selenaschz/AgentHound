@@ -15,6 +15,7 @@ import type {
   ControlApplication,
   CreateAnalysisResponse,
   DeleteAnalysisResponse,
+  FindingDetailResponse,
   FindingsResponse,
   RecommendationsResponse,
   SimulateControlsResponse,
@@ -73,6 +74,19 @@ export async function getGraph(analysisId: string): Promise<BackendGraph> {
  * (`GET /analyses/{id}/findings`). */
 export async function getFindings(analysisId: string): Promise<FindingsResponse> {
   return apiFetch<FindingsResponse>(`/analyses/${encodeURIComponent(analysisId)}/findings`);
+}
+
+/** Fetch one finding plus its path subgraph
+ * (`GET /analyses/{id}/findings/{finding_id}`, spec section 12.4). */
+export async function getFinding(
+  analysisId: string,
+  findingId: string,
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<FindingDetailResponse> {
+  return apiFetch<FindingDetailResponse>(
+    `/analyses/${encodeURIComponent(analysisId)}/findings/${encodeURIComponent(findingId)}`,
+    { signal },
+  );
 }
 
 /**

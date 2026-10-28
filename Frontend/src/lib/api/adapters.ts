@@ -33,6 +33,7 @@ import type {
   BackendSummary,
   ControlRecommendation,
   CreateAnalysisResponse,
+  FindingDetailResponse,
   FindingsResponse,
   SimulateControlsResponse,
 } from "./types";
@@ -234,6 +235,23 @@ export function toGraphEdges(backend: BackendGraphEdge[]): GraphEdge[] {
     detected: e.detected,
     findingIds: e.finding_ids,
   }));
+}
+
+// --- one finding drawn on its own ---------------------------------------------
+
+/** A finding with the graph cut down to its own route, ready to draw alone. */
+export interface FindingPathGraph {
+  finding: Finding;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export function toFindingPathGraph(detail: FindingDetailResponse): FindingPathGraph {
+  return {
+    finding: toFinding(detail.finding),
+    nodes: toGraphNodes(detail.path_graph.nodes),
+    edges: toGraphEdges(detail.path_graph.edges),
+  };
 }
 
 // --- node property security signal (for the detail drawer) -------------------

@@ -190,6 +190,7 @@
       "pathSeverity": "Severidad de la ruta",
       "primaryRoute": "Ruta principal {id}",
       "critical": "Otra ruta crítica",
+      "criticalOnly": "Ruta de hallazgo crítico",
       "high": "Ruta de hallazgo alto",
       "medium": "Ruta de hallazgo medio",
       "low": "Ruta de hallazgo bajo",

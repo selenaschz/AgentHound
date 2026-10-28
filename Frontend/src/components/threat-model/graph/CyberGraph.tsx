@@ -78,6 +78,8 @@ export interface CyberGraphProps {
     legendPathSeverity: string;
     legendPrimaryRoute: string;
     legendCritical: string;
+    /** The critical row when no primary route is drawn to set it apart from. */
+    legendCriticalOnly: string;
     legendHigh: string;
     legendMedium: string;
     legendLow: string;
@@ -508,7 +510,9 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
                 {legendState.hasPrimaryRoute && (
                   <LegendRow color={severityPath.critical.color} glowColor={severityPath.critical.glow} text={labels.legendPrimaryRoute} dashed glow />
                 )}
-                {legendState.severities.has("critical") && <LegendRow color={severityPath.critical.color} text={labels.legendCritical} />}
+                {legendState.severities.has("critical") && (
+                  <LegendRow color={severityPath.critical.color} text={legendState.hasPrimaryRoute ? labels.legendCritical : labels.legendCriticalOnly} />
+                )}
                 {legendState.severities.has("high") && <LegendRow color={severityPath.high.color} text={labels.legendHigh} />}
                 {legendState.severities.has("medium") && <LegendRow color={severityPath.medium.color} text={labels.legendMedium} />}
                 {legendState.severities.has("low") && <LegendRow color={severityPath.low.color} text={labels.legendLow} />}

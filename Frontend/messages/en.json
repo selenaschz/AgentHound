@@ -190,6 +190,7 @@
       "pathSeverity": "Path severity",
       "primaryRoute": "{id} primary route",
       "critical": "Other critical finding path",
+      "criticalOnly": "Critical finding path",
       "high": "High finding path",
       "medium": "Medium finding path",
       "low": "Low finding path",

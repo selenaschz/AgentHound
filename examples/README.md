@@ -29,9 +29,15 @@ with the reason for each, is in
 [`Backend/app/catalogs/adapter_coverage.yaml`](../Backend/app/catalogs/adapter_coverage.yaml).
 
 Rules no adapter can reach today: FH-006, FH-015 and FH-031 in all three;
-FH-030 in CrewAI and LangGraph; FH-001 and FH-024 in CrewAI; the memory rules
-(FH-009, FH-020, FH-029) in CrewAI and Dify; the delegation rules (FH-014,
-FH-023) in Dify. Use the generic format when you need those.
+FH-030 in CrewAI and LangGraph; FH-001 and FH-024 in CrewAI; the delegation
+rules (FH-014, FH-023) in Dify. Use the generic format when you need those.
+
+The memory rules (FH-009, FH-020, FH-029) come from each framework's own
+memory: a crew-level `memory: true` in CrewAI (shared by the crew's agents;
+an agent opts out with `memory: false`), conversation variables in Dify
+(written by `assigner` nodes, read by the nodes that reference them), and
+`type: memory` nodes in LangGraph. Declare memory properties on the crew's
+`memory` mapping, on the conversation variable, or on the LangGraph node.
 
 ### Properties that unlock rules in framework files
 

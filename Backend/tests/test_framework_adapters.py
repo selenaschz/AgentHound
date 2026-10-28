@@ -283,6 +283,191 @@ graph:
     assert "FH-020" not in _rule_ids(result.findings)
 
 
+# --- CrewAI crew memory -----------------------------------------------------
+
+_CREWAI_MEMORY = """
+memory: {memory}
+agents:
+  intake:
+    role: Intake
+    inputs: [{{name: Customer chat, trust_level: untrusted}}]
+  sender:
+    role: Sender
+    tools: [gmail.send]{opt_out}
+tasks: {{}}
+"""
+
+
+def _memory_nodes(result):
+    return [n for n in result.ir.nodes if n.type.value == "memory"]
+
+
+def _memory_hops(result):
+    return {(e.source, e.capability, e.target) for e in result.ir.edges if e.capability.endswith("Memory")}
+
+
+def test_crewai_crew_memory_is_shared_by_every_agent():
+    result = analyze_text(_CREWAI_MEMORY.format(memory="true", opt_out=""), framework_hint="crewai")
+    [memory] = _memory_nodes(result)
+    assert memory.id == "memory_crew_memory"
+    assert memory.properties["shared"] is True
+    assert memory.properties["sensitivity"] == "medium"
+    assert memory.properties["retention_ttl_days"] is None
+    assert _memory_hops(result) == {
+        ("agent_intake", "writeMemory", memory.id),
+        ("agent_sender", "writeMemory", memory.id),
+        (memory.id, "readMemory", "agent_intake"),
+        (memory.id, "readMemory", "agent_sender"),
+    }
+    # Intake writes what the untrusted chat says; Sender reads it and sends.
+    assert {"FH-009", "FH-020", "FH-029"} <= _rule_ids(result.findings)
+
+
+@pytest.mark.parametrize("memory", ["false", '"false"', "null"])
+def test_crewai_without_crew_memory_has_no_memory_node(memory):
+    result = analyze_text(_CREWAI_MEMORY.format(memory=memory, opt_out=""), framework_hint="crewai")
+    assert _memory_nodes(result) == []
+    assert not {"FH-009", "FH-020", "FH-029"} & _rule_ids(result.findings)
+
+
+def test_crewai_agent_can_opt_out_of_crew_memory():
+    # With Sender out, only Intake uses the memory: it is not shared.
+    result = analyze_text(
+        _CREWAI_MEMORY.format(memory="true", opt_out="\n    memory: false"), framework_hint="crewai"
+    )
+    [memory] = _memory_nodes(result)
+    assert memory.properties["shared"] is False
+    assert {hop[0] for hop in _memory_hops(result)} == {"agent_intake", memory.id}
+    fired = _rule_ids(result.findings)
+    assert not {"FH-009", "FH-020"} & fired
+    assert "FH-029" in fired
+
+
+def test_crewai_crew_memory_mapping_declares_properties():
+    memory = "{name: Case notes, sensitivity: high, retention_ttl_days: 30, write_validated: true}"
+    result = analyze_text(_CREWAI_MEMORY.format(memory=memory, opt_out=""), framework_hint="crewai")
+    [node] = _memory_nodes(result)
+    assert (node.id, node.name) == ("memory_case_notes", "Case notes")
+    assert node.properties["sensitivity"] == "high"
+    assert node.properties["retention_ttl_days"] == 30
+    assert not {"FH-009", "FH-020", "FH-029"} & _rule_ids(result.findings)
+
+
+def test_crewai_declared_unshared_memory_wins():
+    result = analyze_text(_CREWAI_MEMORY.format(memory="{shared: false}", opt_out=""), framework_hint="crewai")
+    [node] = _memory_nodes(result)
+    assert node.properties["shared"] is False
+    assert not {"FH-009", "FH-020"} & _rule_ids(result.findings)
+
+
+# --- Dify conversation variables --------------------------------------------
+
+_DIFY_MEMORY = """
+workflow:
+  conversation_variables:
+    - {{id: v1, name: notes, value_type: string, value: "", description: Running notes{declared}}}
+  graph:
+    nodes:
+      - {{id: s, data: {{type: start, title: Customer chat}}}}
+      - {{id: a, data: {{type: llm, title: Intake}}}}
+      - id: save
+        data:
+          type: assigner
+          title: Save notes
+          items: [{{variable_selector: [conversation, notes], input_type: variable, value: [{source}, text]}}]
+      - id: b
+        data:
+          type: llm
+          title: Writer
+          prompt_template: [{{role: system, text: "Notes so far: {{{{#conversation.notes#}}}}"}}]
+      - {{id: m, data: {{type: tool, title: gmail send}}}}
+    edges:
+      - {{source: s, target: a}}
+      - {{source: a, target: save}}
+      - {{source: save, target: b}}
+      - {{source: b, target: m}}
+"""
+
+
+def test_dify_conversation_variable_is_written_by_assigner_and_read_by_reference():
+    result = analyze_text(_DIFY_MEMORY.format(declared="", source="a"), framework_hint="dify")
+    [memory] = _memory_nodes(result)
+    assert (memory.id, memory.name) == ("memory_notes", "notes")
+    assert memory.properties["shared"] is True
+    assert _memory_hops(result) == {
+        ("agent_intake", "writeMemory", "memory_notes"),
+        ("memory_notes", "readMemory", "agent_writer"),
+    }
+    assert {"FH-009", "FH-020", "FH-029"} <= _rule_ids(result.findings)
+    # Native Dify keys on the variable (value_type, description...) stay silent.
+    assert _ignored(result) == []
+
+
+def test_dify_conversation_variable_keeps_declared_properties():
+    declared = ", sensitivity: high, retention_ttl_days: 7, write_validated: true"
+    result = analyze_text(_DIFY_MEMORY.format(declared=declared, source="a"), framework_hint="dify")
+    [memory] = _memory_nodes(result)
+    assert memory.properties["sensitivity"] == "high"
+    assert memory.properties["retention_ttl_days"] == 7
+    assert not {"FH-009", "FH-020", "FH-029"} & _rule_ids(result.findings)
+
+
+def test_dify_system_value_is_written_by_the_start_node():
+    # sys.query is the user's message, so the start node is the writer. Only
+    # Writer is an agent on the variable: not shared.
+    result = analyze_text(_DIFY_MEMORY.format(declared="", source="sys"), framework_hint="dify")
+    [memory] = _memory_nodes(result)
+    assert ("input_customer_chat", "writeMemory", "memory_notes") in _memory_hops(result)
+    assert memory.properties["shared"] is False
+    assert "FH-020" not in _rule_ids(result.findings)
+
+
+def test_dify_legacy_assigner_and_selector_reference():
+    # The single-variable assigner shape, and a [conversation, name] selector
+    # (not a template) as the reference on a tool.
+    dsl = """
+workflow:
+  conversation_variables: [{name: prefs}]
+  graph:
+    nodes:
+      - {id: s, data: {type: start, title: In}}
+      - {id: a, data: {type: llm, title: Agent}}
+      - {id: c, data: {type: code, title: Clean up}}
+      - id: w
+        data: {type: assigner, assigned_variable_selector: [conversation, prefs], input_variable_selector: [c, result]}
+      - {id: t, data: {type: tool, title: crm lookup, tool_parameters: {q: {value: [conversation, prefs]}}}}
+    edges:
+      - {source: s, target: a}
+      - {source: a, target: c}
+      - {source: c, target: w}
+"""
+    result = analyze_text(dsl, framework_hint="dify")
+    # The code node isn't mapped, so the agent that feeds it is the writer.
+    assert _memory_hops(result) == {
+        ("agent_agent", "writeMemory", "memory_prefs"),
+        ("memory_prefs", "readMemory", "tool_crm_lookup"),
+    }
+
+
+def test_dify_constant_assignment_has_no_writer():
+    dsl = """
+workflow:
+  conversation_variables: [{name: stage}]
+  graph:
+    nodes:
+      - {id: a, data: {type: llm, title: Agent}}
+      - id: w
+        data:
+          type: assigner
+          items: [{variable_selector: [conversation, stage], input_type: constant, value: done}]
+    edges:
+      - {source: a, target: w}
+"""
+    result = analyze_text(dsl, framework_hint="dify")
+    assert [n.id for n in _memory_nodes(result)] == ["memory_stage"]
+    assert _memory_hops(result) == set()
+
+
 # --- tool-mediated FH-008 / FH-025 ------------------------------------------
 
 

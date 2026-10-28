@@ -1,15 +1,19 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Box, Boxed, Inline, Stack, Text1, Touchable, IconSearchRegular, skinVars, useTheme } from "@telefonica/mistica";
 import NodeDetailDrawer from "@/components/threat-model/NodeDetailDrawer";
+import InlineError from "@/components/ui/InlineError";
 import CyberGraph, { type CyberGraphHandle, type GraphHighlight } from "@/components/threat-model/graph/CyberGraph";
 import { findingRoute, primaryRoute, primaryRouteId } from "@/components/threat-model/graph/toReactFlow";
 import { NODE_STYLE } from "@/components/threat-model/graph/cyberGraphTheme";
 import { routeSummary } from "@/lib/results/findingDisplay";
+import { useFindingPathGraph } from "@/hooks/useFindingPathGraph";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import type { Attack, ControlInfo, Finding, GraphEdge, GraphNode } from "@/types/ThreatModel";
 
 interface CapabilityGraphProps {
+  /** Needed to fetch a finding's own subgraph when it is drawn alone. */
+  analysisId: string;
   solved: boolean;
   nodes: GraphNode[];
   edges: GraphEdge[];
@@ -39,12 +43,25 @@ interface CapabilityGraphProps {
   onClearSelection: () => void;
 }
 
-function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, appliedControlCount, nodeControlInfo, edgeControlInfo, onToggleView, solutionAvailable, findingLabelById, selectedFindingId, onSelectFinding, onClearSelection }: CapabilityGraphProps) {
+const NO_ATTACKS: Attack[] = [];
+
+function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, name, appliedControlCount, nodeControlInfo, edgeControlInfo, onToggleView, solutionAvailable, findingLabelById, selectedFindingId, onSelectFinding, onClearSelection }: CapabilityGraphProps) {
   const t = useTranslations("results");
   const tNode = useTranslations("node");
   const { isDarkMode } = useTheme();
   const [focusedNode, setFocusedNode] = useState<GraphNode | null>(null);
   const graphRef = useRef<CyberGraphHandle>(null);
+
+  // Draw the selected finding alone: the backend's subgraph holds only its
+  // nodes and edges, so a 6-node route reads on its own instead of inside 64.
+  const [isolated, setIsolated] = useState(false);
+  if (isolated && !selectedFindingId) setIsolated(false);
+  const isolating = isolated && !solved;
+  const pathGraph = useFindingPathGraph(analysisId, isolating ? selectedFindingId : null, findings);
+  const isolatedGraph = pathGraph.status === "ready" ? pathGraph.graph : null;
+  const graphNodes = isolatedGraph?.nodes ?? nodes;
+  const graphEdges = isolatedGraph?.edges ?? edges;
+  const graphFindings = useMemo(() => (isolatedGraph ? [isolatedGraph.finding] : findings), [isolatedGraph, findings]);
 
   // Recommended controls per node id, from the findings whose path runs through
   // it. Used as a fallback in the findings view; the solved view passes the
@@ -52,7 +69,7 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
   const nodeControls = useMemo(() => {
     if (nodeControlInfo) return nodeControlInfo;
     const map: Record<string, ControlInfo[]> = Object.create(null);
-    for (const f of findings) {
+    for (const f of graphFindings) {
       const cs = f.controls ?? [];
       if (cs.length === 0) continue;
       for (const id of f.path) {
@@ -61,7 +78,7 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
       }
     }
     return map;
-  }, [findings, nodeControlInfo]);
+  }, [graphFindings, nodeControlInfo]);
 
   // Primary critical route, built dynamically from the highest-severity attack:
   // its FH-id label plus the ordered nodes it traverses (mapped to real labels).
@@ -80,11 +97,11 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
     const finding = findings.find((f) => f.id === selectedFindingId);
     if (!finding) return null;
     return {
-      ...findingRoute(finding, edges),
+      ...findingRoute(finding, graphEdges),
       label: findingLabelById.get(finding.id) ?? finding.ruleId,
       summary: routeSummary(finding.path, nodesById),
     };
-  }, [solved, selectedFindingId, findings, edges, findingLabelById, nodesById]);
+  }, [solved, selectedFindingId, findings, graphEdges, findingLabelById, nodesById]);
 
   // Recommended controls per edge id, from findings traversing that node pair.
   // As with `nodeControls`, the solved view overrides this with the simulation's
@@ -92,9 +109,9 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
   const edgeControls = useMemo(() => {
     if (edgeControlInfo) return edgeControlInfo;
     const pairToId = new Map<string, string>();
-    for (const e of edges) pairToId.set(`${e.f}->${e.t}`, e.id);
+    for (const e of graphEdges) pairToId.set(`${e.f}->${e.t}`, e.id);
     const map: Record<string, ControlInfo[]> = Object.create(null);
-    for (const f of findings) {
+    for (const f of graphFindings) {
       const cs = f.controls ?? [];
       if (cs.length === 0) continue;
       for (let i = 0; i < f.path.length - 1; i++) {
@@ -105,7 +122,7 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
       }
     }
     return map;
-  }, [findings, edges, edgeControlInfo]);
+  }, [graphFindings, graphEdges, edgeControlInfo]);
 
   const labels = useMemo(() => ({
     playAttack: t("playAttack"),
@@ -145,7 +162,13 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
     playingRoute: t("playingRoute"),
     nextRoute: (label: string) => t("nextRoute", { id: label }),
     clearHighlight: t("clearHighlight"),
+    isolateRoute: t("isolateRoute"),
+    isolatingRoute: t("isolatingRoute"),
+    showInContext: t("showInContext"),
+    isolatedRoute: t("isolatedRoute"),
   }), [t, tNode, attacks]);
+
+  const toggleIsolated = useCallback(() => setIsolated((v) => !v), []);
 
   return (
     <Stack space={12}>
@@ -154,12 +177,16 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
         <Text1 regular color={skinVars.colors.textSecondary}>{t("graphHint")}</Text1>
       </Inline>
 
+      {isolating && pathGraph.status === "error" && (
+        <InlineError message={t("isolateError")} onRetry={pathGraph.retry} />
+      )}
+
       <CyberGraph
         ref={graphRef}
         solved={solved}
-        nodes={nodes}
-        edges={edges}
-        attacks={attacks}
+        nodes={graphNodes}
+        edges={graphEdges}
+        attacks={isolatedGraph ? NO_ATTACKS : attacks}
         name={name}
         nodeControls={nodeControls}
         edgeControls={edgeControls}
@@ -168,6 +195,9 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
         solutionAvailable={solutionAvailable}
         highlight={highlight}
         onClearHighlight={onClearSelection}
+        isolated={isolatedGraph !== null}
+        onToggleIsolated={toggleIsolated}
+        isolating={pathGraph.status === "loading"}
         labels={labels}
       />
 

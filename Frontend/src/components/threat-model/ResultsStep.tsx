@@ -286,6 +286,7 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                 <Text2 regular color={skinVars.colors.textSecondary}>{solved ? t("graphDescSolution") : t("graphDescFindings")}</Text2>
               </Stack>
               <CapabilityGraph
+                analysisId={result.analysisId}
                 solved={solved}
                 nodes={solved && sol ? sol.nodes : result.nodes}
                 edges={solved && sol ? sol.edges : result.edges}

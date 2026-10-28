@@ -54,6 +54,14 @@ export interface CyberGraphProps {
   solutionAvailable?: boolean;
   highlight?: GraphHighlight | null;
   onClearHighlight?: () => void;
+  /** The canvas holds only the highlighted finding's own subgraph, so there is
+   * nothing to dim around its route. */
+  isolated?: boolean;
+  /** Draws the highlighted finding alone or back in the whole graph; the
+   * toolbar button shows while it is set. */
+  onToggleIsolated?: () => void;
+  /** The isolated subgraph was asked for and is still loading. */
+  isolating?: boolean;
   labels: {
     playAttack: string;
     playRoute: (label: string) => string;
@@ -83,6 +91,10 @@ export interface CyberGraphProps {
     playingRoute: string;
     nextRoute: (label: string) => string;
     clearHighlight: string;
+    isolateRoute: string;
+    isolatingRoute: string;
+    showInContext: string;
+    isolatedRoute: string;
   };
 }
 
@@ -119,7 +131,7 @@ function exitFullscreen() {
 }
 
 const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
-  { solved, nodes, edges, attacks, name, nodeControls, edgeControls, onNodeClick, onToggleView, solutionAvailable, highlight, onClearHighlight, labels },
+  { solved, nodes, edges, attacks, name, nodeControls, edgeControls, onNodeClick, onToggleView, solutionAvailable, highlight, onClearHighlight, isolated = false, onToggleIsolated, isolating = false, labels },
   ref,
 ) {
   const isDark = useIsDarkMode();
@@ -313,19 +325,19 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
   // Overlay animation classes without disturbing the (draggable) base positions.
   const renderNodes = useMemo(() => {
     if (!frame) {
-      if (!highlight) return rfNodes;
+      if (!highlight || isolated) return rfNodes;
       return rfNodes.map((n) => ({ ...n, className: highlightNodes.has(n.id) ? "ch-hl" : "ch-dim" }));
     }
     return rfNodes.map((n) => {
       const className = n.id === frame.currentNode ? "ch-current" : frame.liveNodes.has(n.id) ? "ch-live" : playedNodes.has(n.id) ? "" : "ch-dim";
       return { ...n, className };
     });
-  }, [frame, playedNodes, rfNodes, highlight, highlightNodes]);
+  }, [frame, playedNodes, rfNodes, highlight, isolated, highlightNodes]);
 
   const renderEdges = useMemo(() => {
     if (!frame) {
       // A single-node finding has no hops, yet every edge around it must fade.
-      if (!highlight) return rfEdges;
+      if (!highlight || isolated) return rfEdges;
       return rfEdges.map((e) => {
         const lit = highlightEdges.has(e.id);
         return lit
@@ -337,7 +349,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
       const className = frame.currentEdges.has(e.id) ? "ch-edge-current" : frame.liveEdges.has(e.id) ? "ch-edge-live" : "ch-dim";
       return { ...e, className };
     });
-  }, [frame, rfEdges, highlight, highlightEdges]);
+  }, [frame, rfEdges, highlight, isolated, highlightEdges]);
 
   const download = useCallback(() => {
     // Scope the DOM lookups to this graph's own wrapper so a second graph elsewhere
@@ -441,6 +453,13 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
                 <ToolbarButton onClick={play} label={highlight ? labels.playRoute(highlight.label) : labels.playAttack} accent={cyber.danger} glyph="▶" />
               )
             )}
+            {!solved && highlight && onToggleIsolated && (
+              <ToolbarButton
+                onClick={onToggleIsolated}
+                label={isolated ? labels.showInContext : isolating ? labels.isolatingRoute : labels.isolateRoute}
+                glyph={isolated ? "⊞" : "⊡"}
+              />
+            )}
             {isFullscreen && onToggleView && (
               <ToolbarButton
                 onClick={handleToggleView}
@@ -457,7 +476,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
           <Panel position="bottom-center">
             <div style={highlightBox} role="status">
               <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                <span style={legendHeading}>{isPlaying ? labels.playingRoute : labels.highlightedRoute}</span>
+                <span style={legendHeading}>{isPlaying ? labels.playingRoute : isolated ? labels.isolatedRoute : labels.highlightedRoute}</span>
                 <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                   <span style={highlightChip}>{shownRoute.label}</span>
                   {shownRoute.summary && (

@@ -37,9 +37,41 @@ Response:
   "status": "parsed",
   "name": "HireSmart Copilot",
   "summary": { "nodes": 7, "edges": 6, "findings": 0,
-               "critical": 0, "high": 0, "medium": 0, "max_score": 0.0 }
+               "critical": 0, "high": 0, "medium": 0, "max_score": 0.0 },
+  "warnings": [
+    { "kind": "needs_declaration", "rules": ["FH-026"],
+      "properties": ["contains_regulated_data"],
+      "message": "Declare `contains_regulated_data: [gdpr]` on the data asset." },
+    { "kind": "ignored_property", "rules": [],
+      "properties": ["contains_regulated_dta"],
+      "node": "Patients", "node_type": "data_asset",
+      "suggestion": "contains_regulated_data",
+      "message": "`contains_regulated_dta` on data_asset 'Patients' is not a known property and was ignored; did you mean `contains_regulated_data`?" }
+  ]
 }
 ```
+
+`warnings` first lists the rules the file's framework can't reach, from
+[`catalogs/adapter_coverage.yaml`](../catalogs/adapter_coverage.yaml).
+`kind` is `not_expressible` (the adapter can't produce the shape the rule needs)
+or `needs_declaration` (the rule fires once the file declares the property the
+`message` names). These are always absent for the generic format, which covers
+the full rule catalog. They depend only on the framework, so they're also
+returned for analyses saved before the field existed.
+
+Then come the file's own `ignored_property` entries: a key on a framework node
+that looks like a property declaration but was dropped, either a near-miss of a
+property the node accepts (`suggestion` names it) or a property that belongs to
+another node type (`suggestion` is `null`). Other unknown keys are taken to be
+the framework's own (`backstory`, `title`...) and aren't reported. The generic
+format validates its properties in the normalizer instead, so it never returns
+these.
+
+Every entry has `kind`, `rules`, `properties` and `message`. `message` is
+English; a client that translates should build its text from `kind`, `rules`
+and `properties` (plus `node`, `node_type` and `suggestion` on
+`ignored_property`). `GET /analyses/{analysis_id}` and `POST .../analyze` return
+the same array.
 
 Common errors: `EMPTY_INPUT`, `INVALID_YAML`, `INVALID_NODE_TYPE`,
 `UNKNOWN_CAPABILITY`, `INVALID_IR` (400).
@@ -73,9 +105,13 @@ Response (same shape as `/analyze` produces for the results view):
   "summary": { "nodes": 7, "edges": 6, "findings": 3,
                "critical": 1, "high": 2, "medium": 0, "max_score": 10.0 },
   "graph": { "nodes": [], "edges": [] },
-  "findings": [ { "id", "rule_id", ... } ]
+  "findings": [ { "id", "rule_id", "group_id", ... } ],
+  "groups": [ { "group_id", "rule_id", "count", ... } ],
+  "warnings": [ { "kind", "rules", "message" } ]
 }
 ```
+
+`groups` is described under `GET .../findings`; `warnings` under `POST /analyses`.
 
 The stored analysis is overwritten under the same id, so subsequent
 `GET .../graph`, `GET .../findings` and the control endpoints reflect the
@@ -89,7 +125,8 @@ Returns the normalized graph in the frontend shape:
 
 ```json
 {
-  "nodes": [{ "id", "label", "type", "risk_score", "properties", "badges": [] }],
+  "nodes": [{ "id", "label", "type", "risk_score", "risk_level",
+              "finding_ids": [], "properties", "badges": [] }],
   "edges": [{ "id", "source", "target", "label", "capability", "properties",
               "risk_level", "blocked": false, "mitigated": false,
               "finding_ids": [] }]
@@ -99,16 +136,34 @@ Returns the normalized graph in the frontend shape:
 `404 ANALYSIS_NOT_FOUND` if the id is unknown. `blocked`/`mitigated` are always
 false here; they are set by the control simulator (§12.6).
 
+A node's `finding_ids` lists every finding whose `path` contains it, and its
+`risk_level` is the highest severity among them (`info` when none). This is the
+only place a node-scoped finding shows up, since those findings have no edges.
+
 ## GET /analyses/{analysis_id}/findings  (spec §12.3)
 
 Returns findings ordered by `score` descending:
 
 ```json
 { "findings": [ { "id", "rule_id", "title", "severity", "score", "category",
-                  "finding_class", "path": [], "edges": [], "derivation",
+                  "finding_class", "group_id", "path": [], "edges": [], "derivation",
                   "evidence": {}, "recommended_controls": [], "owasp_agentic": [],
-                  "owasp_llm": [], "mitre_atlas": [] } ] }
+                  "owasp_llm": [], "mitre_atlas": [] } ],
+  "groups": [ { "group_id", "rule_id", "title", "group_by", "anchor_node_id",
+                "finding_class", "count", "max_score", "severity",
+                "representative_finding_id", "finding_ids": [] } ] }
 ```
+
+`groups` collapses repeated occurrences of one root cause (`core/rules/grouping.py`).
+Each finding's `group_id` names its group. A rule's `group_by` in `rules.yaml`
+sets the key: `rule` puts every finding of that rule in one group (the
+policy-absence rules FH-021/022/027/028/033/034/035, which fire once per
+agent/tool/input), and `source` (the default) groups by rule and the first node
+of the finding's `path`, so the routes from one entry point to several sinks
+form one group. `anchor_node_id` is that first node, or `null` for `rule`
+groups. Groups are ordered by `max_score` descending; `representative_finding_id`
+is the group's highest-scoring finding. Grouping changes no score, severity or
+finding. `/analyze` returns the same `groups` array.
 
 `finding_class` is a derived label, not a stored field: `"attack"` for an
 exploitable capability path, or `"hygiene"` for a hygiene/compliance signal (the
@@ -180,7 +235,8 @@ it. The stored analysis is never mutated. Response:
   ],
   "before": { "finding_count": 3, "critical_count": 1, "max_score": 10.0 },
   "after":  { "finding_count": 2, "critical_count": 0, "max_score": 8.8 },
-  "risk_reduction": { "absolute": 10.0, "percentage": 36.2 },
+  "risk_reduction": { "absolute": 10.0, "percentage": 36.2,
+                      "by_group": { "absolute": 10.0, "percentage": 41.0 } },
   "broken_paths": [
     { "finding_id": "finding_001", "rule_id": "FH-001",
       "broken_by": "humanInTheLoop", "target_node_id": "output_email_candidate" }
@@ -188,6 +244,17 @@ it. The stored analysis is never mutated. Response:
   "graph": { "nodes": [], "edges": [] }
 }
 ```
+
+`risk_reduction.absolute`/`percentage` sum the scores of every finding, so a
+cause that repeats N times counts N times. `by_group` is the same reduction with
+each root-cause group counted once, at its highest score.
+
+Because a group counts at its highest score, a partial fix doesn't move
+`by_group` until the group's worst finding is gone. This matters most for the
+`group_by: rule` groups, which hold one finding per agent, tool or input: with
+22 agents behind FH-028, mitigating 21 of them leaves that group's contribution
+unchanged, and it drops only when the last one is fixed. Use the top-level
+figure to see progress on individual findings.
 
 The returned `graph` includes the applied controls as `type: control` nodes and
 flags the affected edges `blocked`/`mitigated`. Errors: `UNKNOWN_CONTROL`,

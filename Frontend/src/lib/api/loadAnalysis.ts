@@ -67,7 +67,13 @@ export async function loadAnalysisResult(analysisId: string): Promise<AnalysisRe
     ),
   ]);
   const base = toAnalysisResult(
-    { analysis_id: item.analysis_id, status: "analyzed", name: item.name, summary: item.summary },
+    {
+      analysis_id: item.analysis_id,
+      status: "analyzed",
+      name: item.name,
+      summary: item.summary,
+      warnings: item.warnings,
+    },
     graph,
     findings,
   );

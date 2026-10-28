@@ -30,7 +30,6 @@ from ...ir.models import (
 from ._common import (
     IRBuilder,
     IdFactory,
-    apply_tool_overrides,
     as_list,
     infer_asset_properties,
     infer_control_kind,
@@ -76,21 +75,18 @@ def load(data: dict[str, Any], analysis_id: str) -> AnalysisIR:
         # allow_delegation defaults to True (unstated -> assume full autonomy, the
         # cautious default); a quoted "false" is honoured via as_bool.
         autonomy = "advisor_only" if not as_bool(payload.get("allow_delegation", True)) else "full_auto"
-        builder.add_node(
-            agent_id,
-            NodeType.AGENT,
-            role,
-            {
-                "role_type": "worker",
-                "trust_level": str(payload.get("trust_level") or "internal_logic"),
-                "autonomy_level": str(payload.get("autonomy_level") or autonomy),
-                "guardrails": [str(g) for g in as_list(payload.get("guardrails"))],
-                "has_scoped_delegation": as_bool(payload.get("has_scoped_delegation", False)),
-            },
-        )
+        agent_props: dict[str, Any] = {
+            "role_type": "worker",
+            "trust_level": "internal_logic",
+            "autonomy_level": autonomy,
+            "guardrails": [],
+            "has_scoped_delegation": False,
+        }
+        builder.declare(agent_props, payload, NodeType.AGENT, role)
+        builder.add_node(agent_id, NodeType.AGENT, role, agent_props)
 
         for raw_input in as_list(payload.get("inputs") or payload.get("allowed_inputs")):
-            spec = _input_spec(raw_input)
+            spec = _input_spec(builder, raw_input)
             input_id = ids.make(NodeType.INPUT, spec["name"])
             builder.add_node(input_id, NodeType.INPUT, spec["name"], spec["properties"])
             builder.add_edge(input_id, agent_id, "receiveInstruction")
@@ -104,13 +100,13 @@ def load(data: dict[str, Any], analysis_id: str) -> AnalysisIR:
                 tools_by_name[slugify(tool_name)] = tool_id
 
         for raw_asset in as_list(payload.get("data_assets") or payload.get("sensitive_assets")):
-            spec = _asset_spec(raw_asset)
+            spec = _asset_spec(builder, raw_asset)
             asset_id = ids.make(NodeType.DATA_ASSET, spec["name"])
             builder.add_node(asset_id, NodeType.DATA_ASSET, spec["name"], spec["properties"])
             builder.add_edge(agent_id, asset_id, "read")
 
         for raw_output in as_list(payload.get("outputs") or payload.get("external_outputs")):
-            spec = _output_spec(raw_output)
+            spec = _output_spec(builder, raw_output)
             out_id = ids.make(NodeType.OUTPUT, spec["name"])
             builder.add_node(out_id, NodeType.OUTPUT, spec["name"], spec["properties"])
             builder.add_edge(agent_id, out_id, "send")
@@ -143,43 +139,38 @@ def load(data: dict[str, Any], analysis_id: str) -> AnalysisIR:
         metadata=metadata,
         nodes=builder.nodes,
         edges=builder.edges,
+        parse_warnings=builder.warnings,
     )
 
 
-def _input_spec(raw: Any) -> dict[str, Any]:
+def _input_spec(builder: IRBuilder, raw: Any) -> dict[str, Any]:
     if isinstance(raw, Mapping):
         name = str(raw.get("name") or "Input")
         props = infer_input_properties(name)
-        for key in ("trust_level", "source_type", "content_types"):
-            if key in raw:
-                props[key] = raw[key]
+        builder.declare(props, raw, NodeType.INPUT, name)
         return {"name": name, "properties": props}
     name = str(raw)
     return {"name": name, "properties": infer_input_properties(name)}
 
 
-def _asset_spec(raw: Any) -> dict[str, Any]:
+def _asset_spec(builder: IRBuilder, raw: Any) -> dict[str, Any]:
     if isinstance(raw, Mapping):
         name = str(raw.get("name") or "asset")
         props = infer_asset_properties(name)
-        for key in ("sensitivity", "boundary", "contains_pii", "asset_kind"):
-            if key in raw:
-                props[key] = raw[key]
+        builder.declare(props, raw, NodeType.DATA_ASSET, name)
         return {"name": name, "properties": props}
     name = str(raw)
     return {"name": name, "properties": infer_asset_properties(name)}
 
 
-def _output_spec(raw: Any) -> dict[str, Any]:
+def _output_spec(builder: IRBuilder, raw: Any) -> dict[str, Any]:
     if isinstance(raw, Mapping):
         name = str(raw.get("name") or "output")
         external = None
         if "boundary" in raw:
             external = str(raw["boundary"]).strip().lower() == "external"
         props = infer_output_properties(name, external=external)
-        for key in ("boundary", "approval_gate_present", "side_effect", "output_kind"):
-            if key in raw:
-                props[key] = raw[key]
+        builder.declare(props, raw, NodeType.OUTPUT, name)
         return {"name": name, "properties": props}
     name = str(raw)
     return {"name": name, "properties": infer_output_properties(name)}
@@ -192,8 +183,7 @@ def _add_tool(builder: IRBuilder, ids: IdFactory, agent_id: str, raw_tool: Any) 
         return None
     name = str(name)
     props = infer_tool_properties(name)
-    if isinstance(raw_tool, Mapping):
-        apply_tool_overrides(props, raw_tool)
+    builder.declare(props, raw_tool, NodeType.TOOL, name)
 
     tool_id = ids.make(NodeType.TOOL, name)
     builder.add_node(tool_id, NodeType.TOOL, name, props)
@@ -201,7 +191,7 @@ def _add_tool(builder: IRBuilder, ids: IdFactory, agent_id: str, raw_tool: Any) 
     # An explicit reads_asset wins over the routed default asset so declared
     # sensitivity is preserved.
     if isinstance(raw_tool, Mapping) and raw_tool.get("reads_asset"):
-        spec = _asset_spec(raw_tool["reads_asset"])
+        spec = _asset_spec(builder, raw_tool["reads_asset"])
         asset_id = ids.make(NodeType.DATA_ASSET, spec["name"])
         builder.add_node(asset_id, NodeType.DATA_ASSET, spec["name"], spec["properties"])
         builder.add_edge(agent_id, tool_id, "invokeTool")

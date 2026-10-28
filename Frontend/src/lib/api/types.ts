@@ -7,6 +7,26 @@
  * `@/lib/api/adapters`.
  */
 
+/** A rule the uploaded file's framework can't reach, or only reaches once the
+ * file declares a property (`catalogs/adapter_coverage.yaml`).
+ * `not_expressible`: the adapter can't produce the shape the rule needs.
+ * `needs_declaration`: `properties` lists the properties to declare.
+ * `ignored_property`: a key in the file that looks like a declaration (a typo,
+ * or a property of another node type) was dropped; `rules` is empty.
+ * Always empty for the generic format. `message` is English; build translated
+ * text from the structured fields instead. */
+export interface CoverageWarning {
+  kind: "not_expressible" | "needs_declaration" | "ignored_property";
+  rules: string[];
+  properties: string[];
+  message: string;
+  /** `ignored_property` only: the node the key was on. */
+  node?: string;
+  node_type?: string;
+  /** `ignored_property` only: the property the key resembles, if any. */
+  suggestion?: string | null;
+}
+
 /** Summary block returned by `POST /analyses` (spec section 12.1). */
 export interface BackendSummary {
   nodes: number;
@@ -28,6 +48,7 @@ export interface AnalysisListItem {
   source_framework: string;
   uploaded_at: string;
   summary: BackendSummary;
+  warnings: CoverageWarning[];
 }
 
 /** Response of `GET /analyses`: every stored analysis, most recent upload first. */
@@ -51,6 +72,7 @@ export interface CreateAnalysisResponse {
   /** Authoritative analysis name (the submitted name, or the YAML's metadata.name). */
   name: string;
   summary: BackendSummary;
+  warnings: CoverageWarning[];
 }
 
 /** A node in the normalized graph (spec section 12.2). `type` is a backend
@@ -60,6 +82,12 @@ export interface BackendGraphNode {
   label: string;
   type: string;
   risk_score: number;
+  /** Highest severity among the findings whose path contains this node
+   * (`info` when none). Node-scoped findings have no edges, so this is where
+   * they become visible. */
+  risk_level: string;
+  /** Ids of every finding whose path contains this node. */
+  finding_ids: string[];
   properties: Record<string, unknown>;
   badges: string[];
 }
@@ -107,10 +135,31 @@ export interface BackendFinding {
   mitre_atlas: string[];
   /** Derived channel: "attack" for exploitable paths, "hygiene" for compliance gaps. */
   finding_class: "attack" | "hygiene";
+  /** Root-cause group this finding belongs to (see {@link FindingGroup}). */
+  group_id: string;
+}
+
+/** Repeated occurrences of one root cause. `group_by: "rule"` collapses
+ * every finding of a rule (policy-absence rules, one per agent/tool/input);
+ * `"source"` groups by rule and the first node of the path, which is
+ * `anchor_node_id`. Ordered by `max_score` descending. */
+export interface FindingGroup {
+  group_id: string;
+  rule_id: string;
+  title: string;
+  group_by: "rule" | "source";
+  anchor_node_id: string | null;
+  finding_class: "attack" | "hygiene";
+  count: number;
+  max_score: number;
+  severity: string;
+  representative_finding_id: string;
+  finding_ids: string[];
 }
 
 export interface FindingsResponse {
   findings: BackendFinding[];
+  groups: FindingGroup[];
 }
 
 // --- Phase 2: control recommendation + simulation (spec sections 12.5-12.6) --
@@ -167,6 +216,11 @@ export interface SimSummary {
 export interface RiskReduction {
   absolute: number;
   percentage: number;
+  /** Same reduction with each root-cause group counted once at its max score. */
+  by_group: {
+    absolute: number;
+    percentage: number;
+  };
 }
 
 /** A before-finding whose (rule_id, path) no longer appears after the
@@ -229,6 +283,8 @@ export interface AnalyzeResponse {
   summary: BackendSummary;
   graph: BackendGraph;
   findings: BackendFinding[];
+  groups: FindingGroup[];
+  warnings: CoverageWarning[];
 }
 
 /** The error envelope every non-2xx response is expected to carry (spec

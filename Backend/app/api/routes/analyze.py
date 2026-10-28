@@ -11,9 +11,11 @@ import os
 
 from fastapi import APIRouter, File, Form, UploadFile
 
+from ...core.coverage import analysis_warnings
 from ...core.graph.serializer import serialize_graph
 from ...core.ir.models import AnalyzeRequest
 from ...core.pipeline import analyze_graph, analyze_stored, parse_text
+from ...core.rules.grouping import group_findings
 from ...core.storage.repository import repository
 from ..errors import as_http_error
 
@@ -72,6 +74,7 @@ def create_analysis(
             "status": "parsed",
             "name": result.ir.metadata.name,
             "summary": result.summary().model_dump(),
+            "warnings": analysis_warnings(result.ir),
         }
     finally:
         # Release the underlying spooled temp file/descriptor on every path,
@@ -88,6 +91,7 @@ def _list_item(result) -> dict:
         "source_framework": result.ir.source_framework.value,
         "uploaded_at": result.ir.metadata.uploaded_at.isoformat(),
         "summary": result.summary().model_dump(),
+        "warnings": analysis_warnings(result.ir),
     }
 
 
@@ -139,6 +143,7 @@ def analyze_analysis(analysis_id: str, request: AnalyzeRequest | None = None) ->
         result = analyze_stored(stored)
     else:
         result = analyze_graph(stored, request.nodes, request.edges)
+    groups = group_findings(result.findings)
     return {
         "analysis_id": result.ir.analysis_id,
         "status": "completed",
@@ -146,4 +151,6 @@ def analyze_analysis(analysis_id: str, request: AnalyzeRequest | None = None) ->
         "summary": result.summary().model_dump(),
         "graph": serialize_graph(result.ir, result.findings),
         "findings": [f.model_dump() for f in result.findings],
+        "groups": groups,
+        "warnings": analysis_warnings(result.ir),
     }

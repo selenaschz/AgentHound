@@ -88,37 +88,50 @@ def load(data: dict[str, Any], analysis_id: str) -> AnalysisIR:
         node_type = str(section.get("type") or "").lower()
         title = str(section.get("title") or section.get("name") or node_type or dify_id)
 
+        # Risk properties may be declared directly in the node's ``data`` block;
+        # Dify keeps unknown keys there, and its own keys (title, model, memory,
+        # variables...) do not collide with catalogued property names.
         if node_type in _INPUT_TYPES:
             nid = ids.make(NodeType.INPUT, title)
-            builder.add_node(nid, NodeType.INPUT, title, infer_input_properties(title))
+            props = infer_input_properties(title)
+            builder.declare(props, section, NodeType.INPUT, title)
+            builder.add_node(nid, NodeType.INPUT, title, props)
             node_map[dify_id] = (nid, NodeType.INPUT)
         elif node_type in _AGENT_TYPES:
             nid = ids.make(NodeType.AGENT, title)
-            builder.add_node(
-                nid,
-                NodeType.AGENT,
-                title,
-                {"role_type": "worker", "trust_level": "internal_logic", "autonomy_level": "full_auto", "guardrails": []},
-            )
+            props = {"role_type": "worker", "trust_level": "internal_logic", "autonomy_level": "full_auto", "guardrails": []}
+            builder.declare(props, section, NodeType.AGENT, title)
+            builder.add_node(nid, NodeType.AGENT, title, props)
             node_map[dify_id] = (nid, NodeType.AGENT)
         elif node_type in _TOOL_TYPES:
             props = infer_tool_properties(title)
             if node_type == "http-request" and tool_effect(props) not in {"send", "fetchWeb"}:
+                # An HTTP request leaves the system whatever its title says.
+                # Applied before the declared values so the file still wins.
                 props["capability_kinds"] = ["send", "invokeTool"]
                 props["target_boundary"] = "external"
                 props["access_kind"] = "external_call"
                 props["side_effect"] = True
+            builder.declare(props, section, NodeType.TOOL, title)
             nid = ids.make(NodeType.TOOL, title)
             builder.add_node(nid, NodeType.TOOL, title, props)
             node_map[dify_id] = (nid, NodeType.TOOL)
             tool_nodes.append(nid)
         elif node_type in _ASSET_TYPES:
             nid = ids.make(NodeType.DATA_ASSET, title)
-            builder.add_node(nid, NodeType.DATA_ASSET, title, infer_asset_properties(title))
+            props = infer_asset_properties(title)
+            builder.declare(props, section, NodeType.DATA_ASSET, title)
+            builder.add_node(nid, NodeType.DATA_ASSET, title, props)
             node_map[dify_id] = (nid, NodeType.DATA_ASSET)
         elif node_type in _OUTPUT_TYPES:
             nid = ids.make(NodeType.OUTPUT, title)
-            builder.add_node(nid, NodeType.OUTPUT, title, infer_output_properties(title, external=False))
+            # A Dify answer/end node is internal unless it declares otherwise;
+            # derive output_kind from the declared boundary so they stay consistent.
+            boundary = section.get("boundary")
+            external = boundary is not None and str(boundary).strip().lower() == "external"
+            props = infer_output_properties(title, external=external)
+            builder.declare(props, section, NodeType.OUTPUT, title)
+            builder.add_node(nid, NodeType.OUTPUT, title, props)
             node_map[dify_id] = (nid, NodeType.OUTPUT)
         # Unsupported node kinds are skipped; their edges drop out below.
 
@@ -156,4 +169,5 @@ def load(data: dict[str, Any], analysis_id: str) -> AnalysisIR:
         metadata=Metadata(name=name),
         nodes=builder.nodes,
         edges=builder.edges,
+        parse_warnings=builder.warnings,
     )

@@ -260,6 +260,25 @@ The returned `graph` includes the applied controls as `type: control` nodes and
 flags the affected edges `blocked`/`mitigated`. Errors: `UNKNOWN_CONTROL`,
 `UNKNOWN_TARGET_NODE` (400); `ANALYSIS_NOT_FOUND` (404).
 
+## GET /capabilities
+
+Returns the capability catalog (`catalogs/capabilities.yaml`): every verb an
+edge may carry, in catalog order (the phases of the agent cognitive cycle).
+
+```json
+{ "capabilities": [ { "verb": "executeCode",
+                      "description": "Execute code / shell commands.",
+                      "typical_source": "agent", "typical_target": "tool",
+                      "evaluated_by": ["FH-010", "FH-016"] } ] }
+```
+
+`evaluated_by` lists the rules whose logic checks for the verb, so a client can
+tell which edges the rule engine actually reacts to. An empty list means the
+verb is vocabulary only: it is accepted on edges and drawn in the graph, but no
+rule fires because of it. `tests/test_capability_catalog.py` keeps the lists in
+sync with the rule code. The catalog is static, so the response does not depend
+on any analysis.
+
 ## GET /health
 
 `{ "status": "ok", "version": "0.1.0" }`

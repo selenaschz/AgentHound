@@ -479,8 +479,12 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                               <Stack space={8}>
                                 <Inline space={8} alignItems="center">
                                   <IconCheckFilled color={skinVars.colors.success} />
-                                  <Text2 medium>{f.ruleId} — {f.title}</Text2>
+                                  <Text2 medium>{labelById.get(f.id) ?? f.ruleId} — {f.title}</Text2>
+                                  <Text1 regular color={skinVars.colors.textSecondary}>{f.id}</Text1>
                                 </Inline>
+                                {f.path.length > 0 && (
+                                  <Text1 regular color={skinVars.colors.textSecondary}>{routeSummary(f.path, nodesById)}</Text1>
+                                )}
                                 <Inline space={4} wrap verticalSpace={4}>
                                   {f.controls?.map((c) => <Tag key={c} type="success" small>{c}</Tag>)}
                                 </Inline>

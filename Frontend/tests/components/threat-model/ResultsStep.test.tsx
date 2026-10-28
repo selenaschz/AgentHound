@@ -3,7 +3,7 @@ import { act, type ComponentProps } from "react";
 import ResultsStep from "@/components/threat-model/ResultsStep";
 import type CapabilityGraph from "@/components/threat-model/CapabilityGraph";
 import { mount, press } from "../test-utils";
-import { result } from "./fixtures";
+import { edges, nodes, result } from "./fixtures";
 
 type GraphProps = ComponentProps<typeof CapabilityGraph>;
 
@@ -86,5 +86,45 @@ describe("ResultsStep — finding cards", () => {
 
   it("passes the same labels the cards show", () => {
     expect(graph.props?.findingLabelById.get("f2")).toBe("FH-001 #2");
+  });
+});
+
+describe("ResultsStep — resolved findings", () => {
+  beforeEach(() => {
+    view.render(
+      <ResultsStep
+        result={{
+          ...result,
+          solution: {
+            remediation: [],
+            beforeAfter: {
+              before: { findingCount: 4, criticalCount: 2, maxScore: 9.1, riskScoreTotal: 27.4 },
+              after: { findingCount: 0, criticalCount: 0, maxScore: 0, riskReductionPct: 100 },
+            },
+            nodes,
+            edges,
+            attacks: [],
+            appliedControlCount: 0,
+            nodeControlInfo: {},
+            edgeControlInfo: {},
+            chokepointRec: null,
+          },
+        }}
+      />,
+    );
+    press(Array.from(view.container.querySelectorAll("[role=tab]")).find((el) => el.textContent?.includes("Solución"))!);
+    press(Array.from(view.container.querySelectorAll("[aria-expanded]")).find((el) => el.textContent?.includes("Resuelto"))!);
+  });
+
+  it("tells resolved findings of the same rule apart by label, id and route", () => {
+    const texts = Array.from(view.container.querySelectorAll("*"), (el) => el.textContent);
+
+    expect(texts).toEqual(expect.arrayContaining([
+      "f1",
+      "Email entrante → Planner → CRM",
+      "f2",
+      "Email entrante → Planner → Logs",
+    ]));
+    expect(view.container.textContent).toContain("FH-001 #2 — ");
   });
 });

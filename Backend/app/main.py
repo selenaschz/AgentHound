@@ -23,7 +23,7 @@ _LOCALHOST_ORIGIN_REGEX = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
 from . import __version__
 from .api.errors import ApiError, api_error_handler, ir_validation_handler
-from .api.routes import analyze, controls, findings, graphs
+from .api.routes import analyze, capabilities, controls, findings, graphs
 from .core.ir.models import IRValidationError
 
 
@@ -61,6 +61,7 @@ def create_app() -> FastAPI:
     app.include_router(graphs.router, tags=["graph"])
     app.include_router(findings.router, tags=["findings"])
     app.include_router(controls.router)
+    app.include_router(capabilities.router, tags=["catalogs"])
 
     @app.get("/health", tags=["meta"])
     async def health() -> dict:

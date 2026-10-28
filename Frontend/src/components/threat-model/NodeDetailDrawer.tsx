@@ -5,11 +5,14 @@ import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import { propPositive } from "@/lib/api/adapters";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import { formatSnakeCase } from "@/lib/format";
+import { routeSummary } from "@/lib/results/findingDisplay";
 import type { Finding, GraphNode, NodeProp } from "@/types/ThreatModel";
 
 interface NodeDetailDrawerProps {
   node: GraphNode;
   findings: Finding[];
+  findingLabelById: Map<string, string>;
+  nodesById: Map<string, Pick<GraphNode, "label">>;
   onClose: () => void;
 }
 
@@ -20,7 +23,7 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-function NodeDetailDrawer({ node, findings, onClose }: NodeDetailDrawerProps) {
+function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, onClose }: NodeDetailDrawerProps) {
   const t = useTranslations("node");
   const tSeverity = useTranslations("overview.severity");
   const { isDarkMode } = useTheme();
@@ -124,13 +127,15 @@ function NodeDetailDrawer({ node, findings, onClose }: NodeDetailDrawerProps) {
                 <Boxed key={f.id}>
                   <Box padding={12}>
                     <Stack space={4}>
-                      <Inline space={8} alignItems="center">
-                        <Tag type="error" small>{f.ruleId}</Tag>
+                      <Inline space={8} alignItems="center" wrap verticalSpace={4}>
+                        <Tag type="error" small>{findingLabelById.get(f.id) ?? f.ruleId}</Tag>
+                        <Text1 regular color={skinVars.colors.textSecondary}>{f.id}</Text1>
                         <Tag type="inactive" small>{formatSnakeCase(f.category)}</Tag>
                         <SeverityBadge severity={f.severity} small>{tSeverity(f.severity)}</SeverityBadge>
                         <Text1 medium color={severityAccentColor(f.severity, isDarkMode)}>{f.score}</Text1>
                       </Inline>
                       <Text1 regular color={skinVars.colors.textSecondary}>{f.title}</Text1>
+                      <Text1 regular>{routeSummary(f.path, nodesById)}</Text1>
                       <Inline space={4} wrap verticalSpace={4}>
                         {f.owaspAgentic?.map((tag) => <Tag key={tag} small type="inactive">{`OWASP ${tag}`}</Tag>)}
                         {f.owaspLlm?.map((tag) => <Tag key={tag} small type="inactive">{tag}</Tag>)}

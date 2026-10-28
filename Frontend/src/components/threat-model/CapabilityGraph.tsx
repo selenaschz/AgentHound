@@ -52,8 +52,8 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
   const [focusedNode, setFocusedNode] = useState<GraphNode | null>(null);
   const graphRef = useRef<CyberGraphHandle>(null);
 
-  // Draw the selected finding alone: the backend's subgraph holds only its
-  // nodes and edges, so a 6-node route reads on its own instead of inside 64.
+  // Draw the selected finding alone, from the backend's subgraph of its own
+  // nodes and edges: large architectures are unreadable whole at any zoom.
   const [isolated, setIsolated] = useState(false);
   if (isolated && !selectedFindingId) setIsolated(false);
   const isolating = isolated && !solved;

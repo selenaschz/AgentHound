@@ -108,6 +108,7 @@ export interface GraphHighlight extends FindingRoute {
 type PlayedRoute = FindingRoute & { label: string; summary?: string };
 
 // Grows with tall screens: large dagre layouts are bounded by height.
+const TOOLBAR_CLEARANCE = 56;
 const CANVAS_H = "clamp(540px, 70vh, 820px)";
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2.5;
@@ -439,7 +440,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
         </Controls>
 
         {isFullscreen && name && (
-          <Panel position="top-center">
+          <Panel position="top-center" style={{ marginTop: TOOLBAR_CLEARANCE }}>
             <div style={fullscreenTitleBox} title={name}>
               {name}
             </div>

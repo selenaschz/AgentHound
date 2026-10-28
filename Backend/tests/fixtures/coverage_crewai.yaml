@@ -2,6 +2,8 @@
 # the declarations listed in app/catalogs/adapter_coverage.yaml. Pinned by
 # tests/test_adapter_coverage.py.
 name: Coverage CrewAI
+# Crew memory is shared by every agent here (FH-009, FH-020, FH-029).
+memory: true
 agents:
   intake:
     role: Intake

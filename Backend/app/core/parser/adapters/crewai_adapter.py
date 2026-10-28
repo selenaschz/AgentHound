@@ -9,7 +9,9 @@ files under those keys.
 Each agent becomes an ``agent`` node; its declared ``tools`` become ``tool``
 nodes whose effect (read/send/executeCode/...) is wired downstream by
 ``route_tool_effect``. Trust and autonomy default cautiously (untrusted inputs,
-full-auto agents) so the rule engine does not under-report. Heuristics are ported
+full-auto agents) so the rule engine does not under-report. A crew-level
+``memory: true`` becomes one memory node that every agent writes and reads
+(see ``_add_crew_memory``). Heuristics are ported
 from the earlier prototype adapter but re-expressed in the
 current capability-verb IR.
 """
@@ -131,6 +133,7 @@ def load(data: dict[str, Any], analysis_id: str) -> AnalysisIR:
         )
 
     _infer_task_inputs(builder, ids, tasks_data, agents_index, agent_has_inputs)
+    _add_crew_memory(builder, ids, data.get("memory"), agents_data, agents_index)
 
     metadata = Metadata(name=str(data.get("name") or "CrewAI crew"))
     return AnalysisIR(
@@ -241,6 +244,46 @@ def _gate_downstream_outputs(builder: IRBuilder, tool_id: str) -> None:
             target_props = builder.node_props(edge.target)
             if target_props is not None and "approval_gate_present" in target_props:
                 target_props["approval_gate_present"] = True
+
+
+def _add_crew_memory(
+    builder: IRBuilder,
+    ids: IdFactory,
+    raw_memory: Any,
+    agents_data: dict[str, Any],
+    agents_index: dict[str, str],
+) -> None:
+    """Map crew-level ``memory`` to one memory node the crew's agents share.
+
+    CrewAI keeps one memory per crew, so every agent writes into it and reads
+    back from it; an agent with ``memory: false`` stays out. ``memory`` may be a
+    mapping of memory properties (``sensitivity``, ``retention_ttl_days``...)
+    instead of ``true``. It counts as shared once two agents use it, unless the
+    file declares ``shared`` itself.
+    """
+    if isinstance(raw_memory, Mapping):
+        declared: Mapping[str, Any] = raw_memory
+    elif as_bool(raw_memory):
+        declared = {}
+    else:
+        return
+
+    members = []
+    for agent_key, payload in agents_data.items():
+        opt_out = isinstance(payload, Mapping) and payload.get("memory") is not None and not as_bool(payload["memory"])
+        if not opt_out:
+            members.append(agents_index[str(agent_key)])
+    if not members:
+        return
+
+    name = str(declared.get("name") or "Crew memory")
+    props: dict[str, Any] = {"sensitivity": "medium", "shared": len(members) >= 2}
+    builder.declare(props, declared, NodeType.MEMORY, name)
+    memory_id = ids.make(NodeType.MEMORY, name)
+    builder.add_node(memory_id, NodeType.MEMORY, name, props)
+    for agent_id in members:
+        builder.add_edge(agent_id, memory_id, "writeMemory")
+        builder.add_edge(memory_id, agent_id, "readMemory")
 
 
 def _infer_task_inputs(

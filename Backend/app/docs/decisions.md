@@ -171,6 +171,27 @@ implemented on the `new-catalog-rules` branch.
   but FH-009 requires `readMemory` on that hop, so memory poisoning was
   unreachable from LangGraph even with shared memory recognised.
 
+- **CrewAI and Dify map their native memory.** Neither adapter created memory
+  nodes, so FH-009, FH-020 and FH-029 could never fire from those formats.
+  - CrewAI: a crew-level `memory: true` becomes one `Crew memory` node. Every
+    agent `writeMemory`s into it and `readMemory`s from it, since CrewAI keeps
+    one memory per crew; an agent with `memory: false` stays out. `memory` may
+    instead be a mapping of memory properties (`name`, `sensitivity`,
+    `retention_ttl_days`, `write_validated`...).
+  - Dify: each entry of `workflow.conversation_variables` becomes a memory
+    node, with properties declared on the entry. An `assigner` node writes it:
+    the writer is the node whose output is assigned (`sys.*` values come from
+    the start node; behind an unmapped node such as `code`, the nearest mapped
+    nodes upstream). A constant assignment has no writer. Agents and tools whose
+    `data` block references the variable (`{{#conversation.name#}}` or a
+    `[conversation, name]` selector) read it.
+  - Defaults follow `node_properties.yaml`: `sensitivity: medium`, no
+    retention TTL. The memory counts as `shared` once two agents use it,
+    unless the file declares `shared`. A single-agent memory is not a
+    cross-agent channel, so it shouldn't trip FH-009/FH-020.
+  - As in LangGraph, memory hops are ordinary graph edges, so other path rules
+    can traverse them too.
+
 - **Rules match tool-mediated effects.** The adapters never put an effect verb on
   the agent -> tool hop; they emit `agent -invokeTool-> tool -<verb>-> target`.
   FH-008 (fetchWeb on the agent -> tool hop) and FH-025 (agent -> asset `read`)

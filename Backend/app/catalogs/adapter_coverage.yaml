@@ -53,13 +53,6 @@ gaps:
       them, so no path carries sensitive data on to an external output.
 
   - kind: not_expressible
-    frameworks: [crewai, dify]
-    rules: [FH-009, FH-020, FH-029]
-    message: >-
-      The adapter creates no memory nodes (CrewAI `memory` and Dify
-      conversation variables are not mapped).
-
-  - kind: not_expressible
     frameworks: [crewai]
     rules: [FH-024]
     message: >-

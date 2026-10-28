@@ -12,7 +12,6 @@ import { severityAccentColor } from "@/lib/threatModelColors";
 import type { Attack, ControlInfo, Finding, GraphEdge, GraphNode } from "@/types/ThreatModel";
 
 interface CapabilityGraphProps {
-  /** Needed to fetch a finding's own subgraph when it is drawn alone. */
   analysisId: string;
   solved: boolean;
   nodes: GraphNode[];
@@ -52,8 +51,6 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
   const [focusedNode, setFocusedNode] = useState<GraphNode | null>(null);
   const graphRef = useRef<CyberGraphHandle>(null);
 
-  // Draw the selected finding alone, from the backend's subgraph of its own
-  // nodes and edges: large architectures are unreadable whole at any zoom.
   const [isolated, setIsolated] = useState(false);
   if (isolated && !selectedFindingId) setIsolated(false);
   const isolating = isolated && !solved;

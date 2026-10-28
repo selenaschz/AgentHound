@@ -76,8 +76,6 @@ export async function getFindings(analysisId: string): Promise<FindingsResponse>
   return apiFetch<FindingsResponse>(`/analyses/${encodeURIComponent(analysisId)}/findings`);
 }
 
-/** Fetch one finding plus its path subgraph
- * (`GET /analyses/{id}/findings/{finding_id}`, spec section 12.4). */
 export async function getFinding(
   analysisId: string,
   findingId: string,

@@ -21,12 +21,6 @@ interface Cache {
 const IDLE: FindingPathGraphState = { status: "idle" };
 const LOADING: FindingPathGraphState = { status: "loading" };
 
-/**
- * Load the path subgraph of one finding (`GET /analyses/{id}/findings/{fid}`)
- * while `findingId` is set. Loaded subgraphs are kept until `source` changes,
- * so going back to a finding is instant; pass the findings of the current run,
- * since a re-analysis keeps the analysis id but can change every path.
- */
 export function useFindingPathGraph(
   analysisId: string,
   findingId: string | null,

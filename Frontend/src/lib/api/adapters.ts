@@ -237,9 +237,6 @@ export function toGraphEdges(backend: BackendGraphEdge[]): GraphEdge[] {
   }));
 }
 
-// --- one finding drawn on its own ---------------------------------------------
-
-/** A finding with the graph cut down to its own route, ready to draw alone. */
 export interface FindingPathGraph {
   finding: Finding;
   nodes: GraphNode[];

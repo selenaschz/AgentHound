@@ -54,13 +54,8 @@ export interface CyberGraphProps {
   solutionAvailable?: boolean;
   highlight?: GraphHighlight | null;
   onClearHighlight?: () => void;
-  /** The canvas holds only the highlighted finding's own subgraph, so there is
-   * nothing to dim around its route. */
   isolated?: boolean;
-  /** Draws the highlighted finding alone or back in the whole graph; the
-   * toolbar button shows while it is set. */
   onToggleIsolated?: () => void;
-  /** The isolated subgraph was asked for and is still loading. */
   isolating?: boolean;
   labels: {
     playAttack: string;
@@ -78,7 +73,6 @@ export interface CyberGraphProps {
     legendPathSeverity: string;
     legendPrimaryRoute: string;
     legendCritical: string;
-    /** The critical row when no primary route is drawn to set it apart from. */
     legendCriticalOnly: string;
     legendHigh: string;
     legendMedium: string;
@@ -108,13 +102,13 @@ export interface GraphHighlight extends FindingRoute {
 type PlayedRoute = FindingRoute & { label: string; summary?: string };
 
 // Grows with tall screens: large dagre layouts are bounded by height.
-const TOOLBAR_CLEARANCE = 56;
 const CANVAS_H = "clamp(540px, 70vh, 820px)";
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2.5;
 // Fitting ignores the zoom floor, otherwise large graphs never fit whole.
 const FIT_OPTIONS = { padding: 0.08, minZoom: 0 };
 const ROUTE_FIT_OPTIONS = { padding: 0.3, minZoom: 0, maxZoom: 1.2 };
+const TOOLBAR_CLEARANCE = 56;
 
 // Safari still exposes the Fullscreen API under the webkit prefix, so fall back to
 // the prefixed members when the standard ones are absent.

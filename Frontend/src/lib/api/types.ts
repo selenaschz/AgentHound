@@ -162,10 +162,6 @@ export interface FindingsResponse {
   groups: FindingGroup[];
 }
 
-/** Response of `GET /analyses/{id}/findings/{finding_id}` (spec section 12.4):
- * the finding plus `path_graph`, the graph cut down to that finding's own nodes
- * and edges. Its node/edge `risk_level` and `finding_ids` reflect this finding
- * alone. */
 export interface FindingDetailResponse {
   finding: BackendFinding;
   path_graph: BackendGraph;

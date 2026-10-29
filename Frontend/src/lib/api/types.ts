@@ -162,6 +162,11 @@ export interface FindingsResponse {
   groups: FindingGroup[];
 }
 
+export interface FindingDetailResponse {
+  finding: BackendFinding;
+  path_graph: BackendGraph;
+}
+
 // --- Phase 2: control recommendation + simulation (spec sections 12.5-12.6) --
 
 /** One ranked control recommendation (`GET .../controls/recommendations`).

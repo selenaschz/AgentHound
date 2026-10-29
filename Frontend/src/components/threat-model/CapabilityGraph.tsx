@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Box, Boxed, Inline, Stack, Text1, Touchable, IconSearchRegular, skinVars, useTheme } from "@telefonica/mistica";
 import NodeDetailDrawer from "@/components/threat-model/NodeDetailDrawer";
@@ -6,10 +6,13 @@ import CyberGraph, { type CyberGraphHandle, type GraphHighlight } from "@/compon
 import { findingRoute, primaryRoute, primaryRouteId } from "@/components/threat-model/graph/toReactFlow";
 import { NODE_STYLE } from "@/components/threat-model/graph/cyberGraphTheme";
 import { routeSummary } from "@/lib/results/findingDisplay";
+import { useFindingPathGraph } from "@/hooks/useFindingPathGraph";
+import type { FindingPathGraph } from "@/lib/api/adapters";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import type { Attack, ControlInfo, Finding, GraphEdge, GraphNode } from "@/types/ThreatModel";
 
 interface CapabilityGraphProps {
+  analysisId: string;
   solved: boolean;
   nodes: GraphNode[];
   edges: GraphEdge[];
@@ -39,12 +42,32 @@ interface CapabilityGraphProps {
   onClearSelection: () => void;
 }
 
-function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, appliedControlCount, nodeControlInfo, edgeControlInfo, onToggleView, solutionAvailable, findingLabelById, selectedFindingId, onSelectFinding, onClearSelection }: CapabilityGraphProps) {
+const NO_ATTACKS: Attack[] = [];
+
+function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, name, appliedControlCount, nodeControlInfo, edgeControlInfo, onToggleView, solutionAvailable, findingLabelById, selectedFindingId, onSelectFinding, onClearSelection }: CapabilityGraphProps) {
   const t = useTranslations("results");
   const tNode = useTranslations("node");
   const { isDarkMode } = useTheme();
   const [focusedNode, setFocusedNode] = useState<GraphNode | null>(null);
   const graphRef = useRef<CyberGraphHandle>(null);
+
+  const selectedFinding = useMemo(
+    () => (selectedFindingId ? findings.find((f) => f.id === selectedFindingId) ?? null : null),
+    [findings, selectedFindingId],
+  );
+  const [isolated, setIsolated] = useState(false);
+  if (isolated && (solved || !selectedFinding)) setIsolated(false);
+  const pathGraph = useFindingPathGraph(analysisId, isolated ? selectedFindingId : null, findings);
+  const readyGraph = pathGraph.status === "ready" ? pathGraph.graph : null;
+  // While the next finding loads, keep the previous subgraph on screen (dimmed) instead of flashing the whole graph.
+  const [lastGraph, setLastGraph] = useState<FindingPathGraph | null>(null);
+  if (readyGraph && readyGraph !== lastGraph) setLastGraph(readyGraph);
+  if (!isolated && lastGraph) setLastGraph(null);
+  const isolatedGraph = readyGraph ?? (pathGraph.status === "loading" ? lastGraph : null);
+  const stale = isolatedGraph !== null && isolatedGraph !== readyGraph;
+  const graphNodes = isolatedGraph?.nodes ?? nodes;
+  const graphEdges = isolatedGraph?.edges ?? edges;
+  const graphFindings = useMemo(() => (isolatedGraph ? [isolatedGraph.finding] : findings), [isolatedGraph, findings]);
 
   // Recommended controls per node id, from the findings whose path runs through
   // it. Used as a fallback in the findings view; the solved view passes the
@@ -52,7 +75,7 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
   const nodeControls = useMemo(() => {
     if (nodeControlInfo) return nodeControlInfo;
     const map: Record<string, ControlInfo[]> = Object.create(null);
-    for (const f of findings) {
+    for (const f of graphFindings) {
       const cs = f.controls ?? [];
       if (cs.length === 0) continue;
       for (const id of f.path) {
@@ -61,7 +84,7 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
       }
     }
     return map;
-  }, [findings, nodeControlInfo]);
+  }, [graphFindings, nodeControlInfo]);
 
   // Primary critical route, built dynamically from the highest-severity attack:
   // its FH-id label plus the ordered nodes it traverses (mapped to real labels).
@@ -76,15 +99,14 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
   }, [attacks, nodesById]);
 
   const highlight = useMemo<GraphHighlight | null>(() => {
-    if (solved || !selectedFindingId) return null;
-    const finding = findings.find((f) => f.id === selectedFindingId);
-    if (!finding) return null;
+    const finding = stale ? isolatedGraph.finding : selectedFinding;
+    if (solved || !finding) return null;
     return {
-      ...findingRoute(finding, edges),
+      ...findingRoute(finding, graphEdges),
       label: findingLabelById.get(finding.id) ?? finding.ruleId,
       summary: routeSummary(finding.path, nodesById),
     };
-  }, [solved, selectedFindingId, findings, edges, findingLabelById, nodesById]);
+  }, [solved, stale, isolatedGraph, selectedFinding, graphEdges, findingLabelById, nodesById]);
 
   // Recommended controls per edge id, from findings traversing that node pair.
   // As with `nodeControls`, the solved view overrides this with the simulation's
@@ -92,9 +114,9 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
   const edgeControls = useMemo(() => {
     if (edgeControlInfo) return edgeControlInfo;
     const pairToId = new Map<string, string>();
-    for (const e of edges) pairToId.set(`${e.f}->${e.t}`, e.id);
+    for (const e of graphEdges) pairToId.set(`${e.f}->${e.t}`, e.id);
     const map: Record<string, ControlInfo[]> = Object.create(null);
-    for (const f of findings) {
+    for (const f of graphFindings) {
       const cs = f.controls ?? [];
       if (cs.length === 0) continue;
       for (let i = 0; i < f.path.length - 1; i++) {
@@ -105,7 +127,7 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
       }
     }
     return map;
-  }, [findings, edges, edgeControlInfo]);
+  }, [graphFindings, graphEdges, edgeControlInfo]);
 
   const labels = useMemo(() => ({
     playAttack: t("playAttack"),
@@ -123,6 +145,7 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
     legendPathSeverity: t("legend.pathSeverity"),
     legendPrimaryRoute: t("legend.primaryRoute", { id: primaryRouteId(attacks) }),
     legendCritical: t("legend.critical"),
+    legendCriticalOnly: t("legend.criticalOnly"),
     legendHigh: t("legend.high"),
     legendMedium: t("legend.medium"),
     legendLow: t("legend.low"),
@@ -145,7 +168,16 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
     playingRoute: t("playingRoute"),
     nextRoute: (label: string) => t("nextRoute", { id: label }),
     clearHighlight: t("clearHighlight"),
+    isolateRoute: t("isolateRoute"),
+    isolatingRoute: t("isolatingRoute"),
+    showInContext: t("showInContext"),
+    isolatedRoute: t("isolatedRoute"),
+    retryIsolate: t("retryIsolate"),
+    loadingIsolatedRoute: (label: string) => t("loadingIsolatedRoute", { id: label }),
+    isolateError: t("isolateError"),
   }), [t, tNode, attacks]);
+
+  const toggleIsolated = useCallback(() => setIsolated((v) => !v), []);
 
   return (
     <Stack space={12}>
@@ -157,9 +189,9 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
       <CyberGraph
         ref={graphRef}
         solved={solved}
-        nodes={nodes}
-        edges={edges}
-        attacks={attacks}
+        nodes={graphNodes}
+        edges={graphEdges}
+        attacks={isolatedGraph ? NO_ATTACKS : attacks}
         name={name}
         nodeControls={nodeControls}
         edgeControls={edgeControls}
@@ -168,10 +200,15 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
         solutionAvailable={solutionAvailable}
         highlight={highlight}
         onClearHighlight={onClearSelection}
+        isolated={isolatedGraph !== null}
+        onToggleIsolated={pathGraph.status === "error" ? pathGraph.retry : toggleIsolated}
+        isolating={pathGraph.status === "loading"}
+        isolateFailed={pathGraph.status === "error"}
+        pendingRoute={stale && selectedFinding ? findingLabelById.get(selectedFinding.id) ?? selectedFinding.ruleId : null}
         labels={labels}
       />
 
-      {!solved && primaryPath && (
+      {!solved && !isolatedGraph && primaryPath && (
         <Boxed>
           <Box paddingX={16} paddingY={12}>
             <Stack space={8}>

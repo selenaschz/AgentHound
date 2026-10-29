@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import analysis from "./fixtures/ops-destructive/analysis.json" with { type: "json" };
 import graph from "./fixtures/ops-destructive/graph.json" with { type: "json" };
 import findings from "./fixtures/ops-destructive/findings.json" with { type: "json" };
+import finding001 from "./fixtures/ops-destructive/finding-001.json" with { type: "json" };
 import recommendations from "./fixtures/ops-destructive/recommendations.json" with { type: "json" };
 import simulate from "./fixtures/ops-destructive/simulate.json" with { type: "json" };
 
@@ -14,6 +15,7 @@ const OPS_DESTRUCTIVE: Record<string, unknown> = {
   [`GET /analyses/${OPS_DESTRUCTIVE_ID}`]: analysis,
   [`GET /analyses/${OPS_DESTRUCTIVE_ID}/graph`]: graph,
   [`GET /analyses/${OPS_DESTRUCTIVE_ID}/findings`]: findings,
+  [`GET /analyses/${OPS_DESTRUCTIVE_ID}/findings/finding_001`]: finding001,
   [`GET /analyses/${OPS_DESTRUCTIVE_ID}/controls/recommendations`]: recommendations,
   [`POST /analyses/${OPS_DESTRUCTIVE_ID}/simulate-controls`]: simulate,
 };

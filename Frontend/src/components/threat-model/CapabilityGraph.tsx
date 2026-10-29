@@ -255,6 +255,8 @@ function CapabilityGraph({ solved, nodes, edges, findings, attacks, name, applie
         <NodeDetailDrawer
           node={focusedNode}
           findings={findings}
+          findingLabelById={findingLabelById}
+          nodesById={nodesById}
           onClose={() => {
             setFocusedNode(null);
             graphRef.current?.restoreFullscreen();

@@ -38,11 +38,12 @@ import {
   useTheme,
 } from "@telefonica/mistica";
 import type { IconProps } from "@telefonica/mistica";
+import { FindingId, FindingRoute } from "@/components/threat-model/FindingIdentity";
 import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import InlineError from "@/components/ui/InlineError";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import { formatSnakeCase } from "@/lib/format";
-import { findingLabels, routeSummary } from "@/lib/results/findingDisplay";
+import { findingLabels } from "@/lib/results/findingDisplay";
 import { SEVERITY_STYLES } from "@/lib/severity";
 import type { AnalysisResult, ChokepointRec } from "@/lib/api/adapters";
 import {
@@ -51,7 +52,7 @@ import {
   downloadMarkdownReport,
   downloadYaml,
 } from "@/lib/threatModelExport";
-import type { Finding } from "@/types/ThreatModel";
+import type { Finding, GraphNode } from "@/types/ThreatModel";
 import type { ReactElement } from "react";
 
 // The graph is a large, decorative SVG only needed once a user reaches this step of the
@@ -126,7 +127,7 @@ function BeforeAfterCard({ label, Icon, color, rows, headerBadge }: BeforeAfterC
 interface FindingCardProps {
   finding: Finding;
   label: string;
-  route: string;
+  nodesById: Map<string, Pick<GraphNode, "label">>;
   isDarkMode: boolean;
   tSeverity: (key: string) => string;
   scoreLabel: string;
@@ -135,7 +136,7 @@ interface FindingCardProps {
   onSelect?: (id: string) => void;
 }
 
-function FindingCard({ finding, label, route, isDarkMode, tSeverity, scoreLabel, routeHint, selected, onSelect }: FindingCardProps) {
+function FindingCard({ finding, label, nodesById, isDarkMode, tSeverity, scoreLabel, routeHint, selected, onSelect }: FindingCardProps) {
   const accent = severityAccentColor(finding.severity, isDarkMode);
   const hasRefs = Boolean(
     finding.owaspAgentic?.length || finding.owaspLlm?.length || finding.mitre?.length,
@@ -148,14 +149,14 @@ function FindingCard({ finding, label, route, isDarkMode, tSeverity, scoreLabel,
             <Inline space={8} alignItems="center" wrap verticalSpace={4}>
               <SeverityBadge severity={finding.severity} small>{tSeverity(finding.severity)}</SeverityBadge>
               <Text1 medium color={skinVars.colors.textSecondary}>{label}</Text1>
-              <Text1 regular color={skinVars.colors.textSecondary}>{finding.id}</Text1>
+              <FindingId id={finding.id} />
               <Tag type="inactive" small>{formatSnakeCase(finding.category)}</Tag>
             </Inline>
             <Text2 medium color={accent}>{scoreLabel}: {finding.score}</Text2>
           </Inline>
           <Stack space={4}>
             <Text2 medium>{finding.title}</Text2>
-            {route && <Text1 regular color={skinVars.colors.textSecondary}>{route}</Text1>}
+            <FindingRoute path={finding.path} nodesById={nodesById} />
             {finding.desc && <Text1 regular color={skinVars.colors.textSecondary}>{finding.desc}</Text1>}
             {finding.evidence && Object.keys(finding.evidence).length > 0 && (
               <Inline space={4} wrap verticalSpace={4}>
@@ -237,6 +238,11 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
   const clearSelection = useCallback(() => setSelectedFindingId(null), []);
   const labelById = useMemo(() => findingLabels(result?.findings ?? []), [result]);
   const nodesById = useMemo(() => new Map((result?.nodes ?? []).map((n) => [n.id, n])), [result]);
+  const [resolvedFindings, openFindings] = useMemo(() => {
+    const broken = new Set(result?.solution?.brokenFindingIds);
+    const all = result?.findings ?? [];
+    return [all.filter((f) => broken.has(f.id)), all.filter((f) => !broken.has(f.id))];
+  }, [result]);
 
   if (!result) {
     return <InlineError message={tCommon("error.description")} />;
@@ -289,7 +295,7 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                 solved={solved}
                 nodes={solved && sol ? sol.nodes : result.nodes}
                 edges={solved && sol ? sol.edges : result.edges}
-                findings={findings}
+                findings={solved && sol ? openFindings : findings}
                 name={result.name}
                 attacks={solved && sol ? sol.attacks : result.attacks}
                 appliedControlCount={solved && sol ? sol.appliedControlCount : undefined}
@@ -423,7 +429,7 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                             key={f.id}
                             finding={f}
                             label={labelById.get(f.id) ?? f.ruleId}
-                            route={routeSummary(f.path, nodesById)}
+                            nodesById={nodesById}
                             isDarkMode={isDarkMode}
                             tSeverity={tSeverity}
                             scoreLabel={t("tableHeaders.score")}
@@ -470,17 +476,22 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                   <BoxedAccordionItem
                     key="resolved"
                     title={t("resolved")}
-                    right={<Tag type="success" small>{`${findings.length}`}</Tag>}
+                    right={<Tag type="success" small>{`${resolvedFindings.length}`}</Tag>}
                     content={
                       <Stack space={8}>
-                        {findings.map((f) => (
-                          <Boxed key={f.id}>
+                        {resolvedFindings.map((f) => (
+                          <Boxed key={f.id} dataAttributes={{ testid: "resolved-finding" }}>
                             <Box padding={16}>
                               <Stack space={8}>
-                                <Inline space={8} alignItems="center">
+                                <Inline space={8} alignItems="center" wrap verticalSpace={4}>
                                   <IconCheckFilled color={skinVars.colors.success} />
-                                  <Text2 medium>{f.ruleId} — {f.title}</Text2>
+                                  <Text2 medium>{labelById.get(f.id) ?? f.ruleId}</Text2>
+                                  <FindingId id={f.id} />
                                 </Inline>
+                                <Stack space={4}>
+                                  <Text2 regular>{f.title}</Text2>
+                                  <FindingRoute path={f.path} nodesById={nodesById} />
+                                </Stack>
                                 <Inline space={4} wrap verticalSpace={4}>
                                   {f.controls?.map((c) => <Tag key={c} type="success" small>{c}</Tag>)}
                                 </Inline>

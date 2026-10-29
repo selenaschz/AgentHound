@@ -3,12 +3,6 @@
 Paths are bounded by ``max_depth`` (default 8) to avoid combinatorial explosion.
 Node-type selectors (untrusted input, sensitive data, external output) read the
 normalized node properties.
-
-Paths and reachability do not cross ``writeMemory``/``readMemory`` edges. A
-memory every agent writes and reads (CrewAI crew memory) would otherwise link
-every agent to every other one, and each path rule would report the same root
-cause once per route through it. Flow through memory is FH-009's concern, and
-FH-009 builds its paths from those edges explicitly.
 """
 
 from __future__ import annotations
@@ -19,8 +13,6 @@ DEFAULT_MAX_DEPTH = 8
 
 SENSITIVE_LEVELS = {"high", "critical"}
 
-MEMORY_CAPABILITIES = {"writeMemory", "readMemory"}
-
 
 class CapabilityGraph:
     """Thin query layer over a networkx MultiDiGraph built from the IR."""
@@ -28,14 +20,6 @@ class CapabilityGraph:
     def __init__(self, graph: nx.MultiDiGraph, max_depth: int = DEFAULT_MAX_DEPTH) -> None:
         self.graph = graph
         self.max_depth = max_depth
-        # Paths and reachability run on this view; hop and edge lookups still
-        # read the full graph.
-        memory_edges = [
-            (u, v, k)
-            for u, v, k, capability in graph.edges(keys=True, data="capability")
-            if capability in MEMORY_CAPABILITIES
-        ]
-        self.flow_graph = nx.restricted_view(graph, [], memory_edges)
 
     # --- node selectors -------------------------------------------------
     def _props(self, node_id: str) -> dict:
@@ -63,13 +47,14 @@ class CapabilityGraph:
             return set()
         # nx.descendants computes every node reachable from the source in a
         # single traversal (source excluded), instead of one has_path per node.
-        return set(nx.descendants(self.flow_graph, start_node_id))
+        return set(nx.descendants(self.graph, start_node_id))
 
-    def simple_paths(self, start_id: str, end_id: str, cutoff: int | None = None) -> list[list[str]]:
+    def simple_paths(self, start_id: str, end_id: str) -> list[list[str]]:
         if start_id not in self.graph or end_id not in self.graph:
             return []
-        depth = self.max_depth if cutoff is None else cutoff
-        return list(nx.all_simple_paths(self.flow_graph, start_id, end_id, cutoff=depth))
+        return list(
+            nx.all_simple_paths(self.graph, start_id, end_id, cutoff=self.max_depth)
+        )
 
     def find_paths(self, start_type: str = "input", end_type: str = "output") -> list[list[str]]:
         paths: list[list[str]] = []

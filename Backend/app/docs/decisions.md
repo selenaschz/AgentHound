@@ -192,14 +192,18 @@ implemented on the `new-catalog-rules` branch.
     unless the file declares `shared`. A single-agent memory is not a
     cross-agent channel, so it shouldn't trip FH-009/FH-020.
 
-- **Path rules don't cross memory edges.** Paths and reachability in
-  `CapabilityGraph` skip `writeMemory`/`readMemory` edges, in every adapter.
-  A crew memory that every agent writes and reads linked every agent to every
-  other one, so FH-002/003/007/011 reported each route through it as its own
-  finding: one root cause, many times (114 to about 2,000 findings on a large
-  crew). Flow through memory is FH-009's concern, and FH-009 builds its write
-  paths explicitly: a route from the untrusted input to a writer, then the
-  write. Hop and edge lookups still see the full graph.
+- **Routes through memory collapse per entry and sink.** A crew memory that
+  every agent writes and reads links every agent to every other one, so
+  FH-002/003/007/011 reported each route through it as its own finding: one
+  root cause, many times (114 to about 2,000 findings on a large crew). After
+  the rules run, findings whose path crosses a memory node keep one per rule,
+  entry and sink (the highest-scoring), and drop when a route without memory
+  already reports that entry and sink. Paths themselves still cross memory, so
+  a route that exists only through memory, shared or not, is still reported.
+  (Skipping memory edges in traversal was tried first, but it lost those
+  routes whenever FH-009 didn't cover them: unshared memory, or a sink FH-009
+  doesn't look for, such as code execution.) FH-009 is exempt, since flow
+  through memory is what it reports.
 
 - **Rules match tool-mediated effects.** The adapters never put an effect verb on
   the agent -> tool hop; they emit `agent -invokeTool-> tool -<verb>-> target`.

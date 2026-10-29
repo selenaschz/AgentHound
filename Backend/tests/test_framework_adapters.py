@@ -264,7 +264,10 @@ def test_fh020_evidence_reports_the_shared_flag():
 
 def test_langgraph_unshared_memory_does_not_fire_memory_rules():
     result = analyze_text(_LANGGRAPH_MEMORY.format(shared="false"), framework_hint="langgraph")
-    assert not {"FH-009", "FH-020"} & _rule_ids(result.findings)
+    fired = _rule_ids(result.findings)
+    assert not {"FH-009", "FH-020"} & fired
+    # The memory still carries the route to the send: path rules report it.
+    assert "FH-003" in fired
 
 
 def test_langgraph_memory_keeps_declared_properties():
@@ -323,17 +326,44 @@ def test_crewai_crew_memory_is_shared_by_every_agent():
     assert {"FH-009", "FH-020", "FH-029"} <= _rule_ids(result.findings)
 
 
-def test_path_rules_do_not_route_through_crew_memory():
-    # Intake and Sender are linked only through the memory. FH-009 reports that
-    # flow; the other path rules don't, or the hub would repeat it per route.
+def test_route_only_through_crew_memory_is_still_reported():
+    # Intake and Sender are linked only through the memory, so FH-003 has no
+    # other route to report.
     result = analyze_text(_CREWAI_MEMORY.format(memory="true", opt_out=""), framework_hint="crewai")
-    fired = _rule_ids(result.findings)
-    assert "FH-009" in fired
-    assert "FH-003" not in fired
-    for finding in result.findings:
-        # Single-node findings (FH-020/FH-029) sit on the memory itself.
-        if finding.rule_id != "FH-009" and len(finding.path) > 1:
-            assert "memory_crew_memory" not in finding.path
+    [fh003] = [f for f in result.findings if f.rule_id == "FH-003"]
+    assert "memory_crew_memory" in fh003.path
+
+
+_CREWAI_MEMORY_HUB = """
+memory: true
+agents:
+  intake:
+    role: Intake
+    inputs: [{{name: Customer chat, trust_level: untrusted}}]{delegation}
+  helper:
+    role: Helper
+    delegates_to: [sender]
+  sender:
+    role: Sender
+    tools: [gmail.send]
+tasks: {{}}
+"""
+
+
+def test_routes_through_crew_memory_collapse_to_one_finding():
+    # The chat reaches gmail.send via memory -> Sender and via memory -> Helper
+    # -> Sender: one entry and sink, so one FH-003.
+    result = analyze_text(_CREWAI_MEMORY_HUB.format(delegation=""), framework_hint="crewai")
+    [fh003] = [f for f in result.findings if f.rule_id == "FH-003"]
+    assert "memory_crew_memory" in fh003.path
+
+
+def test_direct_route_replaces_routes_through_crew_memory():
+    result = analyze_text(
+        _CREWAI_MEMORY_HUB.format(delegation="\n    delegates_to: [sender]"), framework_hint="crewai"
+    )
+    [fh003] = [f for f in result.findings if f.rule_id == "FH-003"]
+    assert "memory_crew_memory" not in fh003.path
 
 
 @pytest.mark.parametrize("memory", ["false", '"false"', "null"])

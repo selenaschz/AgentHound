@@ -363,3 +363,24 @@ def test_oversized_upload_rejected(monkeypatch):
     )
     assert resp.status_code == 413
     assert resp.json()["error"]["code"] == "UPLOAD_TOO_LARGE"
+
+
+def test_capabilities_lists_each_verb_with_evaluated_by():
+    from app.core.catalogs import capability_catalog
+
+    resp = client.get("/capabilities")
+    assert resp.status_code == 200, resp.text
+    entries = resp.json()["capabilities"]
+    catalog = capability_catalog()
+    # Every verb, once, in catalog order, with the catalog's rule list.
+    assert [e["verb"] for e in entries] == list(catalog)
+    for entry in entries:
+        assert entry["evaluated_by"] == catalog[entry["verb"]]["evaluated_by"]
+        assert {"description", "typical_source", "typical_target"} <= entry.keys()
+    by_verb = {e["verb"]: e for e in entries}
+    assert by_verb["executeCode"]["evaluated_by"] == ["FH-010", "FH-016"]
+    # Vocabulary-only verbs are listed with an empty list rather than omitted.
+    assert by_verb["receiveEvent"]["evaluated_by"] == []
+    # The response is typed in OpenAPI, not a bare object.
+    schema = client.get("/openapi.json").json()["paths"]["/capabilities"]["get"]["responses"]["200"]
+    assert schema["content"]["application/json"]["schema"]["$ref"].endswith("/CapabilitiesResponse")

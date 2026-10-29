@@ -287,6 +287,23 @@ export interface AnalyzeResponse {
   warnings: CoverageWarning[];
 }
 
+/** One capability verb from `catalogs/capabilities.yaml`. `evaluated_by` lists
+ * the rule ids whose logic checks for the verb; an empty list means the verb is
+ * vocabulary only (accepted on edges and drawn, but no rule fires on it). */
+export interface CapabilityDescriptor {
+  verb: string;
+  description: string;
+  typical_source: string | null;
+  typical_target: string | null;
+  evaluated_by: string[];
+}
+
+/** Response of `GET /capabilities`: every verb, in catalog order. Static; it
+ * does not depend on any analysis. */
+export interface CapabilitiesResponse {
+  capabilities: CapabilityDescriptor[];
+}
+
 /** The error envelope every non-2xx response is expected to carry (spec
  * section 13). */
 export interface ApiErrorEnvelope {

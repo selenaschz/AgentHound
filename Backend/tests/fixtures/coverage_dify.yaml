@@ -4,6 +4,10 @@
 app:
   name: Coverage Dify
 workflow:
+  # Intake writes the notes through the assigner and Writer reads them back:
+  # two agents share the variable (FH-009, FH-020, FH-029).
+  conversation_variables:
+    - {name: notes, value_type: string, value: ""}
   graph:
     nodes:
       - {id: chat, data: {type: start, title: Customer chat}}
@@ -20,10 +24,15 @@ workflow:
       - {id: release, data: {type: tool, title: release pipeline, capability_kinds: [deployRelease]}}
       - {id: admin, data: {type: tool, title: admin api, authentication_scope: elevated}}
       - {id: planner, data: {type: llm, title: Planner}}
-      - {id: writer, data: {type: llm, title: Writer}}
+      - {id: writer, data: {type: llm, title: Writer, prompt_template: [{role: system, text: "{{#conversation.notes#}}"}]}}
       - {id: mail, data: {type: tool, title: gmail send}}
       - {id: fixer, data: {type: llm, title: Fixer}}
       - {id: reply, data: {type: answer, title: Reply}}
+      - id: save
+        data:
+          type: assigner
+          title: Save notes
+          items: [{variable_selector: [conversation, notes], input_type: variable, value: [intake, text]}]
     edges:
       - {source: chat, target: intake}
       - {source: intake, target: records}
@@ -47,3 +56,4 @@ workflow:
       - {source: mail, target: fixer}
       - {source: fixer, target: update}
       - {source: update, target: reply}
+      - {source: intake, target: save}

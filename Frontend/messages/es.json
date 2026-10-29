@@ -218,6 +218,8 @@
     "isolatingRoute": "Cargando ruta…",
     "showInContext": "Ver en contexto",
     "isolatedRoute": "Hallazgo aislado",
+    "retryIsolate": "Reintentar ruta",
+    "loadingIsolatedRoute": "Cargando {id}…",
     "isolateError": "No se pudo cargar la ruta de este hallazgo.",
     "chokepointTitle": "Punto de control recomendado",
     "chokepointDesc": "Aplica {control} en {node} — elimina el {pct}% del riesgo (coste: {cost})",

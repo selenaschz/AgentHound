@@ -18,7 +18,7 @@ import {
   useStore,
 } from "@xyflow/react";
 import { toPng } from "html-to-image";
-import { applyAlpha } from "@telefonica/mistica";
+import { Spinner, applyAlpha } from "@telefonica/mistica";
 import type { Attack, ControlInfo, GraphEdge, GraphNode, NodeType } from "@/types/ThreatModel";
 import { cyber, getSeverityPath, NODE_STYLE, useIsDarkMode, type PathSeverity } from "@/components/threat-model/graph/cyberGraphTheme";
 import { GLYPH, nodeTypes } from "@/components/threat-model/graph/nodeTypes";
@@ -57,6 +57,9 @@ export interface CyberGraphProps {
   isolated?: boolean;
   onToggleIsolated?: () => void;
   isolating?: boolean;
+  isolateFailed?: boolean;
+  /** Label of the finding whose subgraph is loading while the previous one stays on screen. */
+  pendingRoute?: string | null;
   labels: {
     playAttack: string;
     playRoute: (label: string) => string;
@@ -91,6 +94,9 @@ export interface CyberGraphProps {
     isolatingRoute: string;
     showInContext: string;
     isolatedRoute: string;
+    retryIsolate: string;
+    loadingIsolatedRoute: (label: string) => string;
+    isolateError: string;
   };
 }
 
@@ -109,6 +115,7 @@ const MAX_ZOOM = 2.5;
 const FIT_OPTIONS = { padding: 0.08, minZoom: 0 };
 const ROUTE_FIT_OPTIONS = { padding: 0.3, minZoom: 0, maxZoom: 1.2 };
 const TOOLBAR_CLEARANCE = 56;
+const TITLE_GAP = 12;
 
 // Safari still exposes the Fullscreen API under the webkit prefix, so fall back to
 // the prefixed members when the standard ones are absent.
@@ -128,7 +135,7 @@ function exitFullscreen() {
 }
 
 const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
-  { solved, nodes, edges, attacks, name, nodeControls, edgeControls, onNodeClick, onToggleView, solutionAvailable, highlight, onClearHighlight, isolated = false, onToggleIsolated, isolating = false, labels },
+  { solved, nodes, edges, attacks, name, nodeControls, edgeControls, onNodeClick, onToggleView, solutionAvailable, highlight, onClearHighlight, isolated = false, onToggleIsolated, isolating = false, isolateFailed = false, pendingRoute = null, labels },
   ref,
 ) {
   const isDark = useIsDarkMode();
@@ -219,6 +226,22 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
       wasFullscreenRef.current = false;
     },
   }), []);
+
+  // The centred title only drops below the toolbar when they would actually overlap.
+  const titleRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [titleClash, setTitleClash] = useState(false);
+  useEffect(() => {
+    const title = titleRef.current;
+    const toolbar = toolbarRef.current;
+    const canvas = canvasRef.current;
+    if (!isFullscreen || !title || !toolbar || !canvas) return;
+    const check = () =>
+      setTitleClash(title.getBoundingClientRect().right + TITLE_GAP > toolbar.getBoundingClientRect().left);
+    const observer = new ResizeObserver(check);
+    for (const el of [title, toolbar, canvas]) observer.observe(el);
+    return () => observer.disconnect();
+  }, [isFullscreen, name]);
 
   const toggleFullscreen = useCallback(() => {
     if (fullscreenElement()) {
@@ -375,12 +398,14 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
     });
   }, [getNodes]);
 
-  const canPlay = !solved && playRoute.nodeIds.length > 0;
+  const canPlay = !solved && !pendingRoute && playRoute.nodeIds.length > 0;
 
   return (
     <div
       ref={canvasRef}
       data-ch-canvas
+      data-ch-pending={pendingRoute ? "" : undefined}
+      aria-busy={pendingRoute ? true : undefined}
       style={{
         height: isFullscreen ? "100vh" : CANVAS_H,
         width: "100%",
@@ -391,6 +416,14 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
       }}
     >
       <style>{CYBER_CSS}</style>
+      {pendingRoute && (
+        <div style={pendingOverlay}>
+          <div style={pendingBox} data-testid="pending-route">
+            <Spinner size={18} color={cyber.textPrimary} aria-hidden />
+            {labels.loadingIsolatedRoute(pendingRoute)}
+          </div>
+        </div>
+      )}
       <SeverityPathContext.Provider value={severityPath}>
       <ReactFlow
         nodes={renderNodes}
@@ -434,15 +467,15 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
         </Controls>
 
         {isFullscreen && name && (
-          <Panel position="top-center" style={{ marginTop: TOOLBAR_CLEARANCE }}>
-            <div style={fullscreenTitleBox} title={name}>
+          <Panel position="top-center" style={{ marginTop: titleClash ? TOOLBAR_CLEARANCE : undefined, transition: "margin-top .2s ease" }}>
+            <div ref={titleRef} style={fullscreenTitleBox} title={name} data-testid="fullscreen-title">
               {name}
             </div>
           </Panel>
         )}
 
         <Panel position="top-right">
-          <div style={{ display: "flex", gap: 8 }}>
+          <div ref={toolbarRef} style={{ display: "flex", gap: 8 }} data-testid="graph-toolbar">
             {canPlay && (
               isPlaying ? (
                 <ToolbarButton onClick={stop} label={labels.stop} accent={cyber.danger} glyph="◼" />
@@ -453,8 +486,8 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
             {!solved && highlight && onToggleIsolated && (
               <ToolbarButton
                 onClick={onToggleIsolated}
-                label={isolated ? labels.showInContext : isolating ? labels.isolatingRoute : labels.isolateRoute}
-                glyph={isolated ? "⊞" : "⊡"}
+                label={isolated ? labels.showInContext : isolateFailed ? labels.retryIsolate : isolating ? labels.isolatingRoute : labels.isolateRoute}
+                glyph={isolated ? "⊞" : isolateFailed ? "↻" : "⊡"}
               />
             )}
             {isFullscreen && onToggleView && (
@@ -481,6 +514,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
                   )}
                 </span>
                 {nextRoute && <span style={highlightSummary}>{labels.nextRoute(nextRoute.label)}</span>}
+                {isolateFailed && <span style={{ ...highlightSummary, color: cyber.danger }}>{labels.isolateError}</span>}
               </div>
               {!isPlaying && onClearHighlight && (
                 <ToolbarButton onClick={onClearHighlight} label={labels.clearHighlight} glyph="✕" />
@@ -588,6 +622,24 @@ const fullscreenTitleBox: React.CSSProperties = {
   overflow: "hidden",
   textOverflow: "ellipsis",
   maxWidth: "40vw",
+};
+
+const pendingOverlay: React.CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  zIndex: 6,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  pointerEvents: "none",
+};
+
+const pendingBox: React.CSSProperties = {
+  ...fullscreenTitleBox,
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  fontSize: 14,
 };
 
 const highlightBox: React.CSSProperties = {
@@ -710,6 +762,8 @@ const CYBER_CSS = `
 .react-flow__edge-path.ch-edge-flow { animation: chDash .6s linear infinite; }
 @keyframes chDash { to { stroke-dashoffset: -28; } }
 .react-flow__node.ch-dim, .react-flow__edge.ch-dim { opacity: .22; }
+.react-flow__viewport { transition: opacity .2s ease; }
+[data-ch-pending] .react-flow__viewport, [data-ch-pending] .react-flow__panel.bottom.center { opacity: .3; }
 .react-flow__node.ch-current .ch-node { transform: scale(1.09); box-shadow: 0 0 0 2px ${cyber.danger}, 0 0 34px 7px ${cyber.dangerGlow} !important; }
 .react-flow__node.ch-live .ch-node { box-shadow: 0 0 0 1.5px ${cyber.danger}, 0 0 20px 2px ${cyber.dangerGlow} !important; }
 .react-flow__edge.ch-edge-current path.react-flow__edge-path { stroke-width: 3.4 !important; filter: drop-shadow(0 0 6px ${cyber.danger}); }

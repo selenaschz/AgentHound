@@ -2,12 +2,12 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Box, Boxed, Inline, Stack, Text1, Touchable, IconSearchRegular, skinVars, useTheme } from "@telefonica/mistica";
 import NodeDetailDrawer from "@/components/threat-model/NodeDetailDrawer";
-import InlineError from "@/components/ui/InlineError";
 import CyberGraph, { type CyberGraphHandle, type GraphHighlight } from "@/components/threat-model/graph/CyberGraph";
 import { findingRoute, primaryRoute, primaryRouteId } from "@/components/threat-model/graph/toReactFlow";
 import { NODE_STYLE } from "@/components/threat-model/graph/cyberGraphTheme";
 import { routeSummary } from "@/lib/results/findingDisplay";
 import { useFindingPathGraph } from "@/hooks/useFindingPathGraph";
+import type { FindingPathGraph } from "@/lib/api/adapters";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import type { Attack, ControlInfo, Finding, GraphEdge, GraphNode } from "@/types/ThreatModel";
 
@@ -51,11 +51,20 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
   const [focusedNode, setFocusedNode] = useState<GraphNode | null>(null);
   const graphRef = useRef<CyberGraphHandle>(null);
 
+  const selectedFinding = useMemo(
+    () => (selectedFindingId ? findings.find((f) => f.id === selectedFindingId) ?? null : null),
+    [findings, selectedFindingId],
+  );
   const [isolated, setIsolated] = useState(false);
-  if (isolated && !selectedFindingId) setIsolated(false);
-  const isolating = isolated && !solved;
-  const pathGraph = useFindingPathGraph(analysisId, isolating ? selectedFindingId : null, findings);
-  const isolatedGraph = pathGraph.status === "ready" ? pathGraph.graph : null;
+  if (isolated && (solved || !selectedFinding)) setIsolated(false);
+  const pathGraph = useFindingPathGraph(analysisId, isolated ? selectedFindingId : null, findings);
+  const readyGraph = pathGraph.status === "ready" ? pathGraph.graph : null;
+  // While the next finding loads, keep the previous subgraph on screen (dimmed) instead of flashing the whole graph.
+  const [lastGraph, setLastGraph] = useState<FindingPathGraph | null>(null);
+  if (readyGraph && readyGraph !== lastGraph) setLastGraph(readyGraph);
+  if (!isolated && lastGraph) setLastGraph(null);
+  const isolatedGraph = readyGraph ?? (pathGraph.status === "loading" ? lastGraph : null);
+  const stale = isolatedGraph !== null && isolatedGraph !== readyGraph;
   const graphNodes = isolatedGraph?.nodes ?? nodes;
   const graphEdges = isolatedGraph?.edges ?? edges;
   const graphFindings = useMemo(() => (isolatedGraph ? [isolatedGraph.finding] : findings), [isolatedGraph, findings]);
@@ -90,15 +99,14 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
   }, [attacks, nodesById]);
 
   const highlight = useMemo<GraphHighlight | null>(() => {
-    if (solved || !selectedFindingId) return null;
-    const finding = findings.find((f) => f.id === selectedFindingId);
-    if (!finding) return null;
+    const finding = stale ? isolatedGraph.finding : selectedFinding;
+    if (solved || !finding) return null;
     return {
       ...findingRoute(finding, graphEdges),
       label: findingLabelById.get(finding.id) ?? finding.ruleId,
       summary: routeSummary(finding.path, nodesById),
     };
-  }, [solved, selectedFindingId, findings, graphEdges, findingLabelById, nodesById]);
+  }, [solved, stale, isolatedGraph, selectedFinding, graphEdges, findingLabelById, nodesById]);
 
   // Recommended controls per edge id, from findings traversing that node pair.
   // As with `nodeControls`, the solved view overrides this with the simulation's
@@ -164,6 +172,9 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
     isolatingRoute: t("isolatingRoute"),
     showInContext: t("showInContext"),
     isolatedRoute: t("isolatedRoute"),
+    retryIsolate: t("retryIsolate"),
+    loadingIsolatedRoute: (label: string) => t("loadingIsolatedRoute", { id: label }),
+    isolateError: t("isolateError"),
   }), [t, tNode, attacks]);
 
   const toggleIsolated = useCallback(() => setIsolated((v) => !v), []);
@@ -174,10 +185,6 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
         <IconSearchRegular size={13} color={skinVars.colors.textSecondary} />
         <Text1 regular color={skinVars.colors.textSecondary}>{t("graphHint")}</Text1>
       </Inline>
-
-      {isolating && pathGraph.status === "error" && (
-        <InlineError message={t("isolateError")} onRetry={pathGraph.retry} />
-      )}
 
       <CyberGraph
         ref={graphRef}
@@ -194,12 +201,14 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
         highlight={highlight}
         onClearHighlight={onClearSelection}
         isolated={isolatedGraph !== null}
-        onToggleIsolated={toggleIsolated}
+        onToggleIsolated={pathGraph.status === "error" ? pathGraph.retry : toggleIsolated}
         isolating={pathGraph.status === "loading"}
+        isolateFailed={pathGraph.status === "error"}
+        pendingRoute={stale && selectedFinding ? findingLabelById.get(selectedFinding.id) ?? selectedFinding.ruleId : null}
         labels={labels}
       />
 
-      {!solved && primaryPath && (
+      {!solved && !isolatedGraph && primaryPath && (
         <Boxed>
           <Box paddingX={16} paddingY={12}>
             <Stack space={8}>

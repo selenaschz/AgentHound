@@ -218,6 +218,8 @@
     "isolatingRoute": "Loading route…",
     "showInContext": "Show in context",
     "isolatedRoute": "Isolated finding",
+    "retryIsolate": "Retry route",
+    "loadingIsolatedRoute": "Loading {id}…",
     "isolateError": "Couldn't load this finding's route.",
     "chokepointTitle": "Recommended choke point",
     "chokepointDesc": "Apply {control} on {node} — eliminates {pct}% of the risk (cost: {cost})",

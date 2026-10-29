@@ -346,6 +346,7 @@ export interface SolutionResult {
   nodes: GraphNode[];
   edges: GraphEdge[];
   attacks: Attack[];
+  brokenFindingIds: string[];
   appliedControlCount: number;
   /** Controls actually applied by the simulation, keyed by their target node id,
    * each carrying its `effect` (total → blocks, partial → reinforces). Drives the
@@ -573,6 +574,7 @@ export function toSolutionResult(
     nodes: toGraphNodes(sim.graph.nodes),
     edges: toGraphEdges(sim.graph.edges),
     attacks,
+    brokenFindingIds: [...brokenIds],
     appliedControlCount: sim.applied_controls.length,
     nodeControlInfo,
     edgeControlInfo,

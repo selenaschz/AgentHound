@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Box, Boxed, Drawer, Inline, Stack, Tag, Text1, skinVars, useTheme } from "@telefonica/mistica";
+import { FindingId, FindingRoute } from "@/components/threat-model/FindingIdentity";
 import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import { propPositive } from "@/lib/api/adapters";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import { formatSnakeCase } from "@/lib/format";
-import { routeSummary } from "@/lib/results/findingDisplay";
 import type { Finding, GraphNode, NodeProp } from "@/types/ThreatModel";
 
 interface NodeDetailDrawerProps {
@@ -129,13 +129,13 @@ function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, onClose
                     <Stack space={4}>
                       <Inline space={8} alignItems="center" wrap verticalSpace={4}>
                         <Tag type="error" small>{findingLabelById.get(f.id) ?? f.ruleId}</Tag>
-                        <Text1 regular color={skinVars.colors.textSecondary}>{f.id}</Text1>
+                        <FindingId id={f.id} />
                         <Tag type="inactive" small>{formatSnakeCase(f.category)}</Tag>
                         <SeverityBadge severity={f.severity} small>{tSeverity(f.severity)}</SeverityBadge>
                         <Text1 medium color={severityAccentColor(f.severity, isDarkMode)}>{f.score}</Text1>
                       </Inline>
                       <Text1 regular color={skinVars.colors.textSecondary}>{f.title}</Text1>
-                      <Text1 regular>{routeSummary(f.path, nodesById)}</Text1>
+                      <FindingRoute path={f.path} nodesById={nodesById} />
                       <Inline space={4} wrap verticalSpace={4}>
                         {f.owaspAgentic?.map((tag) => <Tag key={tag} small type="inactive">{`OWASP ${tag}`}</Tag>)}
                         {f.owaspLlm?.map((tag) => <Tag key={tag} small type="inactive">{tag}</Tag>)}

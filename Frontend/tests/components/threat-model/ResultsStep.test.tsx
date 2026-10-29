@@ -104,6 +104,7 @@ describe("ResultsStep — resolved findings", () => {
             nodes,
             edges,
             attacks: [],
+            brokenFindingIds: ["f1", "f2"],
             appliedControlCount: 0,
             nodeControlInfo: {},
             edgeControlInfo: {},
@@ -125,6 +126,17 @@ describe("ResultsStep — resolved findings", () => {
       "f2",
       "Email entrante → Planner → Logs",
     ]));
-    expect(view.container.textContent).toContain("FH-001 #2 — ");
+    expect(texts).toContain("FH-001 #2");
+  });
+
+  it("lists only the findings the simulation broke", () => {
+    const resolved = Array.from(view.container.querySelectorAll("[data-testid=resolved-finding]"), (el) => el.textContent);
+
+    expect(resolved).toHaveLength(2);
+    expect(resolved.join()).not.toMatch(/f3|f4/);
+  });
+
+  it("hands the solved graph only the findings still open", () => {
+    expect(graph.props?.findings.map((f) => f.id)).toEqual(["f3", "f4"]);
   });
 });

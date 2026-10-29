@@ -48,14 +48,16 @@ export function useFindingPathGraph(
   useEffect(() => {
     if (!pending || !findingId) return;
     const controller = new AbortController();
-    getFinding(analysisId, findingId, { signal: controller.signal }).then(
-      (detail) => store(source, findingId, { status: "ready", graph: toFindingPathGraph(detail) }),
-      (err) => {
-        if (controller.signal.aborted) return;
-        logger.error("Finding path graph failed", err);
-        store(source, findingId, { status: "error" });
-      },
-    );
+    getFinding(analysisId, findingId, { signal: controller.signal })
+      .then(toFindingPathGraph)
+      .then(
+        (graph) => store(source, findingId, { status: "ready", graph }),
+        (err) => {
+          if (controller.signal.aborted) return;
+          logger.error("Finding path graph failed", err);
+          store(source, findingId, { status: "error" });
+        },
+      );
     return () => controller.abort();
   }, [analysisId, findingId, pending, source, store]);
 

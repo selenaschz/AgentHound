@@ -4,6 +4,7 @@ import CapabilityGraph from "@/components/threat-model/CapabilityGraph";
 import type { CyberGraphProps } from "@/components/threat-model/graph/CyberGraph";
 import { getFinding } from "@/lib/api/agentHound";
 import type { FindingDetailResponse } from "@/lib/api/types";
+import type { Attack } from "@/types/ThreatModel";
 import { findingLabels } from "@/lib/results/findingDisplay";
 import { mount, press } from "../test-utils";
 import { edges, findings, nodes } from "./fixtures";
@@ -37,7 +38,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function render({ selectedFindingId = null as string | null, solved = false, findingList = findings } = {}) {
+function render({ selectedFindingId = null as string | null, solved = false, findingList = findings, attacks = [] as Attack[] } = {}) {
   view.render(
     <CapabilityGraph
       analysisId="a1"
@@ -45,7 +46,7 @@ function render({ selectedFindingId = null as string | null, solved = false, fin
       nodes={nodes}
       edges={edges}
       findings={findingList}
-      attacks={[]}
+      attacks={attacks}
       findingLabelById={labels}
       selectedFindingId={selectedFindingId}
       onSelectFinding={onSelectFinding}
@@ -257,6 +258,38 @@ describe("CapabilityGraph — isolated finding", () => {
 
     expect(canvas.props?.isolated).toBe(false);
     expect(canvas.props?.nodes).toHaveLength(nodes.length);
+
+    render({ selectedFindingId: "f1" });
+
+    expect(canvas.props?.isolated).toBe(false);
+    expect(canvas.props?.nodes).toHaveLength(nodes.length);
+  });
+
+  it("leaves isolation and does not refetch when the selected finding is gone", async () => {
+    getFindingMock.mockResolvedValue(f1Detail);
+    render({ selectedFindingId: "f1" });
+    isolate();
+    await settle();
+
+    render({ selectedFindingId: "f1", findingList: findings.filter((f) => f.id !== "f1") });
+    await settle();
+
+    expect(getFindingMock).toHaveBeenCalledOnce();
+    expect(canvas.props?.isolated).toBe(false);
+    expect(canvas.props?.isolateFailed).toBe(false);
+    expect(canvas.props?.nodes).toHaveLength(nodes.length);
+  });
+
+  it("hides the primary route card while a finding is isolated", async () => {
+    getFindingMock.mockResolvedValue(f1Detail);
+    const attacks: Attack[] = [{ id: "a1", severity: "critical", width: 3, nodes: ["input", "planner", "crm"], label: "FH-001", dash: false }];
+    render({ selectedFindingId: "f1", attacks });
+    expect(view.container.textContent).toContain("Ruta crítica principal");
+
+    isolate();
+    await settle();
+
+    expect(view.container.textContent).not.toContain("Ruta crítica principal");
   });
 
   it("drops a slow response for a finding the user has already moved on from", async () => {
@@ -282,6 +315,29 @@ describe("CapabilityGraph — isolated finding", () => {
     expect(canvas.props?.highlight).toMatchObject({ edgeIds: ["e1", "e4"], label: "FH-001 #2" });
   });
 
+  it("keeps the previous subgraph on screen, marked as pending, while the next one loads", async () => {
+    const f2 = deferred<FindingDetailResponse>();
+    getFindingMock.mockResolvedValueOnce(f1Detail).mockReturnValueOnce(f2.promise);
+    render({ selectedFindingId: "f1" });
+    isolate();
+    await settle();
+
+    render({ selectedFindingId: "f2" });
+    await settle();
+
+    expect(canvas.props?.isolated).toBe(true);
+    expect(canvas.props?.nodes.map((n) => n.id)).toEqual(["input", "planner", "crm"]);
+    expect(canvas.props?.highlight).toMatchObject({ edgeIds: ["e1", "e3"], label: "FH-001 #1" });
+    expect(canvas.props?.pendingRoute).toBe("FH-001 #2");
+
+    f2.resolve(f2Detail);
+    await settle();
+
+    expect(canvas.props?.nodes.map((n) => n.id)).toEqual(["input", "planner", "logs"]);
+    expect(canvas.props?.highlight).toMatchObject({ edgeIds: ["e1", "e4"], label: "FH-001 #2" });
+    expect(canvas.props?.pendingRoute).toBeNull();
+  });
+
   it("refetches after a re-analysis instead of reusing the previous run's subgraph", async () => {
     getFindingMock.mockResolvedValueOnce(f1Detail).mockResolvedValueOnce(f2Detail);
     render({ selectedFindingId: "f1" });
@@ -304,14 +360,27 @@ describe("CapabilityGraph — isolated finding", () => {
     isolate();
     await settle();
 
-    expect(view.container.textContent).toContain("No se pudo cargar la ruta de este hallazgo.");
+    expect(canvas.props?.isolateFailed).toBe(true);
     expect(canvas.props?.isolated).toBe(false);
+    expect(canvas.props?.nodes).toHaveLength(nodes.length);
 
-    press(rows().find((b) => b.textContent === "Reintentar")!);
+    isolate();
+    expect(canvas.props?.isolating).toBe(true);
     await settle();
 
     expect(getFindingMock).toHaveBeenCalledTimes(2);
     expect(canvas.props?.isolated).toBe(true);
-    expect(view.container.textContent).not.toContain("No se pudo cargar");
+    expect(canvas.props?.isolateFailed).toBe(false);
+  });
+
+  it("reports a malformed response as a failed load instead of loading forever", async () => {
+    getFindingMock.mockResolvedValue({ ...f1Detail, path_graph: null } as unknown as FindingDetailResponse);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    render({ selectedFindingId: "f1" });
+    isolate();
+    await settle();
+
+    expect(canvas.props?.isolating).toBe(false);
+    expect(canvas.props?.isolateFailed).toBe(true);
   });
 });

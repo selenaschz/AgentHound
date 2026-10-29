@@ -277,7 +277,8 @@ tell which edges the rule engine actually reacts to. An empty list means the
 verb is vocabulary only: it is accepted on edges and drawn in the graph, but no
 rule fires because of it. `tests/test_capability_catalog.py` keeps the lists in
 sync with the rule code. The catalog is static, so the response does not depend
-on any analysis.
+on any analysis. The response is declared as `CapabilitiesResponse` in OpenAPI,
+mirroring the type of the same name in `types.ts`.
 
 ## GET /health
 

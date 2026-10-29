@@ -8,7 +8,7 @@ the pair of endpoint kinds. Each tool's downstream effect (an external send, a w
 fetch, a sensitive read) is synthesised so it is visible to the rule engine even
 when the DSL routes the tool into an internal answer node. Each conversation
 variable becomes a memory node, written by ``assigner`` nodes and read by the
-agents that reference it (see ``_add_conversation_memory``).
+nodes that reference it (see ``_add_conversation_memory``).
 
 Ported from the earlier prototype adapter into the current
 capability-verb IR.
@@ -17,6 +17,7 @@ capability-verb IR.
 from __future__ import annotations
 
 import re
+from collections import deque
 from collections.abc import Mapping
 from typing import Any
 
@@ -45,6 +46,10 @@ _TOOL_TYPES = {"tool", "http-request"}
 _ASSET_TYPES = {"knowledge-retrieval", "dataset-retrieval", "knowledge"}
 _OUTPUT_TYPES = {"answer", "end"}
 _ASSIGNER_TYPES = {"assigner"}
+
+# Node kinds that read a conversation variable they reference. An answer/end
+# node that renders one sends the memory straight to an output.
+_READER_KINDS = {NodeType.AGENT, NodeType.TOOL, NodeType.OUTPUT}
 
 # A conversation variable is referenced as {{#conversation.name#}} in prompt
 # and answer text, and as a ["conversation", "name"] selector elsewhere.
@@ -199,19 +204,26 @@ def _add_conversation_memory(
 
     A conversation variable persists across the turns of a chat, so it is memory
     in the IR. ``assigner`` nodes write it: the writer is the node whose output
-    is assigned (``sys.*`` values come from the start node). Agents and tools
-    whose ``data`` block references it read it. It counts as shared once two
-    agents use it, unless the variable declares ``shared`` itself.
+    is assigned (``sys.*`` values come from the start node). Agents, tools and
+    answer/end nodes whose ``data`` block references it read it. A variable no
+    node writes or reads is skipped, since there is no memory flow to show. It
+    counts as shared once two agents use it, unless the variable declares
+    ``shared`` itself.
     """
     variables = [v for v in as_list(raw_variables) if isinstance(v, Mapping) and v.get("name")]
     if not variables:
         return
 
+    preds: dict[str, list[str]] = {}
+    for edge in raw_edges:
+        if isinstance(edge, Mapping):
+            preds.setdefault(str(edge.get("target") or ""), []).append(str(edge.get("source") or ""))
+
     writers: dict[str, set[str]] = {}
     for dify_id, section in sections.items():
         if str(section.get("type") or "").lower() in _ASSIGNER_TYPES:
             for variable, value in _assignments(section):
-                for writer in _writers_of(value, dify_id, sections, node_map, raw_edges):
+                for writer in _writers_of(value, dify_id, sections, node_map, preds):
                     writers.setdefault(variable, set()).add(writer)
 
     agent_ids = {nid for nid, kind in node_map.values() if kind == NodeType.AGENT}
@@ -220,9 +232,11 @@ def _add_conversation_memory(
         readers = [
             nid
             for dify_id, (nid, kind) in node_map.items()
-            if kind in {NodeType.AGENT, NodeType.TOOL} and name in _conversation_refs(sections[dify_id])
+            if kind in _READER_KINDS and name in _conversation_refs(sections[dify_id])
         ]
         written_by = sorted(writers.get(name, set()))
+        if not written_by and not readers:
+            continue
         agents = agent_ids & {*written_by, *readers}
 
         props: dict[str, Any] = {"sensitivity": "medium", "shared": len(agents) >= 2}
@@ -260,33 +274,35 @@ def _writers_of(
     assigner_id: str,
     sections: dict[str, Mapping[str, Any]],
     node_map: dict[str, tuple[str, NodeType]],
-    raw_edges: list[Any],
+    preds: dict[str, list[str]],
 ) -> list[str]:
     """IR ids of the nodes whose output an assigner writes into a variable."""
     if not isinstance(value, list) or not value:
         return []
     source = str(value[0])
     if source == "sys":
-        return [nid for nid, kind in node_map.values() if kind == NodeType.INPUT]
+        return [
+            nid
+            for dify_id, (nid, _) in node_map.items()
+            if str(sections[dify_id].get("type") or "").lower() == "start"
+        ]
     if source in node_map:
         return [node_map[source][0]]
     if source in sections and source != assigner_id:
         # An unmapped node (code, template...) passes on what reached it, so
         # the nearest mapped nodes upstream of it are the writers.
-        return _mapped_predecessors(source, node_map, raw_edges)
+        return _mapped_predecessors(source, node_map, preds)
     return []
 
 
-def _mapped_predecessors(start: str, node_map: dict[str, tuple[str, NodeType]], raw_edges: list[Any]) -> list[str]:
-    preds: dict[str, list[str]] = {}
-    for edge in raw_edges:
-        if isinstance(edge, Mapping):
-            preds.setdefault(str(edge.get("target") or ""), []).append(str(edge.get("source") or ""))
+def _mapped_predecessors(
+    start: str, node_map: dict[str, tuple[str, NodeType]], preds: dict[str, list[str]]
+) -> list[str]:
     found: list[str] = []
     seen = {start}
-    queue = list(preds.get(start, []))
+    queue = deque(preds.get(start, []))
     while queue:
-        node = queue.pop(0)
+        node = queue.popleft()
         if node in seen:
             continue
         seen.add(node)

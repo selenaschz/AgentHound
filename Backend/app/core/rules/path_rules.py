@@ -334,12 +334,21 @@ def fh_009(cg: CapabilityGraph) -> list[Finding]:
         if _as_bool(mem_props.get("write_validated", False)):
             continue
 
-        # Gather paths from untrusted inputs that end with a writeMemory edge into this memory.
+        # Gather paths from untrusted inputs that end with a writeMemory edge into
+        # this memory. Paths do not cross memory edges, so each one is a route to
+        # a writer plus the write itself.
+        writers = [
+            n for n in cg.graph.predecessors(memory) if "writeMemory" in cg.hop_capabilities(n, memory)
+        ]
         write_paths: list[list[str]] = []
         for start in cg.untrusted_inputs():
-            for path in cg.simple_paths(start, memory):
-                if len(path) >= 2 and "writeMemory" in cg.hop_capabilities(path[-2], path[-1]):
-                    write_paths.append(path)
+            for writer in writers:
+                if writer == start:
+                    write_paths.append([start, memory])
+                    continue
+                for path in cg.simple_paths(start, writer, cutoff=cg.max_depth - 1):
+                    if memory not in path:
+                        write_paths.append(path + [memory])
 
         if not write_paths:
             continue

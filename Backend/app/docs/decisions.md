@@ -182,15 +182,24 @@ implemented on the `new-catalog-rules` branch.
     node, with properties declared on the entry. An `assigner` node writes it:
     the writer is the node whose output is assigned (`sys.*` values come from
     the start node; behind an unmapped node such as `code`, the nearest mapped
-    nodes upstream). A constant assignment has no writer. Agents and tools whose
-    `data` block references the variable (`{{#conversation.name#}}` or a
-    `[conversation, name]` selector) read it.
+    nodes upstream). A constant assignment has no writer. Agents, tools and
+    answer/end nodes whose `data` block references the variable
+    (`{{#conversation.name#}}` or a `[conversation, name]` selector) read it.
+    A variable that no node writes or reads gets no memory node, so an unused
+    declaration doesn't trip FH-029.
   - Defaults follow `node_properties.yaml`: `sensitivity: medium`, no
     retention TTL. The memory counts as `shared` once two agents use it,
     unless the file declares `shared`. A single-agent memory is not a
     cross-agent channel, so it shouldn't trip FH-009/FH-020.
-  - As in LangGraph, memory hops are ordinary graph edges, so other path rules
-    can traverse them too.
+
+- **Path rules don't cross memory edges.** Paths and reachability in
+  `CapabilityGraph` skip `writeMemory`/`readMemory` edges, in every adapter.
+  A crew memory that every agent writes and reads linked every agent to every
+  other one, so FH-002/003/007/011 reported each route through it as its own
+  finding: one root cause, many times (114 to about 2,000 findings on a large
+  crew). Flow through memory is FH-009's concern, and FH-009 builds its write
+  paths explicitly: a route from the untrusted input to a writer, then the
+  write. Hop and edge lookups still see the full graph.
 
 - **Rules match tool-mediated effects.** The adapters never put an effect verb on
   the agent -> tool hop; they emit `agent -invokeTool-> tool -<verb>-> target`.

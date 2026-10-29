@@ -323,6 +323,19 @@ def test_crewai_crew_memory_is_shared_by_every_agent():
     assert {"FH-009", "FH-020", "FH-029"} <= _rule_ids(result.findings)
 
 
+def test_path_rules_do_not_route_through_crew_memory():
+    # Intake and Sender are linked only through the memory. FH-009 reports that
+    # flow; the other path rules don't, or the hub would repeat it per route.
+    result = analyze_text(_CREWAI_MEMORY.format(memory="true", opt_out=""), framework_hint="crewai")
+    fired = _rule_ids(result.findings)
+    assert "FH-009" in fired
+    assert "FH-003" not in fired
+    for finding in result.findings:
+        # Single-node findings (FH-020/FH-029) sit on the memory itself.
+        if finding.rule_id != "FH-009" and len(finding.path) > 1:
+            assert "memory_crew_memory" not in finding.path
+
+
 @pytest.mark.parametrize("memory", ["false", '"false"', "null"])
 def test_crewai_without_crew_memory_has_no_memory_node(memory):
     result = analyze_text(_CREWAI_MEMORY.format(memory=memory, opt_out=""), framework_hint="crewai")
@@ -460,12 +473,47 @@ workflow:
         data:
           type: assigner
           items: [{variable_selector: [conversation, stage], input_type: constant, value: done}]
+      - {id: r, data: {type: llm, title: Router, prompt: "Stage: {{#conversation.stage#}}"}}
     edges:
       - {source: a, target: w}
+      - {source: w, target: r}
 """
     result = analyze_text(dsl, framework_hint="dify")
     assert [n.id for n in _memory_nodes(result)] == ["memory_stage"]
-    assert _memory_hops(result) == set()
+    assert _memory_hops(result) == {("memory_stage", "readMemory", "agent_router")}
+
+
+def test_dify_unused_conversation_variable_is_skipped():
+    # Nothing writes or reads `unused`, so it is no memory flow and must not
+    # trip FH-029 (memory without retention TTL).
+    dsl = """
+workflow:
+  conversation_variables: [{name: unused}]
+  graph:
+    nodes:
+      - {id: s, data: {type: start, title: In}}
+      - {id: a, data: {type: llm, title: Agent}}
+    edges:
+      - {source: s, target: a}
+"""
+    result = analyze_text(dsl, framework_hint="dify")
+    assert _memory_nodes(result) == []
+    assert "FH-029" not in _rule_ids(result.findings)
+
+
+def test_dify_answer_node_reads_the_variable_it_renders():
+    dsl = """
+workflow:
+  conversation_variables: [{name: notes}]
+  graph:
+    nodes:
+      - {id: s, data: {type: start, title: In}}
+      - {id: ans, data: {type: answer, title: Reply, answer: "Your notes: {{#conversation.notes#}}"}}
+    edges:
+      - {source: s, target: ans}
+"""
+    result = analyze_text(dsl, framework_hint="dify")
+    assert _memory_hops(result) == {("memory_notes", "readMemory", "output_reply")}
 
 
 # --- tool-mediated FH-008 / FH-025 ------------------------------------------

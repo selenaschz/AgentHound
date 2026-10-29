@@ -381,4 +381,6 @@ def test_capabilities_lists_each_verb_with_evaluated_by():
     assert by_verb["executeCode"]["evaluated_by"] == ["FH-010", "FH-016"]
     # Vocabulary-only verbs are listed with an empty list rather than omitted.
     assert by_verb["receiveEvent"]["evaluated_by"] == []
-    assert sum(1 for e in entries if e["evaluated_by"]) == 18
+    # The response is typed in OpenAPI, not a bare object.
+    schema = client.get("/openapi.json").json()["paths"]["/capabilities"]["get"]["responses"]["200"]
+    assert schema["content"]["application/json"]["schema"]["$ref"].endswith("/CapabilitiesResponse")

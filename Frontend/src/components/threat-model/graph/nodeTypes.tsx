@@ -83,7 +83,7 @@ const CyberNodeView = memo(({ data, selected }: NodeProps<CyberNode>) => {
   // The agent is the hero "reactor core": larger, with a rotating conic-gradient
   // border, a breathing halo and an "online" pulse — so the eye lands on it first.
   const isAgent = gnode.type === "agent";
-  const { w } = nodeSize(gnode.type);
+  const { w, h } = nodeSize(gnode.type);
   const iconBox = isAgent ? 68 : 56;
 
   // Every node keeps its own accent glow, in both the findings and solution
@@ -99,6 +99,8 @@ const CyberNodeView = memo(({ data, selected }: NodeProps<CyberNode>) => {
       className={`ch-node${isAgent ? " ch-reactor" : ""}`}
       style={{
         width: w,
+        // The agent hero sizes to its content; AGENT_H already leaves room for it.
+        height: isAgent ? undefined : h,
         boxSizing: "border-box",
         display: "flex",
         flexDirection: isAgent ? "column" : "row",

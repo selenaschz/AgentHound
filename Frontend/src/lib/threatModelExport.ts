@@ -8,6 +8,7 @@
 import { stringify } from "yaml";
 
 import type { AnalysisResult } from "@/lib/api/adapters";
+import { formatValue } from "@/lib/format";
 import type { Finding, GraphEdge, GraphNode } from "@/types/ThreatModel";
 
 /** The graph currently shown (Findings tab vs. Proposed Solution tab). */
@@ -117,7 +118,7 @@ function findingSection(f: Finding): string {
   if (f.controls?.length) lines.push(`- **Recommended controls:** ${f.controls.join(", ")}`);
   if (f.evidence && Object.keys(f.evidence).length > 0) {
     const ev = Object.entries(f.evidence)
-      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join("/") : v}`)
+      .map(([k, v]) => `${k}: ${formatValue(v)}`)
       .join(" · ");
     lines.push(`- **Evidence:** ${ev}`);
   }

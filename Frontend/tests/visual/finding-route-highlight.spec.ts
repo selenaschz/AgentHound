@@ -55,6 +55,11 @@ test.describe("Finding route highlight", () => {
       els.filter((el) => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1).map((el) => el.textContent),
     );
     expect(clipped).toEqual([]);
+    // Nodes render at the fixed height the layout reserves, so their content must fit in it.
+    const overflowing = await canvas(page).locator(".ch-node:not(.ch-reactor)").evaluateAll((els) =>
+      els.filter((el) => el.scrollHeight > el.clientHeight + 1).map((el) => el.textContent),
+    );
+    expect(overflowing).toEqual([]);
     await expect(canvas(page)).toHaveScreenshot("graph-default.png");
     await expect(prioritized(page)).toHaveScreenshot("prioritized-list-default.png");
   });

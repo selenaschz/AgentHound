@@ -40,6 +40,13 @@ describe("toGraphNodes subtitle", () => {
     expect(sub("tool", { capability_kinds: ["", ""], operation_kind: "invoke" })).toBe("operation: invoke");
   });
 
+  it("does not let a blank or invalid item hide invokeTool", () => {
+    expect(sub("tool", { capability_kinds: ["", "invokeTool"], operation_kind: "invoke" })).toBe("capability: invokeTool");
+    expect(sub("tool", { capability_kinds: [{ verb: "send" }, "invokeTool"], operation_kind: "invoke" })).toBe(
+      "capability: invokeTool",
+    );
+  });
+
   it("omits the subtitle when a tool has neither property", () => {
     expect(sub("tool", {})).toBeUndefined();
   });

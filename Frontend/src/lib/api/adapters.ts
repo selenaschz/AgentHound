@@ -10,7 +10,7 @@
  * static backdrop columns drawn by `CapabilityGraph`.
  */
 
-import { formatSnakeCase } from "@/lib/format";
+import { formatSnakeCase, formatValue, listItems } from "@/lib/format";
 import type { Severity } from "@/lib/severity";
 import type {
   Attack,
@@ -165,12 +165,15 @@ const LANE_BOTTOM = 540;
 
 function nodeSub(type: NodeType, props: Record<string, unknown>): string | undefined {
   const show = (value: unknown, prefix: string): string | undefined => {
-    const text = Array.isArray(value) ? value.filter((v) => typeof v === "string" && v !== "").join(", ") : value;
-    return text === undefined || text === null || text === "" ? undefined : `${prefix}: ${String(text)}`;
+    const text = formatValue(value);
+    return text === "" ? undefined : `${prefix}: ${text}`;
   };
   // Every tool is invoked, so invokeTool only adds information on its own.
-  const withoutInvoke = (kinds: unknown): unknown =>
-    Array.isArray(kinds) && kinds.some((k) => k !== "invokeTool") ? kinds.filter((k) => k !== "invokeTool") : kinds;
+  const withoutInvoke = (value: unknown): unknown => {
+    if (!Array.isArray(value)) return value;
+    const kinds = listItems(value);
+    return kinds.some((k) => k !== "invokeTool") ? kinds.filter((k) => k !== "invokeTool") : kinds;
+  };
   switch (type) {
     case "input":
       return show(props.trust_level, "trust");

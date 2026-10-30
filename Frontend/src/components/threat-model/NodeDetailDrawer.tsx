@@ -5,7 +5,7 @@ import { FindingId, FindingRoute } from "@/components/threat-model/FindingIdenti
 import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import { propPositive } from "@/lib/api/adapters";
 import { severityAccentColor } from "@/lib/threatModelColors";
-import { formatSnakeCase } from "@/lib/format";
+import { formatSnakeCase, formatValue } from "@/lib/format";
 import type { Finding, GraphNode, NodeProp } from "@/types/ThreatModel";
 
 interface NodeDetailDrawerProps {
@@ -16,11 +16,8 @@ interface NodeDetailDrawerProps {
   onClose: () => void;
 }
 
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined) return "—";
-  if (Array.isArray(value)) return value.map((v) => String(v)).join(", ");
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+function formatProperty(value: unknown): string {
+  return value === null || value === undefined ? "—" : formatValue(value);
 }
 
 function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, onClose }: NodeDetailDrawerProps) {
@@ -32,7 +29,7 @@ function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, onClose
     () =>
       Object.entries(node.properties ?? {}).map(([key, value]) => ({
         key,
-        val: formatValue(value),
+        val: formatProperty(value),
         positive: propPositive(key, value),
       })),
     [node.properties],
@@ -147,7 +144,7 @@ function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, onClose
                           {Object.entries(f.evidence).map(([key, value]) => (
                             <Inline key={key} space={8}>
                               <Text1 regular color={skinVars.colors.textSecondary}>{formatSnakeCase(key)}:</Text1>
-                              <Text1 regular>{Array.isArray(value) ? value.join(", ") : String(value)}</Text1>
+                              <Text1 regular>{formatValue(value)}</Text1>
                             </Inline>
                           ))}
                         </Stack>

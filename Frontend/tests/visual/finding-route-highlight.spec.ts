@@ -16,6 +16,7 @@ const canvas = (page: Page) => page.locator("[data-ch-canvas]");
 const routePanel = (page: Page) => canvas(page).getByRole("status");
 const row = (page: Page, label: string) =>
   page.getByTestId("prioritized-finding").filter({ hasText: new RegExp(`^${label}(?!\\d)`) });
+const graphNode = (page: Page, id: string) => canvas(page).locator(`.react-flow__node[data-id="${id}"]`);
 const nodeIds = async (page: Page, classes: string) =>
   (await canvas(page).locator(`.react-flow__node:is(${classes})`).evaluateAll((els) => els.map((el) => el.dataset.id ?? ""))).sort();
 const card = (page: Page, label: string) =>
@@ -46,6 +47,8 @@ test.describe("Finding route highlight", () => {
     await expect(routePanel(page)).toHaveCount(0);
     await expect(row(page, "FH-011 #1")).toHaveCount(1);
     await expect(row(page, "FH-011 #2")).toHaveCount(1);
+    await expect(graphNode(page, "tool_customer_records_database_read")).toContainText("capability: read");
+    await expect(graphNode(page, "tool_customer_records_delete")).toContainText("capability: deleteResource, invokeTool");
     await expect(canvas(page)).toHaveScreenshot("graph-default.png");
     await expect(prioritized(page)).toHaveScreenshot("prioritized-list-default.png");
   });

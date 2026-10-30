@@ -47,8 +47,9 @@ test.describe("Finding route highlight", () => {
     await expect(routePanel(page)).toHaveCount(0);
     await expect(row(page, "FH-011 #1")).toHaveCount(1);
     await expect(row(page, "FH-011 #2")).toHaveCount(1);
-    await expect(graphNode(page, "tool_customer_records_database_read")).toContainText("capability: read");
-    await expect(graphNode(page, "tool_customer_records_delete")).toContainText("capability: deleteResource, invokeTool");
+    // The subtitle can be clipped on screen, so its title carries the full value.
+    await expect(graphNode(page, "tool_customer_records_database_read").getByTitle("capability: read", { exact: true })).toBeVisible();
+    await expect(graphNode(page, "tool_customer_records_delete").getByTitle("capability: deleteResource", { exact: true })).toBeVisible();
     await expect(canvas(page)).toHaveScreenshot("graph-default.png");
     await expect(prioritized(page)).toHaveScreenshot("prioritized-list-default.png");
   });

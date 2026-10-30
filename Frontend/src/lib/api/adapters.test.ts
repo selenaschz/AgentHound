@@ -20,14 +20,24 @@ const sub = (type: string, properties: Record<string, unknown>) => toGraphNodes(
 
 describe("toGraphNodes subtitle", () => {
   it("lists a tool's capability kinds", () => {
+    expect(sub("tool", { capability_kinds: ["read", "search"], operation_kind: "read" })).toBe("capability: read, search");
+  });
+
+  it("drops invokeTool when the tool has another capability kind", () => {
     expect(sub("tool", { capability_kinds: ["deleteResource", "invokeTool"], operation_kind: "delete" })).toBe(
-      "capability: deleteResource, invokeTool",
+      "capability: deleteResource",
     );
+    expect(sub("tool", { capability_kinds: ["invokeTool"], operation_kind: "invoke" })).toBe("capability: invokeTool");
   });
 
   it("falls back to the operation kind when a tool declares no capability kinds", () => {
     expect(sub("tool", { operation_kind: "invoke" })).toBe("operation: invoke");
     expect(sub("tool", { capability_kinds: [], operation_kind: "invoke" })).toBe("operation: invoke");
+  });
+
+  it("ignores capability kinds that are not non-empty strings", () => {
+    expect(sub("tool", { capability_kinds: [{ verb: "send" }, "send"], operation_kind: "send" })).toBe("capability: send");
+    expect(sub("tool", { capability_kinds: ["", ""], operation_kind: "invoke" })).toBe("operation: invoke");
   });
 
   it("omits the subtitle when a tool has neither property", () => {

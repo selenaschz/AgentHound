@@ -147,7 +147,7 @@ const CyberNodeView = memo(({ data, selected }: NodeProps<CyberNode>) => {
           {isAgent ? `${style.kicker} · CORE` : style.kicker}
         </div>
         <div style={{ fontSize: isAgent ? 16.5 : 15.5, fontWeight: 700, marginTop: isAgent ? 3 : 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word" }}>{label}</div>
-        {gnode.sub && <div title={gnode.sub} style={{ fontSize: 11, color: cyber.textSecondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{gnode.sub}</div>}
+        {gnode.sub && <div data-testid="node-sub" title={gnode.sub} style={{ fontSize: 11, color: cyber.textSecondary, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word", maxWidth: "100%" }}>{gnode.sub}</div>}
       </div>
       <Handle type="source" position={Position.Right} style={{ background: accent, width: 9, height: 9, border: "none", zIndex: 2 }} />
     </div>

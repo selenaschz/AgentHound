@@ -47,9 +47,14 @@ test.describe("Finding route highlight", () => {
     await expect(routePanel(page)).toHaveCount(0);
     await expect(row(page, "FH-011 #1")).toHaveCount(1);
     await expect(row(page, "FH-011 #2")).toHaveCount(1);
-    // The subtitle can be clipped on screen, so its title carries the full value.
-    await expect(graphNode(page, "tool_customer_records_database_read").getByTitle("capability: read", { exact: true })).toBeVisible();
-    await expect(graphNode(page, "tool_customer_records_delete").getByTitle("capability: deleteResource", { exact: true })).toBeVisible();
+    await expect(graphNode(page, "tool_customer_records_database_read").getByTestId("node-sub")).toHaveText("capability: read");
+    await expect(graphNode(page, "tool_customer_records_delete").getByTestId("node-sub")).toHaveText("capability: deleteResource");
+    // toHaveText reads the DOM, so check that no subtitle is clipped on screen.
+    // 1px of slack: a fractional line height rounds scrollHeight up.
+    const clipped = await canvas(page).getByTestId("node-sub").evaluateAll((els) =>
+      els.filter((el) => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1).map((el) => el.textContent),
+    );
+    expect(clipped).toEqual([]);
     await expect(canvas(page)).toHaveScreenshot("graph-default.png");
     await expect(prioritized(page)).toHaveScreenshot("prioritized-list-default.png");
   });

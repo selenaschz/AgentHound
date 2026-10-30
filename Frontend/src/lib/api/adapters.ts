@@ -164,15 +164,18 @@ const LANE_TOP = 70;
 const LANE_BOTTOM = 540;
 
 function nodeSub(type: NodeType, props: Record<string, unknown>): string | undefined {
-  const show = (value: unknown, prefix: string): string | undefined =>
-    value === undefined || value === null || value === "" ? undefined : `${prefix}: ${String(value)}`;
+  const show = (value: unknown, prefix: string): string | undefined => {
+    const text = Array.isArray(value) ? value.join(", ") : value;
+    return text === undefined || text === null || text === "" ? undefined : `${prefix}: ${String(text)}`;
+  };
   switch (type) {
     case "input":
       return show(props.trust_level, "trust");
     case "agent":
       return show(props.autonomy_level, "autonomy") ?? show(props.role_type, "role");
     case "tool":
-      return show(props.capability, "capability");
+      // capability_kinds is only set when declared or inferred from a known tool name.
+      return show(props.capability_kinds, "capability") ?? show(props.operation_kind, "operation");
     case "data":
       return show(props.sensitivity, "sensitivity");
     case "output":

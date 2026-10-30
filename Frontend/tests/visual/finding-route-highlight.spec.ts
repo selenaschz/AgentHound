@@ -16,6 +16,7 @@ const canvas = (page: Page) => page.locator("[data-ch-canvas]");
 const routePanel = (page: Page) => canvas(page).getByRole("status");
 const row = (page: Page, label: string) =>
   page.getByTestId("prioritized-finding").filter({ hasText: new RegExp(`^${label}(?!\\d)`) });
+const graphNode = (page: Page, id: string) => canvas(page).locator(`.react-flow__node[data-id="${id}"]`);
 const nodeIds = async (page: Page, classes: string) =>
   (await canvas(page).locator(`.react-flow__node:is(${classes})`).evaluateAll((els) => els.map((el) => el.dataset.id ?? ""))).sort();
 const card = (page: Page, label: string) =>
@@ -46,6 +47,19 @@ test.describe("Finding route highlight", () => {
     await expect(routePanel(page)).toHaveCount(0);
     await expect(row(page, "FH-011 #1")).toHaveCount(1);
     await expect(row(page, "FH-011 #2")).toHaveCount(1);
+    await expect(graphNode(page, "tool_customer_records_database_read").getByTestId("node-sub")).toHaveText("capability: read");
+    await expect(graphNode(page, "tool_customer_records_delete").getByTestId("node-sub")).toHaveText("capability: deleteResource");
+    // toHaveText reads the DOM, so check that no subtitle is clipped on screen.
+    // 1px of slack: a fractional line height rounds scrollHeight up.
+    const clipped = await canvas(page).getByTestId("node-sub").evaluateAll((els) =>
+      els.filter((el) => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1).map((el) => el.textContent),
+    );
+    expect(clipped).toEqual([]);
+    // Nodes render at the fixed height the layout reserves, so their content must fit in it.
+    const overflowing = await canvas(page).locator(".ch-node:not(.ch-reactor)").evaluateAll((els) =>
+      els.filter((el) => el.scrollHeight > el.clientHeight + 1).map((el) => el.textContent),
+    );
+    expect(overflowing).toEqual([]);
     await expect(canvas(page)).toHaveScreenshot("graph-default.png");
     await expect(prioritized(page)).toHaveScreenshot("prioritized-list-default.png");
   });

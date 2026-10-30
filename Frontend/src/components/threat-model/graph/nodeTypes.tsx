@@ -83,7 +83,7 @@ const CyberNodeView = memo(({ data, selected }: NodeProps<CyberNode>) => {
   // The agent is the hero "reactor core": larger, with a rotating conic-gradient
   // border, a breathing halo and an "online" pulse — so the eye lands on it first.
   const isAgent = gnode.type === "agent";
-  const { w } = nodeSize(gnode.type);
+  const { w, h } = nodeSize(gnode.type);
   const iconBox = isAgent ? 68 : 56;
 
   // Every node keeps its own accent glow, in both the findings and solution
@@ -99,6 +99,8 @@ const CyberNodeView = memo(({ data, selected }: NodeProps<CyberNode>) => {
       className={`ch-node${isAgent ? " ch-reactor" : ""}`}
       style={{
         width: w,
+        // The agent hero sizes to its content; AGENT_H already leaves room for it.
+        height: isAgent ? undefined : h,
         boxSizing: "border-box",
         display: "flex",
         flexDirection: isAgent ? "column" : "row",
@@ -147,7 +149,7 @@ const CyberNodeView = memo(({ data, selected }: NodeProps<CyberNode>) => {
           {isAgent ? `${style.kicker} · CORE` : style.kicker}
         </div>
         <div style={{ fontSize: isAgent ? 16.5 : 15.5, fontWeight: 700, marginTop: isAgent ? 3 : 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word" }}>{label}</div>
-        {gnode.sub && <div style={{ fontSize: 11, color: cyber.textSecondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{gnode.sub}</div>}
+        {gnode.sub && <div data-testid="node-sub" title={gnode.sub} style={{ fontSize: 11, color: cyber.textSecondary, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word", maxWidth: "100%" }}>{gnode.sub}</div>}
       </div>
       <Handle type="source" position={Position.Right} style={{ background: accent, width: 9, height: 9, border: "none", zIndex: 2 }} />
     </div>

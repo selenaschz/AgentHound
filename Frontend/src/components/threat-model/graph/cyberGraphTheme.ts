@@ -154,9 +154,11 @@ export const DATA_SAFE_ACCENT_RAW = skinVars.rawColors.warningHigh;
 export const DATA_SAFE_GLOW = applyAlpha(skinVars.rawColors.warningHigh, 0.4);
 
 // Node box size (px). React Flow positions nodes by their top-left corner, so
-// toReactFlow offsets the swimlane centre by half of these.
+// toReactFlow offsets the swimlane centre by half of these. NODE_H fits a
+// two-line label plus a two-line subtitle (~102px), and nodeTypes renders the
+// box at exactly this height so layout and rendering agree.
 export const NODE_W = 228;
-export const NODE_H = 92;
+export const NODE_H = 104;
 
 // The agent is the protagonist of the threat model (the orchestrating "brain"
 // every attack path runs through), so it renders larger than the rest — a

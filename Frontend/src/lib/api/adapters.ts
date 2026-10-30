@@ -10,7 +10,7 @@
  * static backdrop columns drawn by `CapabilityGraph`.
  */
 
-import { formatSnakeCase } from "@/lib/format";
+import { formatSnakeCase, formatValue, listItems } from "@/lib/format";
 import type { Severity } from "@/lib/severity";
 import type {
   Attack,
@@ -164,15 +164,24 @@ const LANE_TOP = 70;
 const LANE_BOTTOM = 540;
 
 function nodeSub(type: NodeType, props: Record<string, unknown>): string | undefined {
-  const show = (value: unknown, prefix: string): string | undefined =>
-    value === undefined || value === null || value === "" ? undefined : `${prefix}: ${String(value)}`;
+  const show = (value: unknown, prefix: string): string | undefined => {
+    const text = formatValue(value);
+    return text === "" ? undefined : `${prefix}: ${text}`;
+  };
+  // Every tool is invoked, so invokeTool only adds information on its own.
+  const withoutInvoke = (value: unknown): unknown => {
+    if (!Array.isArray(value)) return value;
+    const kinds = listItems(value);
+    return kinds.some((k) => k !== "invokeTool") ? kinds.filter((k) => k !== "invokeTool") : kinds;
+  };
   switch (type) {
     case "input":
       return show(props.trust_level, "trust");
     case "agent":
       return show(props.autonomy_level, "autonomy") ?? show(props.role_type, "role");
     case "tool":
-      return show(props.capability, "capability");
+      // Generic-format tools may omit capability_kinds; framework adapters always infer it.
+      return show(withoutInvoke(props.capability_kinds), "capability") ?? show(props.operation_kind, "operation");
     case "data":
       return show(props.sensitivity, "sensitivity");
     case "output":

@@ -42,7 +42,7 @@ import { FindingId, FindingRoute } from "@/components/threat-model/FindingIdenti
 import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import InlineError from "@/components/ui/InlineError";
 import { severityAccentColor } from "@/lib/threatModelColors";
-import { formatSnakeCase } from "@/lib/format";
+import { formatSnakeCase, formatValue } from "@/lib/format";
 import { findingLabels } from "@/lib/results/findingDisplay";
 import { SEVERITY_STYLES } from "@/lib/severity";
 import type { AnalysisResult, ChokepointRec } from "@/lib/api/adapters";
@@ -162,7 +162,7 @@ function FindingCard({ finding, label, nodesById, isDarkMode, tSeverity, scoreLa
               <Inline space={4} wrap verticalSpace={4}>
                 {Object.entries(finding.evidence).map(([key, value]) => (
                   <Tag key={key} small type="inactive">
-                    {`${formatSnakeCase(key)}: ${Array.isArray(value) ? value.join("/") : value}`}
+                    {`${formatSnakeCase(key)}: ${formatValue(value)}`}
                   </Tag>
                 ))}
               </Inline>

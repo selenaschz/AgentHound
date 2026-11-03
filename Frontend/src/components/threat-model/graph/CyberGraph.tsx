@@ -19,7 +19,7 @@ import {
 } from "@xyflow/react";
 import { toPng } from "html-to-image";
 import { Spinner, applyAlpha } from "@telefonica/mistica";
-import type { Severity } from "@/lib/severity";
+import { SEVERITY_RANK, type Severity } from "@/lib/severity";
 import type { Attack, ControlInfo, Finding, GraphEdge, GraphNode, NodeType } from "@/types/ThreatModel";
 import { cyber, getSeverityPath, NODE_STYLE, useIsDarkMode, type PathSeverity } from "@/components/threat-model/graph/cyberGraphTheme";
 import { GLYPH, NodeFindingBadge, nodeTypes } from "@/components/threat-model/graph/nodeTypes";
@@ -113,7 +113,6 @@ type PlayedRoute = FindingRoute & { label: string; summary?: string };
 // Grows with tall screens: large dagre layouts are bounded by height.
 const CANVAS_H = "clamp(540px, 70vh, 820px)";
 const NO_FINDINGS: Finding[] = [];
-const SEVERITY_ORDER: Severity[] = ["critical", "high", "medium", "low", "none"];
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2.5;
 // Fitting ignores the zoom floor, otherwise large graphs never fit whole.
@@ -176,7 +175,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
     let nodeFinding: Severity | undefined;
     built.nodes.forEach((n) => {
       const severity = n.data.findingMark?.severity;
-      if (severity && (!nodeFinding || SEVERITY_ORDER.indexOf(severity) < SEVERITY_ORDER.indexOf(nodeFinding))) nodeFinding = severity;
+      if (severity && (!nodeFinding || SEVERITY_RANK[severity] > SEVERITY_RANK[nodeFinding])) nodeFinding = severity;
     });
     return { severities, hasPrimaryRoute, hasBlocked, hasMitigated, hasSafe, nodeFinding };
   }, [built.edges, built.nodes]);

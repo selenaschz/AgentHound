@@ -1,5 +1,5 @@
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
-import type { Severity } from "@/lib/severity";
+import { SEVERITY_RANK, type Severity } from "@/lib/severity";
 import type { Attack, ControlInfo, Finding, GraphEdge, GraphNode } from "@/types/ThreatModel";
 import {
   cyber,
@@ -81,12 +81,11 @@ export function dominantEffect(controls: ControlInfo[]): "total" | "partial" | u
   return undefined;
 }
 
-const SEV_ORDER: Record<Attack["severity"], number> = { critical: 1, high: 0 };
 
 // Scores clamp at 10, so many criticals tie on severity and score alone.
 function compareAttacks(a: Attack, b: Attack): number {
   return (
-    SEV_ORDER[b.severity] - SEV_ORDER[a.severity] ||
+    SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] ||
     b.score - a.score ||
     b.exposure - a.exposure ||
     a.nodes.length - b.nodes.length ||
@@ -135,8 +134,6 @@ export function findingRoute(finding: Pick<Finding, "path" | "edges">, edges: Gr
   return { nodeIds: [...nodeIds], edgeIds: routeEdges.map((e) => e.id) };
 }
 
-const SEV_RANK: Record<Severity, number> = { critical: 4, high: 3, medium: 2, low: 1, none: 0 };
-
 export function nodeFindingMarks(
   findings: Pick<Finding, "path" | "edges" | "severity" | "score">[],
   edges: GraphEdge[],
@@ -152,7 +149,7 @@ export function nodeFindingMarks(
         continue;
       }
       mark.count += 1;
-      if (SEV_RANK[severity] > SEV_RANK[mark.severity]) mark.severity = severity;
+      if (SEVERITY_RANK[severity] > SEVERITY_RANK[mark.severity]) mark.severity = severity;
       mark.score = Math.max(mark.score, f.score);
     }
   }

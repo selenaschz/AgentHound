@@ -149,6 +149,7 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
     legendMedium: t("legend.medium"),
     legendLow: t("legend.low"),
     legendInfo: t("legend.info"),
+    legendNodeFinding: t("legend.nodeFinding"),
     legendNodeTypes: t("legend.nodeTypes"),
     nodeTypeLabel: {
       input: t("legend.node.input"),
@@ -191,6 +192,7 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
         nodes={graphNodes}
         edges={graphEdges}
         attacks={isolatedGraph ? NO_ATTACKS : attacks}
+        findings={graphFindings}
         name={name}
         nodeControls={nodeControls}
         edgeControls={edgeControls}

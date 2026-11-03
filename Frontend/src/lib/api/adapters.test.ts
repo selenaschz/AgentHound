@@ -86,4 +86,9 @@ describe("attacksFromFindings", () => {
       ["f3", 23.6],
     ]);
   });
+
+  it("labels each route like the prioritized list, numbering repeated rules", () => {
+    const labelled = [...findings.slice(0, 2), { ...finding("f6", "high", 8.8, ["delete"]), ruleId: "FH-005" }];
+    expect(attacksFromFindings(labelled).map((a) => a.label)).toEqual(["FH-001 #1", "FH-001 #2", "FH-005"]);
+  });
 });

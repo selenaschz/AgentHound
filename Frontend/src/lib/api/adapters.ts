@@ -11,6 +11,7 @@
  */
 
 import { formatSnakeCase, formatValue, listItems } from "@/lib/format";
+import { findingLabels } from "@/lib/results/findingDisplay";
 import type { Severity } from "@/lib/severity";
 import type {
   Attack,
@@ -321,6 +322,7 @@ export function attacksFromFindings(findings: Finding[]): Attack[] {
     const total = findings.reduce((sum, f) => (f.path.some((id) => nodes.has(id)) ? sum + f.score : sum), 0);
     return Number(total.toFixed(1));
   };
+  const labels = findingLabels(findings);
   return findings
     .filter((f) => f.severity === "critical" || f.severity === "high")
     .map((f) => ({
@@ -330,7 +332,7 @@ export function attacksFromFindings(findings: Finding[]): Attack[] {
       exposure: exposure(f.path),
       width: f.severity === "critical" ? 2.5 : 2,
       nodes: f.path,
-      label: f.ruleId,
+      label: labels.get(f.id) ?? f.ruleId,
       dash: false,
     }));
 }

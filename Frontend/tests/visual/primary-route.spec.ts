@@ -30,15 +30,22 @@ test.beforeEach(async ({ page, context, baseURL }) => {
 });
 
 test.describe("Primary route", () => {
-  for (const order of ["listed", "reversed"] as const) {
+  // The label follows the numbering of the prioritized list, so it moves with the order.
+  for (const [order, label] of [["listed", "FH-011 #1"], ["reversed", "FH-011 #2"]] as const) {
     test(`picks the route that concentrates the most risk when findings are ${order}`, async ({ page }) => {
       await openResults(page, order);
 
+      await expect(primaryPath(page)).toContainText(label);
+      await expect(canvas(page).getByText(`Ruta principal ${label}`)).toBeVisible();
       await expect(primaryPath(page)).toContainText("customer_records_delete");
       await expect(primaryPath(page)).not.toContainText("crm_records_update");
       expect(await flowingEdges(page)).toEqual(["edge_003", "edge_004", "edge_007", "edge_008"]);
-      await expect(canvas(page)).toHaveScreenshot("graph-primary-route.png");
-      await expect(primaryPath(page)).toHaveScreenshot("primary-path.png");
+      await expect(canvas(page)).toHaveScreenshot(`graph-primary-route-${order}.png`);
+      await expect(primaryPath(page)).toHaveScreenshot(`primary-path-${order}.png`);
+
+      await page.getByTestId("prioritized-finding").filter({ hasText: new RegExp(`^${label}(?!\\d)`) }).click();
+      await expect(canvas(page).getByRole("status")).toContainText(label);
+      await expect(canvas(page).getByRole("status")).toContainText("customer_records_delete");
     });
   }
 });

@@ -82,6 +82,24 @@ describe("CapabilityGraph — prioritized findings", () => {
     expect(rows().map((b) => b.textContent?.split("Escritura")[0])).toEqual(["FH-004"]);
   });
 
+  it("names the entry point a pattern's routes share, so patterns of one rule tell apart", () => {
+    render();
+
+    expect(groupFor("FH-001")!.textContent).toBe(
+      "FH-001Datos sensibles alcanzables desde entrada no confiable desde Email entrante · puntuación 9.12 hallazgos",
+    );
+  });
+
+  it("names no entry point when a pattern spans several", () => {
+    const perNode = [
+      { ...findings[3]!, id: "h1", path: ["planner"], groupId: "hy" },
+      { ...findings[3]!, id: "h2", path: ["crm"], groupId: "hy" },
+    ];
+    render({ findingList: perNode });
+
+    expect(groupFor("HY-002")!.textContent).toBe("HY-002Sin auditoría · puntuación 22 hallazgos");
+  });
+
   it("states how many findings and patterns the box covers instead of counting rows in the title", () => {
     render();
 

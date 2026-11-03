@@ -80,6 +80,10 @@ function GroupRows({ group, expanded, onToggle, findingLabelById, nodesById, sel
   const t = useTranslations("results");
   const { isDarkMode } = useTheme();
   const [top] = group.findings;
+  const entry = top!.path[0];
+  const title = entry && group.findings.every((f) => f.path[0] === entry)
+    ? t("findingGroupFrom", { title: top!.title, node: routeSummary([entry], nodesById) })
+    : top!.title;
   const holdsSelection = group.findings.some((f) => f.id === selectedFindingId);
   const Chevron = expanded ? IconChevronUpRegular : IconChevronDownRegular;
   return (
@@ -91,18 +95,18 @@ function GroupRows({ group, expanded, onToggle, findingLabelById, nodesById, sel
         style={rowStyle(holdsSelection && !expanded)}
       >
         <Box paddingX={8} paddingY={4}>
-          <Inline space={4} alignItems="center">
-            <Chevron size={16} color={skinVars.colors.textSecondary} />
+          <Inline space="between" alignItems="center">
             <Inline space={4} alignItems="center" wrap verticalSpace={2}>
               <Text1 medium color={severityAccentColor(top!.severity, isDarkMode)}>{top!.ruleId}</Text1>
-              <Text1 regular color={skinVars.colors.textSecondary}>{t("findingSummary", { title: top!.title, score: top!.score })}</Text1>
+              <Text1 regular color={skinVars.colors.textSecondary}>{t("findingSummary", { title, score: top!.score })}</Text1>
               <Tag type="inactive" small>{t("findingGroupCount", { count: group.findings.length })}</Tag>
             </Inline>
+            <Chevron size={16} color={skinVars.colors.textSecondary} />
           </Inline>
         </Box>
       </Touchable>
       {expanded && (
-        <Box paddingLeft={24}>
+        <Box paddingLeft={16}>
           <Stack space={2}>
             {group.findings.map((f) => (
               <FindingRow

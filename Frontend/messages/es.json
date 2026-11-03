@@ -210,6 +210,7 @@
     "prioritizedFindings": "Hallazgos priorizados",
     "prioritizedFindingsCount": "{findings, plural, one {# hallazgo} other {# hallazgos}} · {groups, plural, one {# patrón} other {# patrones}}",
     "findingGroupCount": "{count, plural, one {# hallazgo} other {# hallazgos}}",
+    "findingGroupFrom": "{title} desde {node}",
     "showAllFindingGroups": "Ver los {count} patrones",
     "showTopFindingGroups": "Ver solo los {count} primeros",
     "findingSummary": "{title} · puntuación {score}",

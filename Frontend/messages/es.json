@@ -196,6 +196,7 @@
       "low": "Ruta de hallazgo bajo",
       "info": "Ruta de hallazgo informativo",
       "nodeFinding": "Hallazgo en el nodo",
+      "nodeFindingSample": "máx. · +N",
       "nodeTypes": "Tipos de nodo",
       "node": {
         "input": "Punto de entrada",

@@ -150,6 +150,7 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
     legendLow: t("legend.low"),
     legendInfo: t("legend.info"),
     legendNodeFinding: t("legend.nodeFinding"),
+    legendNodeFindingSample: t("legend.nodeFindingSample"),
     legendNodeTypes: t("legend.nodeTypes"),
     nodeTypeLabel: {
       input: t("legend.node.input"),

@@ -18,12 +18,10 @@ import {
   useStore,
 } from "@xyflow/react";
 import { toPng } from "html-to-image";
-import { Spinner, applyAlpha } from "@telefonica/mistica";
-import { SEVERITY_RANK, type Severity } from "@/lib/severity";
+import { Spinner, Tag, applyAlpha } from "@telefonica/mistica";
 import type { Attack, ControlInfo, Finding, GraphEdge, GraphNode, NodeType } from "@/types/ThreatModel";
 import { cyber, getSeverityPath, NODE_STYLE, useIsDarkMode, type PathSeverity } from "@/components/threat-model/graph/cyberGraphTheme";
 import { GLYPH, nodeTypes } from "@/components/threat-model/graph/nodeTypes";
-import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import { edgeTypes, SeverityPathContext } from "@/components/threat-model/graph/edgeTypes";
 import { buildGraph, playbackFrame, primaryRouteId, type CyberNode, type FindingRoute } from "@/components/threat-model/graph/toReactFlow";
 import { dagreLayout } from "@/components/threat-model/graph/dagreLayout";
@@ -85,6 +83,7 @@ export interface CyberGraphProps {
     legendLow: string;
     legendInfo: string;
     legendNodeFinding: string;
+    legendNodeFindingSample: string;
     legendNodeTypes: string;
     nodeTypeLabel: Record<Exclude<NodeType, "control">, string>;
     recommendedControls: string;
@@ -173,12 +172,8 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
       // "neutralized" (safe by an upstream cut) and "neutral" both read as safe.
       else if (variant === "neutralized" || variant === "neutral") hasSafe = true;
     });
-    let nodeFinding: Severity | undefined;
-    built.nodes.forEach((n) => {
-      const severity = n.data.findingMark?.severity;
-      if (severity && (!nodeFinding || SEVERITY_RANK[severity] > SEVERITY_RANK[nodeFinding])) nodeFinding = severity;
-    });
-    return { severities, hasPrimaryRoute, hasBlocked, hasMitigated, hasSafe, nodeFinding };
+    const hasNodeFinding = built.nodes.some((n) => n.data.findingMark);
+    return { severities, hasPrimaryRoute, hasBlocked, hasMitigated, hasSafe, hasNodeFinding };
   }, [built.edges, built.nodes]);
 
   // Refine node positions with a dagre `layered` layout (React Flow's official
@@ -557,13 +552,12 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
                 {legendState.severities.has("low") && <LegendRow color={severityPath.low.color} text={labels.legendLow} />}
                 {legendState.severities.has("info") && <LegendRow color={severityPath.info.color} text={labels.legendInfo} />}
                 {legendState.hasSafe && <LegendRow color={cyber.neutral} text={labels.legendSafe} />}
-                {legendState.nodeFinding && (
-                  <div>
+                {legendState.hasNodeFinding && (
+                  <div data-testid="legend-node-finding" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: cyber.textSecondary }}>
                     <span style={{ display: "inline-flex" }}>
-                      <SeverityBadge severity={legendState.nodeFinding} small withIcon dataAttributes={{ testid: "legend-node-finding", severity: legendState.nodeFinding }}>
-                        {labels.legendNodeFinding}
-                      </SeverityBadge>
+                      <Tag type="inactive" small>{labels.legendNodeFindingSample}</Tag>
                     </span>
+                    {labels.legendNodeFinding}
                   </div>
                 )}
               </>

@@ -196,6 +196,7 @@
       "low": "Low finding path",
       "info": "Info finding path",
       "nodeFinding": "Finding on the node",
+      "nodeFindingSample": "max · +N",
       "nodeTypes": "Node types",
       "node": {
         "input": "Entry point",

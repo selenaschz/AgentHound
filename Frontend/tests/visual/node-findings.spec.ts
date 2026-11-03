@@ -27,7 +27,9 @@ test.describe("Node findings", () => {
     await expect(badge(page, "input_user_analysis_request")).toHaveText("7,6");
     await expect(badge(page, "agent_data_analyst")).toHaveAttribute("data-severity", "medium");
     await expect(badge(page, "tool_sales_database_read")).toHaveCount(0);
+    await expect(badge(page, "tool_python_interpreter").locator("..")).toHaveAttribute("aria-hidden", "true");
     await expect(canvas(page).getByTestId("legend-node-finding")).toHaveText("Hallazgo en el nodo");
+    await expect(canvas(page).getByTestId("legend-node-finding")).toHaveAttribute("data-severity", "critical");
     await expect(canvas(page)).toHaveScreenshot("graph-node-findings.png");
   });
 

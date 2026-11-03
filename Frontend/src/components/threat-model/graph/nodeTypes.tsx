@@ -61,7 +61,7 @@ export function ControlTipItem({ control, labels }: { control: ControlInfo; labe
   );
 }
 
-function NodeFindingCorner({ mark }: { mark: NodeFindingMark }) {
+export function NodeFindingCorner({ mark }: { mark: NodeFindingMark }) {
   const t = useTranslations("results");
   const format = useFormatter();
   const score = format.number(mark.score, { minimumFractionDigits: 1, maximumFractionDigits: 1 });

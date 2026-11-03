@@ -560,7 +560,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
                 {legendState.nodeFinding && (
                   <div>
                     <span style={{ display: "inline-flex" }}>
-                      <SeverityBadge severity={legendState.nodeFinding} small withIcon dataAttributes={{ testid: "legend-node-finding" }}>
+                      <SeverityBadge severity={legendState.nodeFinding} small withIcon dataAttributes={{ testid: "legend-node-finding", severity: legendState.nodeFinding }}>
                         {labels.legendNodeFinding}
                       </SeverityBadge>
                     </span>

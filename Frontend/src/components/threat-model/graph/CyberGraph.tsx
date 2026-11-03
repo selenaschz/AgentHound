@@ -554,7 +554,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
                 {legendState.hasSafe && <LegendRow color={cyber.neutral} text={labels.legendSafe} />}
                 {legendState.hasNodeFinding && (
                   <div data-testid="legend-node-finding" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: cyber.textSecondary }}>
-                    <span style={{ display: "inline-flex" }}>
+                    <span style={{ display: "inline-flex", borderRadius: 999, border: `1px solid ${cyber.gridStrong}` }}>
                       <Tag type="inactive" small>{labels.legendNodeFindingSample}</Tag>
                     </span>
                     {labels.legendNodeFinding}

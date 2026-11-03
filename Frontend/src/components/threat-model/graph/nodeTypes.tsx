@@ -1,8 +1,8 @@
 import { memo } from "react";
 import { useFormatter, useTranslations } from "next-intl";
-import { applyAlpha, Tag } from "@telefonica/mistica";
+import { applyAlpha } from "@telefonica/mistica";
 import { Handle, Position, type NodeProps, type NodeTypes } from "@xyflow/react";
-import { SEVERITY_STYLES, type Severity } from "@/lib/severity";
+import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import type { NodeType } from "@/types/ThreatModel";
 import {
   cyber,
@@ -61,26 +61,18 @@ export function ControlTipItem({ control, labels }: { control: ControlInfo; labe
   );
 }
 
-export function NodeFindingBadge({ severity, label, title }: { severity: Severity; label: string; title?: string }) {
-  const { background, text, Icon } = SEVERITY_STYLES[severity];
-  return (
-    <span data-testid="node-finding-badge" data-severity={severity} title={title} style={{ display: "inline-flex" }}>
-      <Tag small Icon={Icon} backgroundColor={background} textColor={text}>{label}</Tag>
-    </span>
-  );
-}
-
 function NodeFindingCorner({ mark }: { mark: NodeFindingMark }) {
   const t = useTranslations("results");
   const format = useFormatter();
   const score = format.number(mark.score, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const description = t("nodeFindings", { count: mark.count, score });
   return (
-    <span style={{ position: "absolute", top: -12, left: 14, zIndex: 3 }}>
-      <NodeFindingBadge
-        severity={mark.severity}
-        label={mark.count > 1 ? `${score} · +${mark.count - 1}` : score}
-        title={t("nodeFindings", { count: mark.count, score })}
-      />
+    <span title={description} style={{ position: "absolute", top: -12, left: 14, zIndex: 3 }}>
+      <span style={{ display: "inline-flex" }}>
+        <SeverityBadge severity={mark.severity} small withIcon dataAttributes={{ testid: "node-finding-badge", severity: mark.severity }}>
+          {mark.count > 1 ? `${score} · +${mark.count - 1}` : score}
+        </SeverityBadge>
+      </span>
     </span>
   );
 }

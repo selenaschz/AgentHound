@@ -22,7 +22,8 @@ import { Spinner, applyAlpha } from "@telefonica/mistica";
 import { SEVERITY_RANK, type Severity } from "@/lib/severity";
 import type { Attack, ControlInfo, Finding, GraphEdge, GraphNode, NodeType } from "@/types/ThreatModel";
 import { cyber, getSeverityPath, NODE_STYLE, useIsDarkMode, type PathSeverity } from "@/components/threat-model/graph/cyberGraphTheme";
-import { GLYPH, NodeFindingBadge, nodeTypes } from "@/components/threat-model/graph/nodeTypes";
+import { GLYPH, nodeTypes } from "@/components/threat-model/graph/nodeTypes";
+import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import { edgeTypes, SeverityPathContext } from "@/components/threat-model/graph/edgeTypes";
 import { buildGraph, playbackFrame, primaryRouteId, type CyberNode, type FindingRoute } from "@/components/threat-model/graph/toReactFlow";
 import { dagreLayout } from "@/components/threat-model/graph/dagreLayout";
@@ -557,8 +558,12 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
                 {legendState.severities.has("info") && <LegendRow color={severityPath.info.color} text={labels.legendInfo} />}
                 {legendState.hasSafe && <LegendRow color={cyber.neutral} text={labels.legendSafe} />}
                 {legendState.nodeFinding && (
-                  <div data-testid="legend-node-finding">
-                    <NodeFindingBadge severity={legendState.nodeFinding} label={labels.legendNodeFinding} />
+                  <div>
+                    <span style={{ display: "inline-flex" }}>
+                      <SeverityBadge severity={legendState.nodeFinding} small withIcon dataAttributes={{ testid: "legend-node-finding" }}>
+                        {labels.legendNodeFinding}
+                      </SeverityBadge>
+                    </span>
                   </div>
                 )}
               </>

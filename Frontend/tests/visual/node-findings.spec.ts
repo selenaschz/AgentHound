@@ -22,7 +22,7 @@ test.describe("Node findings", () => {
 
     await expect(badge(page, "tool_python_interpreter")).toHaveText("9,8 · +2");
     await expect(badge(page, "tool_python_interpreter")).toHaveAttribute("data-severity", "critical");
-    await expect(badge(page, "tool_python_interpreter")).toHaveAttribute("title", "3 hallazgos en este nodo · máx. 9,8");
+    await expect(node(page, "tool_python_interpreter").getByTitle("3 hallazgos en este nodo · máx. 9,8")).toBeVisible();
     await expect(badge(page, "input_user_analysis_request")).toHaveText("7,6");
     await expect(badge(page, "agent_data_analyst")).toHaveAttribute("data-severity", "medium");
     await expect(badge(page, "tool_sales_database_read")).toHaveCount(0);

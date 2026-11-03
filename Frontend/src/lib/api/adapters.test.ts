@@ -59,7 +59,7 @@ describe("toGraphNodes subtitle", () => {
 });
 
 function finding(id: string, severity: Finding["severity"], score: number, path: string[]): Finding {
-  return { id, ruleId: "FH-001", severity, category: "capability_path", title: id, desc: "", path, score, findingClass: "attack" };
+  return { id, ruleId: "FH-001", severity, category: "capability_path", title: id, desc: "", path, score, findingClass: "attack", groupId: id };
 }
 
 describe("attacksFromFindings", () => {

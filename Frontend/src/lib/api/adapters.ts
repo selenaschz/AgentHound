@@ -144,6 +144,7 @@ export function toFinding(f: BackendFinding): Finding {
     mitre: f.mitre_atlas,
     controls: f.recommended_controls,
     findingClass: f.finding_class,
+    groupId: f.group_id,
   };
 }
 

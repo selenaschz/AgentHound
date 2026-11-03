@@ -36,6 +36,13 @@ export interface CyberNodeData extends Record<string, unknown> {
   controlsLabel: string;
   /** Localised per-effect tags shown next to each control in the tooltip. */
   effectLabels: EffectLabels;
+  findingMark?: NodeFindingMark;
+}
+
+export interface NodeFindingMark {
+  severity: Severity;
+  score: number;
+  count: number;
 }
 
 export interface EffectLabels {
@@ -128,6 +135,30 @@ export function findingRoute(finding: Pick<Finding, "path" | "edges">, edges: Gr
   return { nodeIds: [...nodeIds], edgeIds: routeEdges.map((e) => e.id) };
 }
 
+const SEV_RANK: Record<Severity, number> = { critical: 4, high: 3, medium: 2, low: 1, none: 0 };
+
+export function nodeFindingMarks(
+  findings: Pick<Finding, "path" | "edges" | "severity" | "score">[],
+  edges: GraphEdge[],
+): Map<string, NodeFindingMark> {
+  const marks = new Map<string, NodeFindingMark>();
+  for (const f of findings) {
+    if (findingRoute(f, edges).edgeIds.length > 0) continue;
+    const { severity } = f;
+    for (const id of new Set(f.path)) {
+      const mark = marks.get(id);
+      if (!mark) {
+        marks.set(id, { severity, score: f.score, count: 1 });
+        continue;
+      }
+      mark.count += 1;
+      if (SEV_RANK[severity] > SEV_RANK[mark.severity]) mark.severity = severity;
+      mark.score = Math.max(mark.score, f.score);
+    }
+  }
+  return marks;
+}
+
 export interface PlaybackFrame {
   currentNode: string | undefined;
   liveNodes: Set<string>;
@@ -201,7 +232,10 @@ export function buildGraph(
   edgeControls: Record<string, ControlInfo[]> = {},
   controlsLabel = "",
   effectLabels: EffectLabels = { total: "", partial: "" },
+  findings: Pick<Finding, "path" | "edges" | "severity" | "score">[] = [],
 ): BuiltGraph {
+  const findingMarks = solved ? new Map<string, NodeFindingMark>() : nodeFindingMarks(findings, edges);
+
   const attackedNodeIds = new Set<string>();
   const attackPairs = new Set<string>();
   attacks.forEach((a) => {
@@ -236,6 +270,7 @@ export function buildGraph(
         controls: nodeControls[n.id] ?? [],
         controlsLabel,
         effectLabels,
+        findingMark: findingMarks.get(n.id),
       },
       // Protected nodes sit above neighbours so the padlock stays reachable.
       zIndex: protectedTargets.has(n.id) ? 6 : 1,

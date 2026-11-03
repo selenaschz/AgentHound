@@ -573,7 +573,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
               <>
                 <div style={legendDivider} />
                 <div style={legendHeading}>{labels.legendNodeTypes}</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxWidth: 208 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxWidth: 240 }}>
                   {presentTypes.map((t) => (
                     <NodeTypeChip key={t} type={t} label={labels.nodeTypeLabel[t]} />
                   ))}

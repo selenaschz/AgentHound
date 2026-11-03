@@ -151,6 +151,10 @@ describe("nodeFindingMarks", () => {
     expect([...nodeFindingMarks([finding(["c"], { edges: ["gone"] })], edges).keys()]).toEqual(["c"]);
   });
 
+  it("leaves unmarked a route whose hops are missing from the graph", () => {
+    expect(nodeFindingMarks([finding(["a", "c"], { edges: ["gone"] })], edges).size).toBe(0);
+  });
+
   it("keeps the worst severity and score and counts every finding on a node", () => {
     const marks = nodeFindingMarks(
       [

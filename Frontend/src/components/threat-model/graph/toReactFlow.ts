@@ -140,18 +140,17 @@ export function nodeFindingMarks(
 ): Map<string, NodeFindingMark> {
   const marks = new Map<string, NodeFindingMark>();
   for (const f of findings) {
-    if (findingRoute(f, edges).edgeIds.length > 0) continue;
+    const id = f.path[0];
+    if (id === undefined || f.path.some((n) => n !== id) || findingRoute(f, edges).edgeIds.length > 0) continue;
     const { severity } = f;
-    for (const id of new Set(f.path)) {
-      const mark = marks.get(id);
-      if (!mark) {
-        marks.set(id, { severity, score: f.score, count: 1 });
-        continue;
-      }
-      mark.count += 1;
-      if (SEVERITY_RANK[severity] > SEVERITY_RANK[mark.severity]) mark.severity = severity;
-      mark.score = Math.max(mark.score, f.score);
+    const mark = marks.get(id);
+    if (!mark) {
+      marks.set(id, { severity, score: f.score, count: 1 });
+      continue;
     }
+    mark.count += 1;
+    if (SEVERITY_RANK[severity] > SEVERITY_RANK[mark.severity]) mark.severity = severity;
+    mark.score = Math.max(mark.score, f.score);
   }
   return marks;
 }

@@ -28,7 +28,8 @@ test.describe("Node findings", () => {
     await expect(badge(page, "agent_data_analyst")).toHaveAttribute("data-severity", "medium");
     await expect(badge(page, "tool_sales_database_read")).toHaveCount(0);
     await expect(badge(page, "tool_python_interpreter").locator("..")).toHaveAttribute("aria-hidden", "true");
-    await expect(canvas(page).getByTestId("legend-node-finding")).toHaveText("máx. · +NHallazgo en el nodo");
+    await expect(canvas(page).getByText("Hallazgos en nodos")).toBeVisible();
+    await expect(canvas(page).getByTestId("legend-node-finding")).toHaveText("máx. · +NPuntuación máx. y cuántos más hay");
     await expect(canvas(page)).toHaveScreenshot("graph-node-findings.png");
   });
 
@@ -40,6 +41,19 @@ test.describe("Node findings", () => {
     await expect(canvas(page).getByRole("status")).toContainText("FH-016");
     await expect(node(page, "tool_python_interpreter")).toHaveClass(/ch-hl/);
     await expect(canvas(page)).toHaveScreenshot("graph-node-finding-selected.png");
+  });
+
+  test("keeps the legend heading when the isolated finding has no route", async ({ page }) => {
+    await openResults(page);
+
+    await page.getByTestId("prioritized-finding").filter({ hasText: /^FH-016/ }).click();
+    await canvas(page).getByRole("button", { name: "Aislar ruta" }).click();
+
+    await expect(canvas(page).locator(".react-flow__node")).toHaveCount(1);
+    await expect(canvas(page).getByText("Severidad de la ruta")).toHaveCount(0);
+    await expect(canvas(page).getByText("Hallazgos en nodos")).toBeVisible();
+    await expect(canvas(page).getByTestId("legend-node-finding")).toBeVisible();
+    await expect(canvas(page)).toHaveScreenshot("graph-node-finding-isolated.png");
   });
 
   test("keeps the node tags legible in dark mode", async ({ page }) => {

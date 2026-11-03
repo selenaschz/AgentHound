@@ -82,6 +82,7 @@ export interface CyberGraphProps {
     legendMedium: string;
     legendLow: string;
     legendInfo: string;
+    legendNodeFindings: string;
     legendNodeFinding: string;
     legendNodeFindingSample: string;
     legendNodeTypes: string;
@@ -113,6 +114,7 @@ type PlayedRoute = FindingRoute & { label: string; summary?: string };
 // Grows with tall screens: large dagre layouts are bounded by height.
 const CANVAS_H = "clamp(540px, 70vh, 820px)";
 const NO_FINDINGS: Finding[] = [];
+const LEGEND_SAMPLE_ZOOM = 0.65;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2.5;
 // Fitting ignores the zoom floor, otherwise large graphs never fit whole.
@@ -173,7 +175,8 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
       else if (variant === "neutralized" || variant === "neutral") hasSafe = true;
     });
     const hasNodeFinding = built.nodes.some((n) => n.data.findingMark);
-    return { severities, hasPrimaryRoute, hasBlocked, hasMitigated, hasSafe, hasNodeFinding };
+    const hasPathRows = hasPrimaryRoute || severities.size > 0 || hasSafe;
+    return { severities, hasPrimaryRoute, hasBlocked, hasMitigated, hasSafe, hasPathRows, hasNodeFinding };
   }, [built.edges, built.nodes]);
 
   // Refine node positions with a dagre `layered` layout (React Flow's official
@@ -538,7 +541,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
               </>
             ) : (
               <>
-                {(legendState.hasPrimaryRoute || legendState.severities.size > 0 || legendState.hasSafe) && (
+                {legendState.hasPathRows && (
                   <div style={legendHeading}>{labels.legendPathSeverity}</div>
                 )}
                 {legendState.hasPrimaryRoute && (
@@ -552,14 +555,18 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
                 {legendState.severities.has("low") && <LegendRow color={severityPath.low.color} text={labels.legendLow} />}
                 {legendState.severities.has("info") && <LegendRow color={severityPath.info.color} text={labels.legendInfo} />}
                 {legendState.hasSafe && <LegendRow color={cyber.neutral} text={labels.legendSafe} />}
-                {legendState.hasNodeFinding && (
-                  <div data-testid="legend-node-finding" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: cyber.textSecondary }}>
-                    <span style={{ display: "inline-flex", borderRadius: 999, border: `1px solid ${cyber.gridStrong}` }}>
-                      <Tag type="inactive" small>{labels.legendNodeFindingSample}</Tag>
-                    </span>
-                    {labels.legendNodeFinding}
-                  </div>
-                )}
+              </>
+            )}
+            {!solved && legendState.hasNodeFinding && (
+              <>
+                {legendState.hasPathRows && <div style={legendDivider} />}
+                <div style={legendHeading}>{labels.legendNodeFindings}</div>
+                <div data-testid="legend-node-finding" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: cyber.textSecondary }}>
+                  <span style={{ display: "inline-flex", borderRadius: 999, border: `1px solid ${cyber.gridStrong}`, zoom: LEGEND_SAMPLE_ZOOM }}>
+                    <Tag type="inactive" small>{labels.legendNodeFindingSample}</Tag>
+                  </span>
+                  {labels.legendNodeFinding}
+                </div>
               </>
             )}
             {presentTypes.length > 0 && (

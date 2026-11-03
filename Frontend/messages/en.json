@@ -195,7 +195,8 @@
       "medium": "Medium finding path",
       "low": "Low finding path",
       "info": "Info finding path",
-      "nodeFinding": "Finding on the node",
+      "nodeFindings": "Node findings",
+      "nodeFinding": "Top score and how many more",
       "nodeFindingSample": "max · +N",
       "nodeTypes": "Node types",
       "node": {

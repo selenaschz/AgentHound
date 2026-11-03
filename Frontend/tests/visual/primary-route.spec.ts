@@ -1,0 +1,44 @@
+import { test, expect, type Page } from "@playwright/test";
+import findings from "./fixtures/ops-destructive/findings.json" with { type: "json" };
+import { API_ORIGIN, mockOpsDestructiveAnalysis, OPS_DESTRUCTIVE_ID } from "./mocks";
+
+const canvas = (page: Page) => page.locator("[data-ch-canvas]");
+const primaryPath = (page: Page) => page.getByText("Ruta crítica principal").locator("xpath=ancestor::*[.//*[contains(text(), '→')]][1]");
+const flowingEdges = async (page: Page) =>
+  (await canvas(page).locator(".react-flow__edge:has(path.ch-edge-flow)").evaluateAll((els) => els.map((el) => el.dataset.id ?? ""))).sort();
+
+// Both FH-011 findings are critical with a 10.0 score; finding_001 reaches the
+// delete tool, which concentrates more findings than the CRM update tool.
+async function openResults(page: Page, order: "listed" | "reversed") {
+  if (order === "reversed") {
+    const [first, second, ...rest] = findings.findings;
+    const body = JSON.stringify({ ...findings, findings: [second, first, ...rest] });
+    await page.route(`${API_ORIGIN}/analyses/${OPS_DESTRUCTIVE_ID}/findings`, (route) =>
+      route.request().method() === "OPTIONS"
+        ? route.fallback()
+        : route.fulfill({ status: 200, headers: { "Access-Control-Allow-Origin": "*" }, contentType: "application/json", body }),
+    );
+  }
+  await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
+  await page.getByTestId("prioritized-finding").first().waitFor();
+  await page.evaluate(() => document.fonts.ready);
+}
+
+test.beforeEach(async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
+  await mockOpsDestructiveAnalysis(page);
+});
+
+test.describe("Primary route", () => {
+  for (const order of ["listed", "reversed"] as const) {
+    test(`picks the route that concentrates the most risk when findings are ${order}`, async ({ page }) => {
+      await openResults(page, order);
+
+      await expect(primaryPath(page)).toContainText("customer_records_delete");
+      await expect(primaryPath(page)).not.toContainText("crm_records_update");
+      expect(await flowingEdges(page)).toEqual(["edge_003", "edge_004", "edge_007", "edge_008"]);
+      await expect(canvas(page)).toHaveScreenshot("graph-primary-route.png");
+      await expect(primaryPath(page)).toHaveScreenshot("primary-path.png");
+    });
+  }
+});

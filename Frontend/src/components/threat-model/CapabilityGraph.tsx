@@ -250,6 +250,7 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
 
       {!solved && findings.length > 0 && (
         <PrioritizedFindings
+          key={analysisId}
           findings={findings}
           findingLabelById={findingLabelById}
           nodesById={nodesById}

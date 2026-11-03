@@ -29,8 +29,8 @@ function finding(overrides: Partial<Finding> & Pick<Finding, "id" | "ruleId" | "
 }
 
 export const findings: Finding[] = [
-  finding({ id: "f1", ruleId: "FH-001", groupId: "g1", edges: ["e1", "e3"] }),
-  finding({ id: "f2", ruleId: "FH-001", groupId: "g1", path: ["input", "planner", "logs"], edges: ["e1", "e4"] }),
+  finding({ id: "f1", ruleId: "FH-001", groupId: "g1", groupAnchor: "input", edges: ["e1", "e3"] }),
+  finding({ id: "f2", ruleId: "FH-001", groupId: "g1", groupAnchor: "input", path: ["input", "planner", "logs"], edges: ["e1", "e4"] }),
   finding({ id: "f3", ruleId: "FH-004", groupId: "g2", severity: "high", title: "Escritura en logs", path: ["planner", "logs"], edges: ["e4"], score: 7.2 }),
   finding({ id: "f4", ruleId: "HY-002", groupId: "g3", severity: "low", title: "Sin auditoría", path: [], edges: [], score: 2, findingClass: "hygiene" }),
 ];

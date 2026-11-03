@@ -19,13 +19,13 @@ export function routeSummary(path: string[], nodesById: Map<string, Pick<GraphNo
   return path.map((id) => (nodesById.get(id)?.label ?? id).replace(/\n/g, " ")).join(" → ");
 }
 
-export interface FindingGroup<F> {
+export interface FindingPattern<F> {
   id: string;
-  findings: F[];
+  findings: [F, ...F[]];
 }
 
-export function groupFindings<F extends Pick<Finding, "groupId">>(findings: F[]): FindingGroup<F>[] {
-  const groups = new Map<string, FindingGroup<F>>();
+export function groupFindings<F extends Pick<Finding, "groupId">>(findings: F[]): FindingPattern<F>[] {
+  const groups = new Map<string, FindingPattern<F>>();
   for (const f of findings) {
     const group = groups.get(f.groupId);
     if (group) group.findings.push(f);

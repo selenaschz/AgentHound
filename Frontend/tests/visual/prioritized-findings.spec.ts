@@ -9,7 +9,7 @@ function largeFindings() {
   const findings = Array.from({ length: COPIES }, (_, k) => fixture.findings.map((f) => ({ ...f, id: `${f.id}_${k}` })))
     .flat()
     .sort((a, b) => b.score - a.score);
-  return { findings, groups: [] };
+  return { findings, groups: fixture.groups };
 }
 
 const LARGE = largeFindings();
@@ -68,8 +68,13 @@ test.describe("Prioritized findings at scale", () => {
     await firstGroup(page).click();
 
     await expect(firstGroup(page)).toHaveAttribute("aria-expanded", "true");
-    await expect(rows(page).filter({ hasText: /^FH-011 #/ })).toHaveCount(24);
+    await expect(rows(page).filter({ hasText: /^FH-011 #/ })).toHaveCount(10);
     await expect(box(page)).toHaveScreenshot("prioritized-list-group-expanded.png");
+
+    await box(page).getByRole("button", { name: "Ver 14 más" }).click();
+    await expect(rows(page).filter({ hasText: /^FH-011 #/ })).toHaveCount(24);
+    await box(page).getByRole("button", { name: "Ver solo los 10 primeros" }).click();
+    await expect(rows(page).filter({ hasText: /^FH-011 #/ })).toHaveCount(10);
 
     const occurrence = rows(page).filter({ hasText: /^FH-011 #2(?!\d)/ });
     await occurrence.click();
@@ -89,12 +94,12 @@ test.describe("Prioritized findings at scale", () => {
     await expect(firstGroup(page)).toHaveScreenshot("prioritized-group-holding-selection.png");
   });
 
-  test("tells apart patterns of one rule by their entry point", async ({ page }) => {
+  test("tells apart patterns of one rule by the node they sit in", async ({ page }) => {
     await openResults(page);
 
     await expect(groupRows(page).filter({ hasText: /^FH-005/ })).toHaveText([
-      /^FH-005Tool with side effect missing approval and rollback desde customer_records_delete/,
-      /^FH-005Tool with side effect missing approval and rollback desde crm_records_update/,
+      /^FH-005Tool with side effect missing approval and rollback en customer_records_delete/,
+      /^FH-005Tool with side effect missing approval and rollback en crm_records_update/,
     ]);
   });
 

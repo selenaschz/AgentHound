@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Box,
@@ -14,16 +14,19 @@ import {
   skinVars,
   useTheme,
 } from "@telefonica/mistica";
-import { groupFindings, routeSummary, type FindingGroup } from "@/lib/results/findingDisplay";
+import { groupFindings, routeSummary, type FindingPattern } from "@/lib/results/findingDisplay";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import type { Finding, GraphNode } from "@/types/ThreatModel";
 
 export const VISIBLE_GROUPS = 5;
+export const VISIBLE_OCCURRENCES = 10;
+
+type NodesById = Map<string, Pick<GraphNode, "label" | "type">>;
 
 interface PrioritizedFindingsProps {
   findings: Finding[];
   findingLabelById: Map<string, string>;
-  nodesById: Map<string, Pick<GraphNode, "label">>;
+  nodesById: NodesById;
   selectedFindingId: string | null;
   onSelectFinding: (id: string) => void;
 }
@@ -35,17 +38,21 @@ const rowStyle = (highlighted: boolean) => ({
   background: highlighted ? skinVars.colors.brandLow : undefined,
 });
 
+function capped<T>(items: T[], limit: number, holdsSelection: (item: T) => boolean): T[] {
+  return items.filter((item, i) => i < limit || holdsSelection(item));
+}
+
 interface FindingRowProps {
   finding: Finding;
   label: string;
   text: string;
   selected: boolean;
+  isDarkMode: boolean;
   onSelect: (id: string) => void;
 }
 
-function FindingRow({ finding, label, text, selected, onSelect }: FindingRowProps) {
+function FindingRow({ finding, label, text, selected, isDarkMode, onSelect }: FindingRowProps) {
   const t = useTranslations("results");
-  const { isDarkMode } = useTheme();
   const row = (
     <Inline space={4} wrap>
       <Text1 medium color={severityAccentColor(finding.severity, isDarkMode)}>{label}</Text1>
@@ -67,24 +74,28 @@ function FindingRow({ finding, label, text, selected, onSelect }: FindingRowProp
 }
 
 interface GroupRowsProps {
-  group: FindingGroup<Finding>;
+  group: FindingPattern<Finding>;
   expanded: boolean;
   onToggle: (id: string) => void;
   findingLabelById: Map<string, string>;
-  nodesById: Map<string, Pick<GraphNode, "label">>;
+  nodesById: NodesById;
   selectedFindingId: string | null;
+  isDarkMode: boolean;
   onSelectFinding: (id: string) => void;
 }
 
-function GroupRows({ group, expanded, onToggle, findingLabelById, nodesById, selectedFindingId, onSelectFinding }: GroupRowsProps) {
+function GroupRows({ group, expanded, onToggle, findingLabelById, nodesById, selectedFindingId, isDarkMode, onSelectFinding }: GroupRowsProps) {
   const t = useTranslations("results");
-  const { isDarkMode } = useTheme();
+  const contentId = useId();
+  const [showAll, setShowAll] = useState(false);
   const [top] = group.findings;
-  const entry = top!.path[0];
-  const title = entry && group.findings.every((f) => f.path[0] === entry)
-    ? t("findingGroupFrom", { title: top!.title, node: routeSummary([entry], nodesById) })
-    : top!.title;
+  const anchorId = top.groupAnchor;
+  const anchorType = anchorId ? nodesById.get(anchorId)?.type : undefined;
+  const title = anchorId
+    ? t(anchorType === "input" ? "findingGroupFrom" : "findingGroupAt", { title: top.title, node: routeSummary([anchorId], nodesById) })
+    : top.title;
   const holdsSelection = group.findings.some((f) => f.id === selectedFindingId);
+  const visible = showAll ? group.findings : capped(group.findings, VISIBLE_OCCURRENCES, (f) => f.id === selectedFindingId);
   const Chevron = expanded ? IconChevronUpRegular : IconChevronDownRegular;
   return (
     <Stack space={2}>
@@ -92,13 +103,15 @@ function GroupRows({ group, expanded, onToggle, findingLabelById, nodesById, sel
         onPress={() => onToggle(group.id)}
         dataAttributes={{ testid: "prioritized-finding-group" }}
         aria-expanded={expanded}
+        aria-controls={contentId}
+        aria-description={holdsSelection && !expanded ? t("findingGroupHoldsSelection") : undefined}
         style={rowStyle(holdsSelection && !expanded)}
       >
         <Box paddingX={8} paddingY={4}>
           <Inline space="between" alignItems="center">
             <Inline space={4} alignItems="center" wrap verticalSpace={2}>
-              <Text1 medium color={severityAccentColor(top!.severity, isDarkMode)}>{top!.ruleId}</Text1>
-              <Text1 regular color={skinVars.colors.textSecondary}>{t("findingSummary", { title, score: top!.score })}</Text1>
+              <Text1 medium color={severityAccentColor(top.severity, isDarkMode)}>{top.ruleId}</Text1>
+              <Text1 regular color={skinVars.colors.textSecondary}>{t("findingSummary", { title, score: top.score })}</Text1>
               <Tag type="inactive" small>{t("findingGroupCount", { count: group.findings.length })}</Tag>
             </Inline>
             <Chevron size={16} color={skinVars.colors.textSecondary} />
@@ -106,18 +119,28 @@ function GroupRows({ group, expanded, onToggle, findingLabelById, nodesById, sel
         </Box>
       </Touchable>
       {expanded && (
-        <Box paddingLeft={16}>
+        <Box paddingLeft={16} id={contentId}>
           <Stack space={2}>
-            {group.findings.map((f) => (
+            {visible.map((f) => (
               <FindingRow
                 key={f.id}
                 finding={f}
                 label={findingLabelById.get(f.id) ?? f.ruleId}
                 text={f.path.length > 0 ? routeSummary(f.path, nodesById) : f.title}
                 selected={f.id === selectedFindingId}
+                isDarkMode={isDarkMode}
                 onSelect={onSelectFinding}
               />
             ))}
+            {group.findings.length > VISIBLE_OCCURRENCES && (
+              <Box paddingX={8}>
+                <ButtonLink small bleedLeft aria-expanded={showAll} aria-controls={contentId} onPress={() => setShowAll((v) => !v)}>
+                  {showAll
+                    ? t("showTopFindingGroups", { count: VISIBLE_OCCURRENCES })
+                    : t("showMoreOccurrences", { count: group.findings.length - visible.length })}
+                </ButtonLink>
+              </Box>
+            )}
           </Stack>
         </Box>
       )}
@@ -127,6 +150,8 @@ function GroupRows({ group, expanded, onToggle, findingLabelById, nodesById, sel
 
 function PrioritizedFindings({ findings, findingLabelById, nodesById, selectedFindingId, onSelectFinding }: PrioritizedFindingsProps) {
   const t = useTranslations("results");
+  const { isDarkMode } = useTheme();
+  const listId = useId();
   const groups = useMemo(() => groupFindings(findings), [findings]);
   const [showAll, setShowAll] = useState(false);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
@@ -137,7 +162,9 @@ function PrioritizedFindings({ findings, findingLabelById, nodesById, selectedFi
       return next;
     });
   }, []);
-  const visibleGroups = showAll ? groups : groups.slice(0, VISIBLE_GROUPS);
+  const visibleGroups = showAll
+    ? groups
+    : capped(groups, VISIBLE_GROUPS, (g) => g.findings.some((f) => f.id === selectedFindingId));
 
   return (
     <Boxed dataAttributes={{ testid: "prioritized-findings" }}>
@@ -149,35 +176,39 @@ function PrioritizedFindings({ findings, findingLabelById, nodesById, selectedFi
               {t("prioritizedFindingsCount", { findings: findings.length, groups: groups.length })}
             </Text1>
           </Inline>
-          <Stack space={2}>
-            {visibleGroups.map((group) => {
-              const [only] = group.findings;
-              return group.findings.length === 1 ? (
-                <FindingRow
-                  key={group.id}
-                  finding={only!}
-                  label={findingLabelById.get(only!.id) ?? only!.ruleId}
-                  text={only!.title}
-                  selected={only!.id === selectedFindingId}
-                  onSelect={onSelectFinding}
-                />
-              ) : (
-                <GroupRows
-                  key={group.id}
-                  group={group}
-                  expanded={expanded.has(group.id)}
-                  onToggle={toggleGroup}
-                  findingLabelById={findingLabelById}
-                  nodesById={nodesById}
-                  selectedFindingId={selectedFindingId}
-                  onSelectFinding={onSelectFinding}
-                />
-              );
-            })}
-          </Stack>
+          <Box id={listId}>
+            <Stack space={2}>
+              {visibleGroups.map((group) => {
+                const [only] = group.findings;
+                return group.findings.length === 1 ? (
+                  <FindingRow
+                    key={group.id}
+                    finding={only}
+                    label={findingLabelById.get(only.id) ?? only.ruleId}
+                    text={only.title}
+                    selected={only.id === selectedFindingId}
+                    isDarkMode={isDarkMode}
+                    onSelect={onSelectFinding}
+                  />
+                ) : (
+                  <GroupRows
+                    key={group.id}
+                    group={group}
+                    expanded={expanded.has(group.id)}
+                    onToggle={toggleGroup}
+                    findingLabelById={findingLabelById}
+                    nodesById={nodesById}
+                    selectedFindingId={selectedFindingId}
+                    isDarkMode={isDarkMode}
+                    onSelectFinding={onSelectFinding}
+                  />
+                );
+              })}
+            </Stack>
+          </Box>
           {groups.length > VISIBLE_GROUPS && (
             <Box>
-              <ButtonLink small bleedLeft aria-expanded={showAll} onPress={() => setShowAll((v) => !v)}>
+              <ButtonLink small bleedLeft aria-expanded={showAll} aria-controls={listId} onPress={() => setShowAll((v) => !v)}>
                 {showAll
                   ? t("showTopFindingGroups", { count: VISIBLE_GROUPS })
                   : t("showAllFindingGroups", { count: groups.length })}

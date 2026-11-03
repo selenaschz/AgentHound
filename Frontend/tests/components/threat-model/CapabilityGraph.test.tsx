@@ -62,6 +62,23 @@ const groupFor = (ruleId: string) => byTestId("prioritized-finding-group").find(
 const box = () => byTestId("prioritized-findings")[0]!;
 const buttonNamed = (text: string) => Array.from(view.container.querySelectorAll("button")).find((b) => b.textContent === text);
 
+function renderList(list: Finding[], selectedFindingId: string | null = null) {
+  view.render(
+    <CapabilityGraph
+      analysisId="a1"
+      solved={false}
+      nodes={nodes}
+      edges={edges}
+      findings={list}
+      attacks={[]}
+      findingLabelById={findingLabels(list)}
+      selectedFindingId={selectedFindingId}
+      onSelectFinding={onSelectFinding}
+      onClearSelection={onClearSelection}
+    />,
+  );
+}
+
 function manyGroups(count: number): Finding[] {
   return Array.from({ length: count }, (_, i) => ({
     ...findings[2]!,
@@ -90,14 +107,24 @@ describe("CapabilityGraph — prioritized findings", () => {
     );
   });
 
-  it("names no entry point when a pattern spans several", () => {
+  it("names no node for a rule-wide pattern", () => {
     const perNode = [
       { ...findings[3]!, id: "h1", path: ["planner"], groupId: "hy" },
-      { ...findings[3]!, id: "h2", path: ["crm"], groupId: "hy" },
+      { ...findings[3]!, id: "h2", path: ["planner"], groupId: "hy" },
     ];
     render({ findingList: perNode });
 
     expect(groupFor("HY-002")!.textContent).toBe("HY-002Sin auditoría · puntuación 22 hallazgos");
+  });
+
+  it("names the node a pattern sits in when it is not an entry point", () => {
+    const perTool = [
+      { ...findings[2]!, id: "t1", groupId: "gt", groupAnchor: "planner" },
+      { ...findings[2]!, id: "t2", groupId: "gt", groupAnchor: "planner" },
+    ];
+    render({ findingList: perTool });
+
+    expect(groupFor("FH-004")!.textContent).toBe("FH-004Escritura en logs en Planner · puntuación 7.22 hallazgos");
   });
 
   it("states how many findings and patterns the box covers instead of counting rows in the title", () => {
@@ -157,29 +184,50 @@ describe("CapabilityGraph — prioritized findings", () => {
 
   it("flags a collapsed group that holds the selected finding", () => {
     render({ selectedFindingId: "f2" });
-    const collapsed = groupFor("FH-001")!.getAttribute("style");
+
+    expect(groupFor("FH-001")!.getAttribute("aria-description")).toBe("Contiene el hallazgo seleccionado");
+
     render({ selectedFindingId: "f3" });
 
-    expect(collapsed).toContain("background");
-    expect(groupFor("FH-001")!.getAttribute("style")).not.toContain("background");
+    expect(groupFor("FH-001")!.hasAttribute("aria-description")).toBe(false);
+  });
+
+  it("shows the first occurrences of a large pattern and the rest on demand", () => {
+    const many = Array.from({ length: 14 }, (_, i) => ({ ...findings[1]!, id: `o${i}` }));
+    renderList(many);
+
+    press(groupFor("FH-001")!);
+
+    expect(rows()).toHaveLength(10);
+
+    press(buttonNamed("Ver 4 más")!);
+
+    expect(rows()).toHaveLength(14);
+
+    press(buttonNamed("Ver solo los 10 primeros")!);
+
+    expect(rows()).toHaveLength(10);
+  });
+
+  it("keeps a selected occurrence past the cap visible", () => {
+    const many = Array.from({ length: 14 }, (_, i) => ({ ...findings[1]!, id: `o${i}` }));
+    renderList(many, "o12");
+
+    press(groupFor("FH-001")!);
+
+    expect(rows()).toHaveLength(11);
+    expect(rows().at(-1)!.getAttribute("aria-current")).toBe("true");
+    expect(buttonNamed("Ver 3 más")).toBeDefined();
+  });
+
+  it("keeps the pattern holding the selection visible past the top five", () => {
+    renderList(manyGroups(8), "m7");
+
+    expect(rows().map((b) => b.textContent?.slice(0, 6))).toEqual(["FH-100", "FH-101", "FH-102", "FH-103", "FH-104", "FH-107"]);
   });
 
   it("shows only the top five patterns and lets the rest be shown and hidden again", () => {
-    const many = manyGroups(12);
-    view.render(
-      <CapabilityGraph
-        analysisId="a1"
-        solved={false}
-        nodes={nodes}
-        edges={edges}
-        findings={many}
-        attacks={[]}
-        findingLabelById={findingLabels(many)}
-        selectedFindingId={null}
-        onSelectFinding={onSelectFinding}
-        onClearSelection={onClearSelection}
-      />,
-    );
+    renderList(manyGroups(12));
 
     expect(rows().map((b) => b.textContent?.slice(0, 6))).toEqual(["FH-100", "FH-101", "FH-102", "FH-103", "FH-104"]);
     expect(box().textContent).toContain("12 hallazgos · 12 patrones");

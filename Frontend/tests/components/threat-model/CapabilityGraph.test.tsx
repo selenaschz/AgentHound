@@ -4,7 +4,7 @@ import CapabilityGraph from "@/components/threat-model/CapabilityGraph";
 import type { CyberGraphProps } from "@/components/threat-model/graph/CyberGraph";
 import { getFinding } from "@/lib/api/agentHound";
 import type { FindingDetailResponse } from "@/lib/api/types";
-import type { Attack } from "@/types/ThreatModel";
+import type { Attack, Finding } from "@/types/ThreatModel";
 import { findingLabels } from "@/lib/results/findingDisplay";
 import { mount, press } from "../test-utils";
 import { edges, findings, nodes } from "./fixtures";
@@ -55,26 +55,71 @@ function render({ selectedFindingId = null as string | null, solved = false, fin
   );
 }
 
-const rows = () => Array.from(view.container.querySelectorAll("button"));
-const rowFor = (label: string) => rows().find((b) => b.textContent?.startsWith(label));
+const byTestId = (id: string) => Array.from(view.container.querySelectorAll<HTMLElement>(`[data-testid="${id}"]`));
+const rows = () => byTestId("prioritized-finding");
+const rowFor = (label: string) => rows().find((b) => new RegExp(`^${label}(?!\\d| #)`).test(b.textContent ?? ""));
+const groupFor = (ruleId: string) => byTestId("prioritized-finding-group").find((b) => b.textContent?.startsWith(ruleId));
+const box = () => byTestId("prioritized-findings")[0]!;
+const buttonNamed = (text: string) => Array.from(view.container.querySelectorAll("button")).find((b) => b.textContent === text);
+
+function manyGroups(count: number): Finding[] {
+  return Array.from({ length: count }, (_, i) => ({
+    ...findings[2]!,
+    id: `m${i}`,
+    ruleId: `FH-${String(100 + i)}`,
+    groupId: `mg${i}`,
+    score: 9 - i * 0.1,
+  }));
+}
 
 describe("CapabilityGraph — prioritized findings", () => {
-  it("lists repeated rules with an ordinal so duplicates are distinguishable", () => {
+  it("collapses the occurrences of one root cause into a single row with their count", () => {
     render();
 
-    expect(rows().map((b) => b.textContent?.split("Datos")[0]?.split("Escritura")[0])).toEqual([
-      "FH-001 #1",
-      "FH-001 #2",
-      "FH-004",
-    ]);
+    expect(groupFor("FH-001")!.textContent).toContain("2 hallazgos");
+    expect(groupFor("FH-001")!.getAttribute("aria-expanded")).toBe("false");
+    expect(rowFor("FH-001 #1")).toBeUndefined();
+    expect(rows().map((b) => b.textContent?.split("Escritura")[0])).toEqual(["FH-004"]);
   });
 
-  it("selects a finding when its row is pressed", () => {
+  it("states how many findings and patterns the box covers instead of counting rows in the title", () => {
     render();
+
+    expect(box().textContent).toContain("Hallazgos priorizados4 hallazgos · 3 patrones");
+  });
+
+  it("lists a group's occurrences, numbered and with their route, when it is expanded", () => {
+    render();
+
+    press(groupFor("FH-001")!);
+
+    expect(groupFor("FH-001")!.getAttribute("aria-expanded")).toBe("true");
+    expect(rows().map((b) => b.textContent)).toEqual([
+      "FH-001 #1Email entrante → Planner → CRM · puntuación 9.1",
+      "FH-001 #2Email entrante → Planner → Logs · puntuación 9.1",
+      "FH-004Escritura en logs · puntuación 7.2",
+    ]);
+
+    press(groupFor("FH-001")!);
+
+    expect(rowFor("FH-001 #1")).toBeUndefined();
+  });
+
+  it("selects an occurrence when its row is pressed", () => {
+    render();
+    press(groupFor("FH-001")!);
 
     press(rowFor("FH-001 #2")!);
 
     expect(onSelectFinding).toHaveBeenCalledWith("f2");
+  });
+
+  it("does not select anything when a group is expanded", () => {
+    render();
+
+    press(groupFor("FH-001")!);
+
+    expect(onSelectFinding).not.toHaveBeenCalled();
   });
 
   it("does not offer a route for findings without a path", () => {
@@ -86,9 +131,55 @@ describe("CapabilityGraph — prioritized findings", () => {
 
   it("marks only the selected row as current", () => {
     render({ selectedFindingId: "f1" });
+    press(groupFor("FH-001")!);
 
     expect(rowFor("FH-001 #1")!.getAttribute("aria-current")).toBe("true");
     expect(rowFor("FH-001 #2")!.hasAttribute("aria-current")).toBe(false);
+  });
+
+  it("flags a collapsed group that holds the selected finding", () => {
+    render({ selectedFindingId: "f2" });
+    const collapsed = groupFor("FH-001")!.getAttribute("style");
+    render({ selectedFindingId: "f3" });
+
+    expect(collapsed).toContain("background");
+    expect(groupFor("FH-001")!.getAttribute("style")).not.toContain("background");
+  });
+
+  it("shows only the top five patterns and lets the rest be shown and hidden again", () => {
+    const many = manyGroups(12);
+    view.render(
+      <CapabilityGraph
+        analysisId="a1"
+        solved={false}
+        nodes={nodes}
+        edges={edges}
+        findings={many}
+        attacks={[]}
+        findingLabelById={findingLabels(many)}
+        selectedFindingId={null}
+        onSelectFinding={onSelectFinding}
+        onClearSelection={onClearSelection}
+      />,
+    );
+
+    expect(rows().map((b) => b.textContent?.slice(0, 6))).toEqual(["FH-100", "FH-101", "FH-102", "FH-103", "FH-104"]);
+    expect(box().textContent).toContain("12 hallazgos · 12 patrones");
+
+    press(buttonNamed("Ver los 12 patrones")!);
+
+    expect(rows()).toHaveLength(12);
+    expect(buttonNamed("Ver solo los 5 primeros")!.getAttribute("aria-expanded")).toBe("true");
+
+    press(buttonNamed("Ver solo los 5 primeros")!);
+
+    expect(rows()).toHaveLength(5);
+  });
+
+  it("offers no show-all action when every pattern already fits", () => {
+    render();
+
+    expect(buttonNamed("Ver los 3 patrones")).toBeUndefined();
   });
 });
 

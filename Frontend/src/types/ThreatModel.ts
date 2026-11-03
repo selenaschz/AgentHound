@@ -99,6 +99,7 @@ export interface Finding {
   findingClass: "attack" | "hygiene";
   /** Root-cause group from the backend: repeated occurrences of one cause share it. */
   groupId: string;
+  groupAnchor?: string;
 }
 
 export interface NodeProp {

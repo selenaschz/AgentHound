@@ -79,12 +79,23 @@ describe("attacksFromFindings", () => {
     ]);
   });
 
-  it("sums the score of every finding, of any severity, that touches the path", () => {
+  it("sums the score of every finding, of any severity, that lies within the path", () => {
     expect(attacksFromFindings(findings).map((a) => [a.id, a.exposure])).toEqual([
-      ["f1", 33.6],
-      ["f2", 20],
-      ["f3", 23.6],
+      ["f1", 23.6],
+      ["f2", 10],
+      ["f3", 13.6],
     ]);
+  });
+
+  it("does not let findings on the shared entry nodes even out distinct routes", () => {
+    const shared = [
+      finding("cv", "critical", 10, ["form", "intake", "screener", "cv", "email"]),
+      finding("web", "critical", 10, ["form", "intake", "researcher", "web", "email"]),
+      finding("web-2", "critical", 10, ["form", "intake", "researcher", "web", "email"]),
+      finding("entry", "high", 7.6, ["form"]),
+    ];
+    const [cv, web] = attacksFromFindings(shared);
+    expect(web!.exposure).toBeGreaterThan(cv!.exposure);
   });
 
   it("labels each route like the prioritized list, numbering repeated rules", () => {

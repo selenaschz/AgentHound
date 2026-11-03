@@ -317,9 +317,10 @@ export function propPositive(key: string, value: unknown): boolean | undefined {
 /** Build the graph's attack-path overlays from critical/high findings: each
  * such finding's node path becomes a highlighted attack route. */
 export function attacksFromFindings(findings: Finding[]): Attack[] {
+  // Containment, not mere contact: findings on the shared entry/agent nodes touch every route.
   const exposure = (path: string[]) => {
     const nodes = new Set(path);
-    const total = findings.reduce((sum, f) => (f.path.some((id) => nodes.has(id)) ? sum + f.score : sum), 0);
+    const total = findings.reduce((sum, f) => (f.path.every((id) => nodes.has(id)) ? sum + f.score : sum), 0);
     return Number(total.toFixed(1));
   };
   const labels = findingLabels(findings);

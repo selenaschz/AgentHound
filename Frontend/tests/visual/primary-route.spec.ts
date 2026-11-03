@@ -3,7 +3,7 @@ import findings from "./fixtures/ops-destructive/findings.json" with { type: "js
 import { API_ORIGIN, mockOpsDestructiveAnalysis, OPS_DESTRUCTIVE_ID } from "./mocks";
 
 const canvas = (page: Page) => page.locator("[data-ch-canvas]");
-const primaryPath = (page: Page) => page.getByText("Ruta crítica principal").locator("xpath=ancestor::*[.//*[contains(text(), '→')]][1]");
+const primaryPath = (page: Page) => page.getByTestId("primary-path");
 const flowingEdges = async (page: Page) =>
   (await canvas(page).locator(".react-flow__edge:has(path.ch-edge-flow)").evaluateAll((els) => els.map((el) => el.dataset.id ?? ""))).sort();
 

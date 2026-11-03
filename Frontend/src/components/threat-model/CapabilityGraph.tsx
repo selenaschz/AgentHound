@@ -209,7 +209,7 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
       />
 
       {!solved && !isolatedGraph && primaryPath && (
-        <Boxed>
+        <Boxed dataAttributes={{ testid: "primary-path" }}>
           <Box paddingX={16} paddingY={12}>
             <Stack space={8}>
               <Inline space={8} alignItems="center" wrap verticalSpace={4}>

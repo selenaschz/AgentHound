@@ -316,11 +316,18 @@ export function propPositive(key: string, value: unknown): boolean | undefined {
 /** Build the graph's attack-path overlays from critical/high findings: each
  * such finding's node path becomes a highlighted attack route. */
 export function attacksFromFindings(findings: Finding[]): Attack[] {
+  const exposure = (path: string[]) => {
+    const nodes = new Set(path);
+    const total = findings.reduce((sum, f) => (f.path.some((id) => nodes.has(id)) ? sum + f.score : sum), 0);
+    return Number(total.toFixed(1));
+  };
   return findings
     .filter((f) => f.severity === "critical" || f.severity === "high")
     .map((f) => ({
       id: f.id,
       severity: f.severity as Extract<Severity, "critical" | "high">,
+      score: f.score,
+      exposure: exposure(f.path),
       width: f.severity === "critical" ? 2.5 : 2,
       nodes: f.path,
       label: f.ruleId,

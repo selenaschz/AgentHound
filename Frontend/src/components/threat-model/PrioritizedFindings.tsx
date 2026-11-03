@@ -42,6 +42,16 @@ function capped<T>(items: T[], limit: number, holdsSelection: (item: T) => boole
   return items.filter((item, i) => i < limit || holdsSelection(item));
 }
 
+function usePatternTitle(nodesById: NodesById) {
+  const t = useTranslations("results");
+  return (finding: Finding) => {
+    const anchorId = finding.groupAnchor;
+    if (!anchorId) return finding.title;
+    const key = nodesById.get(anchorId)?.type === "input" ? "findingGroupFrom" : "findingGroupAt";
+    return t(key, { title: finding.title, node: routeSummary([anchorId], nodesById) });
+  };
+}
+
 interface FindingRowProps {
   finding: Finding;
   label: string;
@@ -88,12 +98,9 @@ function GroupRows({ group, expanded, onToggle, findingLabelById, nodesById, sel
   const t = useTranslations("results");
   const contentId = useId();
   const [showAll, setShowAll] = useState(false);
+  const patternTitle = usePatternTitle(nodesById);
   const [top] = group.findings;
-  const anchorId = top.groupAnchor;
-  const anchorType = anchorId ? nodesById.get(anchorId)?.type : undefined;
-  const title = anchorId
-    ? t(anchorType === "input" ? "findingGroupFrom" : "findingGroupAt", { title: top.title, node: routeSummary([anchorId], nodesById) })
-    : top.title;
+  const title = patternTitle(top);
   const holdsSelection = group.findings.some((f) => f.id === selectedFindingId);
   const visible = showAll ? group.findings : capped(group.findings, VISIBLE_OCCURRENCES, (f) => f.id === selectedFindingId);
   const Chevron = expanded ? IconChevronUpRegular : IconChevronDownRegular;
@@ -151,6 +158,7 @@ function GroupRows({ group, expanded, onToggle, findingLabelById, nodesById, sel
 function PrioritizedFindings({ findings, findingLabelById, nodesById, selectedFindingId, onSelectFinding }: PrioritizedFindingsProps) {
   const t = useTranslations("results");
   const { isDarkMode } = useTheme();
+  const patternTitle = usePatternTitle(nodesById);
   const listId = useId();
   const groups = useMemo(() => groupFindings(findings), [findings]);
   const [showAll, setShowAll] = useState(false);
@@ -185,7 +193,7 @@ function PrioritizedFindings({ findings, findingLabelById, nodesById, selectedFi
                     key={group.id}
                     finding={only}
                     label={findingLabelById.get(only.id) ?? only.ruleId}
-                    text={only.title}
+                    text={patternTitle(only)}
                     selected={only.id === selectedFindingId}
                     isDarkMode={isDarkMode}
                     onSelect={onSelectFinding}

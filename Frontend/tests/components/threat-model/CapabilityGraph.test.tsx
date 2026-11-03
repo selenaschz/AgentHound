@@ -127,6 +127,19 @@ describe("CapabilityGraph — prioritized findings", () => {
     expect(groupFor("FH-004")!.textContent).toBe("FH-004Escritura en logs en Planner · puntuación 7.22 hallazgos");
   });
 
+  it("names the node of single-occurrence patterns too, so patterns of one rule tell apart", () => {
+    const perNode = [
+      { ...findings[2]!, id: "s1", groupId: "gs1", groupAnchor: "planner" },
+      { ...findings[2]!, id: "s2", groupId: "gs2", groupAnchor: "input" },
+    ];
+    renderList(perNode);
+
+    expect(rows().map((b) => b.textContent)).toEqual([
+      "FH-004 #1Escritura en logs en Planner · puntuación 7.2",
+      "FH-004 #2Escritura en logs desde Email entrante · puntuación 7.2",
+    ]);
+  });
+
   it("states how many findings and patterns the box covers instead of counting rows in the title", () => {
     render();
 

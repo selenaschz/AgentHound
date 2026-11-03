@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { useFormatter, useTranslations } from "next-intl";
-import { applyAlpha } from "@telefonica/mistica";
+import { applyAlpha, ScreenReaderOnly } from "@telefonica/mistica";
 import { Handle, Position, type NodeProps, type NodeTypes } from "@xyflow/react";
 import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import type { NodeType } from "@/types/ThreatModel";
@@ -68,11 +68,15 @@ function NodeFindingCorner({ mark }: { mark: NodeFindingMark }) {
   const description = t("nodeFindings", { count: mark.count, score });
   return (
     <span title={description} style={{ position: "absolute", top: -12, left: 14, zIndex: 3 }}>
-      <span style={{ display: "inline-flex" }}>
+      {/* The compact label only makes sense visually; screen readers get the full sentence. */}
+      <span aria-hidden style={{ display: "inline-flex" }}>
         <SeverityBadge severity={mark.severity} small withIcon dataAttributes={{ testid: "node-finding-badge", severity: mark.severity }}>
           {mark.count > 1 ? `${score} · +${mark.count - 1}` : score}
         </SeverityBadge>
       </span>
+      <ScreenReaderOnly>
+        <span>{description}</span>
+      </ScreenReaderOnly>
     </span>
   );
 }

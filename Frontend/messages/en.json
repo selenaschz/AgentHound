@@ -241,7 +241,7 @@
       "ignoredSummary": "{count, plural, one {# property ignored} other {# properties ignored}}",
       "unreachableTitle": "Rules this format can't trigger",
       "declarableTitle": "Rules that fire once the file declares a property",
-      "declarable": "{rules}: declare {properties}",
+      "declarable": "{rules}: depends on {properties}",
       "ignoredTitle": "Ignored properties",
       "ignored": "{property} on “{node}” isn't read on this node type",
       "ignoredWithSuggestion": "{property} on “{node}” isn't a known property; did you mean {suggestion}?"

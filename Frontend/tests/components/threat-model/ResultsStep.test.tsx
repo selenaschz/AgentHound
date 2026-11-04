@@ -116,7 +116,7 @@ describe("ResultsStep — coverage warnings", () => {
 
     const text = view.container.textContent;
     expect(text).toContain("FH-006, FH-015");
-    expect(text).toContain("FH-012: declara deploy_verbs");
+    expect(text).toContain("FH-012: depende de deploy_verbs");
     expect(text).toContain("memroy en «Planner» no es una propiedad conocida; ¿querías decir memory?");
   });
 

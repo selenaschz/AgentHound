@@ -33,7 +33,7 @@ test.describe("Coverage warnings", () => {
     await header(page).click();
 
     await expect(warnings(page)).toContainText("FH-006, FH-015, FH-031, FH-030");
-    await expect(warnings(page)).toContainText("FH-013: declara recipient_type");
+    await expect(warnings(page)).toContainText("FH-013: depende de recipient_type");
     await expect(warnings(page)).toHaveScreenshot("coverage-warnings-expanded.png");
   });
 

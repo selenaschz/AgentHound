@@ -72,6 +72,10 @@ def test_catalog_entries_are_well_formed():
         assert "properties" not in gap, gap
         if gap["kind"] == "needs_declaration":
             assert gap["declare"], gap
+            # The frontend joins requirements with "and" and options with "or",
+            # so "A and B or C" can't say whether it means (A and B) or C.
+            if len(gap["declare"]) > 1:
+                assert all(len(option) == 1 for option in gap["declare"]), gap
             for option in gap["declare"]:
                 assert option, gap
                 for requirement in option:

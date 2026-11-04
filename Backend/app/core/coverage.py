@@ -32,7 +32,7 @@ def coverage_warnings(framework: SourceFramework) -> list[dict[str, Any]]:
     for gap in adapter_coverage_catalog():
         if framework.value not in gap.get("frameworks", []):
             continue
-        declare = [[dict(req) for req in option] for option in gap.get("declare") or []]
+        declare = [[{**req, "values": list(req["values"])} for req in option] for option in gap.get("declare") or []]
         warning: dict[str, Any] = {
             "kind": gap["kind"],
             "rules": list(gap["rules"]),

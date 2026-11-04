@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, type ComponentProps } from "react";
 import ResultsStep from "@/components/threat-model/ResultsStep";
 import type CapabilityGraph from "@/components/threat-model/CapabilityGraph";
+import type { CoverageWarning } from "@/lib/api/types";
 import { mount, press } from "../test-utils";
 import { edges, nodes, result } from "./fixtures";
 
@@ -86,6 +87,44 @@ describe("ResultsStep — finding cards", () => {
 
   it("passes the same labels the cards show", () => {
     expect(graph.props?.findingLabelById.get("f2")).toBe("FH-001 #2");
+  });
+});
+
+describe("ResultsStep — coverage warnings", () => {
+  const warnings: CoverageWarning[] = [
+    { kind: "not_expressible", rules: ["FH-006"], properties: [], message: "" },
+    { kind: "not_expressible", rules: ["FH-015"], properties: [], message: "" },
+    { kind: "needs_declaration", rules: ["FH-012"], properties: ["deploy_verbs"], message: "" },
+    { kind: "ignored_property", rules: [], properties: ["memroy"], message: "", node: "Planner", node_type: "agent", suggestion: "memory" },
+  ];
+
+  const header = () => Array.from(view.container.querySelectorAll("[aria-expanded]")).find((el) => el.textContent?.includes("Cobertura"));
+
+  it("stays hidden when the analysis has no warnings", () => {
+    expect(header()).toBeUndefined();
+  });
+
+  it("summarises the rules out of reach and the ignored properties", () => {
+    view.render(<ResultsStep result={{ ...result, warnings }} />);
+
+    expect(header()!.textContent).toContain("3 reglas con alcance limitado en este formato · 1 propiedad ignorada");
+  });
+
+  it("lists each gap once expanded", () => {
+    view.render(<ResultsStep result={{ ...result, warnings }} />);
+    press(header()!);
+
+    const text = view.container.textContent;
+    expect(text).toContain("FH-006, FH-015");
+    expect(text).toContain("FH-012: declara deploy_verbs");
+    expect(text).toContain("memroy en «Planner» no es una propiedad conocida; ¿querías decir memory?");
+  });
+
+  it("titles a file with only ignored properties after them", () => {
+    view.render(<ResultsStep result={{ ...result, warnings: warnings.slice(3) }} />);
+
+    expect(header()).toBeUndefined();
+    expect(view.container.textContent).toContain("1 propiedad ignorada");
   });
 });
 

@@ -31,6 +31,7 @@ import {
   type CapabilityLink,
   type EditableCapabilityRow,
 } from "@/lib/agentCapabilities";
+import { useCapabilityRules } from "@/hooks/useCapabilityRules";
 import type { GraphEdge, GraphNode } from "@/types/ThreatModel";
 
 const DND_MIME = "application/x-agenthound-capability";
@@ -58,14 +59,17 @@ interface AgentEditModalProps {
 function CatalogChip({
   row,
   capability,
+  rules,
   disabled,
   onAdd,
 }: {
   row: EditableCapabilityRow;
   capability: string;
+  rules?: readonly string[];
   disabled?: boolean;
   onAdd: () => void;
 }) {
+  const t = useTranslations("inference");
   if (disabled) {
     return <Tag small type="inactive">{capability}</Tag>;
   }
@@ -76,6 +80,7 @@ function CatalogChip({
         e.dataTransfer.setData(DND_MIME, JSON.stringify({ row, capability }));
         e.dataTransfer.effectAllowed = "copy";
       }}
+      title={rules?.length ? t("checkedBy", { rules: rules.join(", ") }) : undefined}
       style={{ display: "inline-flex", cursor: "grab" }}
     >
       <Chip small Icon={IconAddMoreRegular} onPress={onAdd}>
@@ -96,6 +101,8 @@ function AgentEditModal({ agentId, nodes, edges, onSave, onClose }: AgentEditMod
   const [pending, setPending] = useState<PendingEntry | null>(null);
   const [pendingTarget, setPendingTarget] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const rulesByVerb = useCapabilityRules();
+  const isUnchecked = (verb: string) => rulesByVerb?.get(verb)?.length === 0;
 
   const group = useMemo(
     () => groupByAgent(draftNodes, draftEdges).agents.find((a) => a.agent.id === agentId) ?? null,
@@ -225,24 +232,38 @@ function AgentEditModal({ agentId, nodes, edges, onSave, onClose }: AgentEditMod
             </Inline>
             <Text1 regular color={skinVars.colors.textSecondary}>{t("catalogHint")}</Text1>
           </Stack>
-          {EDITABLE_ROWS.map((row) => (
-            <Stack space={4} key={row}>
-              <Text1 regular color={skinVars.colors.textSecondary} transform="uppercase">
-                {t(row)}
-              </Text1>
+          {EDITABLE_ROWS.map((row) => {
+            const chips = (verbs: string[]) => (
               <Inline space={4} wrap verticalSpace={4}>
-                {CAPABILITY_CATALOG[row].map((capability) => (
+                {verbs.map((capability) => (
                   <CatalogChip
                     key={capability}
                     row={row}
                     capability={capability}
+                    rules={rulesByVerb?.get(capability)}
                     disabled={row === "delegatesTo" && !canDelegate}
                     onAdd={() => startAdd(row, capability)}
                   />
                 ))}
               </Inline>
-            </Stack>
-          ))}
+            );
+            const checked = CAPABILITY_CATALOG[row].filter((verb) => !isUnchecked(verb));
+            const unchecked = CAPABILITY_CATALOG[row].filter(isUnchecked);
+            return (
+              <Stack space={4} key={row} dataAttributes={{ testid: `catalog-row-${row}` }}>
+                <Text1 regular color={skinVars.colors.textSecondary} transform="uppercase">
+                  {t(row)}
+                </Text1>
+                {checked.length > 0 && chips(checked)}
+                {unchecked.length > 0 && (
+                  <Stack space={4} dataAttributes={{ testid: "unchecked-verbs" }}>
+                    <Text1 regular color={skinVars.colors.textSecondary}>{t("uncheckedVerbs")}</Text1>
+                    {chips(unchecked)}
+                  </Stack>
+                )}
+              </Stack>
+            );
+          })}
         </Stack>
       </Box>
     </Boxed>
@@ -294,6 +315,11 @@ function AgentEditModal({ agentId, nodes, edges, onSave, onClose }: AgentEditMod
                     <Text1 regular color={skinVars.colors.textSecondary}>
                       {t("addingCapability", { capability: pending.capability, row: t(pending.row) })}
                     </Text1>
+                    {isUnchecked(pending.capability) && (
+                      <Text1 regular color={skinVars.colors.warning}>
+                        {t("uncheckedVerbNote", { capability: pending.capability })}
+                      </Text1>
+                    )}
                     {pending.row === "delegatesTo" ? (
                       <Select
                         name="delegate-target"

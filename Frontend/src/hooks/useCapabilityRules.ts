@@ -7,10 +7,11 @@ import { logger } from "@/lib/logger";
 export type RulesByVerb = ReadonlyMap<string, readonly string[]>;
 
 let request: Promise<RulesByVerb> | null = null;
+let loaded: RulesByVerb | null = null;
 
-function loadRules(): Promise<RulesByVerb> {
+export function preloadCapabilityRules(): Promise<RulesByVerb> {
   request ??= getCapabilities().then(
-    ({ capabilities }) => new Map(capabilities.map((c) => [c.verb, c.evaluated_by])),
+    ({ capabilities }) => (loaded = new Map(capabilities.map((c) => [c.verb, c.evaluated_by]))),
     (err) => {
       request = null;
       throw err;
@@ -21,19 +22,14 @@ function loadRules(): Promise<RulesByVerb> {
 
 export function resetCapabilityRules() {
   request = null;
+  loaded = null;
 }
 
 export function useCapabilityRules(): RulesByVerb | null {
-  const [rules, setRules] = useState<RulesByVerb | null>(null);
+  const [rules, setRules] = useState(loaded);
   useEffect(() => {
-    let active = true;
-    loadRules().then(
-      (loaded) => active && setRules(loaded),
-      (err) => logger.error("Capability catalog failed", err),
-    );
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (rules) return;
+    preloadCapabilityRules().then(setRules, (err) => logger.error("Capability catalog failed", err));
+  }, [rules]);
   return rules;
 }

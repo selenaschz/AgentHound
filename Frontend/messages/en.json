@@ -219,6 +219,9 @@
     "showAllFindingGroups": "Show all {count} patterns",
     "showMoreOccurrences": "Show {count} more",
     "showTopFindingGroups": "Show only the top {count}",
+    "findingPatternsCount": "{count, plural, one {# cause} other {# causes}}",
+    "showOccurrences": "Show the {count} occurrences",
+    "hideOccurrences": "Hide occurrences",
     "findingSummary": "{title} · score {score}",
     "highlightedRoute": "Highlighted route",
     "nodeFindings": "{count, plural, one {# finding} other {# findings}} on this node · max {score}",
@@ -251,7 +254,8 @@
       "findingCount": "Findings",
       "criticalCount": "Critical findings",
       "maxScore": "Max score",
-      "riskReduction": "Risk reduction"
+      "riskReduction": "Risk reduction",
+      "riskReductionByGroup": "Reduction by cause"
     },
     "findingsTableTitle": "Inferred Findings",
     "attackFindingsTitle": "Attack Paths",

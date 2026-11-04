@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import {
@@ -9,6 +9,7 @@ import {
   Boxed,
   BoxedAccordion,
   BoxedAccordionItem,
+  ButtonLink,
   ButtonPrimary,
   ButtonSecondary,
   Callout,
@@ -43,7 +44,8 @@ import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import InlineError from "@/components/ui/InlineError";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import { formatSnakeCase, formatValue } from "@/lib/format";
-import { findingLabels } from "@/lib/results/findingDisplay";
+import { findingLabels, groupFindings, VISIBLE_OCCURRENCES, type FindingPattern } from "@/lib/results/findingDisplay";
+import { usePatternTitle } from "@/lib/results/usePatternTitle";
 import { SEVERITY_STYLES } from "@/lib/severity";
 import type { AnalysisResult, ChokepointRec } from "@/lib/api/adapters";
 import {
@@ -199,6 +201,95 @@ function FindingCard({ finding, label, nodesById, isDarkMode, tSeverity, scoreLa
   );
 }
 
+interface FindingPatternCardProps extends Omit<FindingCardProps, "finding" | "label" | "selected" | "onSelect"> {
+  pattern: FindingPattern<Finding>;
+  title: string;
+  labelById: Map<string, string>;
+  selectedFindingId: string | null;
+  onSelect: (id: string) => void;
+}
+
+function FindingPatternCard({ pattern, title, labelById, selectedFindingId, onSelect, ...cardProps }: FindingPatternCardProps) {
+  const t = useTranslations("results");
+  const contentId = useId();
+  const [expanded, setExpanded] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [top] = pattern.findings;
+  const count = pattern.findings.length;
+  const maxScore = Math.max(...pattern.findings.map((f) => f.score));
+  const holdsSelection = !expanded && pattern.findings.some((f) => f.id === selectedFindingId);
+  const visible = showAll
+    ? pattern.findings
+    : pattern.findings.filter((f, i) => i < VISIBLE_OCCURRENCES || f.id === selectedFindingId);
+  return (
+    <div
+      data-testid="finding-pattern"
+      style={{
+        borderRadius: skinVars.borderRadii.container,
+        outline: holdsSelection ? `2px solid ${skinVars.colors.borderSelected}` : undefined,
+        outlineOffset: 2,
+      }}
+    >
+      <Boxed>
+        <Box paddingX={20} paddingY={16}>
+          <Stack space={12}>
+            <Inline space="between" alignItems="center">
+              <Inline space={8} alignItems="center" wrap verticalSpace={4}>
+                <SeverityBadge severity={top.severity} small>{cardProps.tSeverity(top.severity)}</SeverityBadge>
+                <Text1 medium color={skinVars.colors.textSecondary}>{top.ruleId}</Text1>
+                <Tag type="inactive" small>{t("findingGroupCount", { count })}</Tag>
+                <Tag type="inactive" small>{formatSnakeCase(top.category)}</Tag>
+              </Inline>
+              <Text2 medium color={severityAccentColor(top.severity, cardProps.isDarkMode)}>{cardProps.scoreLabel}: {maxScore}</Text2>
+            </Inline>
+            <Stack space={4}>
+              <Text2 medium>{title}</Text2>
+              {top.desc && <Text1 regular color={skinVars.colors.textSecondary}>{top.desc}</Text1>}
+            </Stack>
+            <Box>
+              <ButtonLink
+                small
+                bleedLeft
+                aria-expanded={expanded}
+                aria-controls={contentId}
+                aria-description={holdsSelection ? t("findingGroupHoldsSelection") : undefined}
+                onPress={() => setExpanded((v) => !v)}
+              >
+                {expanded ? t("hideOccurrences") : t("showOccurrences", { count })}
+              </ButtonLink>
+            </Box>
+            {expanded && (
+              <Box id={contentId}>
+                <Stack space={12}>
+                  {visible.map((f) => (
+                    <FindingCard
+                      key={f.id}
+                      {...cardProps}
+                      finding={f}
+                      label={labelById.get(f.id) ?? f.ruleId}
+                      selected={f.id === selectedFindingId}
+                      onSelect={f.path.length > 0 ? onSelect : undefined}
+                    />
+                  ))}
+                  {count > VISIBLE_OCCURRENCES && (
+                    <Box>
+                      <ButtonLink small bleedLeft aria-expanded={showAll} aria-controls={contentId} onPress={() => setShowAll((v) => !v)}>
+                        {showAll
+                          ? t("showTopFindingGroups", { count: VISIBLE_OCCURRENCES })
+                          : t("showMoreOccurrences", { count: count - visible.length })}
+                      </ButtonLink>
+                    </Box>
+                  )}
+                </Stack>
+              </Box>
+            )}
+          </Stack>
+        </Box>
+      </Boxed>
+    </div>
+  );
+}
+
 function ChokepointCallout({ rec }: { rec: ChokepointRec }) {
   const t = useTranslations("results");
   return (
@@ -238,6 +329,7 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
   const clearSelection = useCallback(() => setSelectedFindingId(null), []);
   const labelById = useMemo(() => findingLabels(result?.findings ?? []), [result]);
   const nodesById = useMemo(() => new Map((result?.nodes ?? []).map((n) => [n.id, n])), [result]);
+  const patternTitle = usePatternTitle(nodesById);
   const [resolvedFindings, openFindings] = useMemo(() => {
     const broken = new Set(result?.solution?.brokenFindingIds);
     const all = result?.findings ?? [];
@@ -251,8 +343,18 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
   const { counts, findings } = result;
   const sol = result.solution;
   const findingGroups = (["attack", "hygiene"] as const)
-    .map((cls) => ({ cls, items: findings.filter((f: Finding) => f.findingClass === cls) }))
+    .map((cls) => {
+      const items = findings.filter((f: Finding) => f.findingClass === cls);
+      return { cls, items, patterns: groupFindings(items) };
+    })
     .filter(({ items }) => items.length > 0);
+  const cardProps = {
+    nodesById,
+    isDarkMode,
+    tSeverity,
+    scoreLabel: t("tableHeaders.score"),
+    routeHint: t("showRouteHint"),
+  };
   // The Proposed Solution tab needs the live simulation; if it failed to load
   // (Phase 2 unavailable), surface a notice rather than a misleading green graph.
   const solutionUnavailable = solved && !sol;
@@ -401,6 +503,7 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                       color: severityAccentColor("none", isDarkMode),
                     }}
                     rows={[
+                      { label: t("beforeAfter.riskReductionByGroup"), value: `-${sol.beforeAfter.after.riskReductionByGroupPct}%`, color: severityAccentColor("none", isDarkMode) },
                       { label: t("beforeAfter.findingCount"), value: sol.beforeAfter.after.findingCount, color: severityAccentColor("none", isDarkMode) },
                       { label: t("beforeAfter.criticalCount"), value: sol.beforeAfter.after.criticalCount, color: severityAccentColor("none", isDarkMode) },
                       { label: t("beforeAfter.maxScore"), value: sol.beforeAfter.after.maxScore, color: severityAccentColor("none", isDarkMode) },
@@ -418,27 +521,37 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
           {!solved ? (
             findingGroups.length > 0 && (
               <BoxedAccordion>
-                {findingGroups.map(({ cls, items }) => (
+                {findingGroups.map(({ cls, items, patterns }) => (
                   <BoxedAccordionItem
                     key={cls}
                     title={cls === "attack" ? t("attackFindingsTitle") : t("hygieneTitle")}
+                    subtitle={t("findingPatternsCount", { count: patterns.length })}
                     right={<Tag type="inactive" small>{`${items.length}`}</Tag>}
                     content={
                       <Stack space={12}>
-                        {items.map((f: Finding) => (
-                          <FindingCard
-                            key={f.id}
-                            finding={f}
-                            label={labelById.get(f.id) ?? f.ruleId}
-                            nodesById={nodesById}
-                            isDarkMode={isDarkMode}
-                            tSeverity={tSeverity}
-                            scoreLabel={t("tableHeaders.score")}
-                            routeHint={t("showRouteHint")}
-                            selected={f.id === selectedFindingId}
-                            onSelect={f.path.length > 0 ? selectFinding : undefined}
-                          />
-                        ))}
+                        {patterns.map((pattern) => {
+                          const [only] = pattern.findings;
+                          return pattern.findings.length === 1 ? (
+                            <FindingCard
+                              key={pattern.id}
+                              {...cardProps}
+                              finding={only}
+                              label={labelById.get(only.id) ?? only.ruleId}
+                              selected={only.id === selectedFindingId}
+                              onSelect={only.path.length > 0 ? selectFinding : undefined}
+                            />
+                          ) : (
+                            <FindingPatternCard
+                              key={pattern.id}
+                              {...cardProps}
+                              pattern={pattern}
+                              title={patternTitle(only)}
+                              labelById={labelById}
+                              selectedFindingId={selectedFindingId}
+                              onSelect={selectFinding}
+                            />
+                          );
+                        })}
                       </Stack>
                     }
                   />

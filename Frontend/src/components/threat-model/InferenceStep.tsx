@@ -22,11 +22,12 @@ interface InferenceStepProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
   warnings: CoverageWarning[];
+  framework: string;
   onNodesChange: (nodes: GraphNode[]) => void;
   onEdgesChange: (edges: GraphEdge[]) => void;
 }
 
-function InferenceStep({ nodes, edges, warnings, onNodesChange, onEdgesChange }: InferenceStepProps) {
+function InferenceStep({ nodes, edges, warnings, framework, onNodesChange, onEdgesChange }: InferenceStepProps) {
   const t = useTranslations("inference");
   const { agents } = useMemo(() => groupByAgent(nodes, edges), [nodes, edges]);
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
@@ -47,7 +48,7 @@ function InferenceStep({ nodes, edges, warnings, onNodesChange, onEdgesChange }:
         asset={<IconInformationRegular color={skinVars.colors.brand} />}
       />
 
-      {warnings.length > 0 && <CoverageWarnings warnings={warnings} />}
+      <CoverageWarnings warnings={warnings} framework={framework} />
 
       {agentCount === 0 ? (
         <EmptyState

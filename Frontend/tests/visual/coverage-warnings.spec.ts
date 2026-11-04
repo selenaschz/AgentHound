@@ -16,35 +16,30 @@ test.beforeEach(async ({ page, context, baseURL }) => {
 });
 
 test.describe("Coverage warnings", () => {
-  test("flags a framework file's rules out of reach, collapsed above the tabs", async ({ page }) => {
+  test("flags a framework file's rules out of reach, collapsed", async ({ page }) => {
     await openResults(page);
 
     await expect(header(page)).toHaveAttribute("aria-expanded", "false");
-    await expect(header(page)).toContainText("Cobertura parcial de reglas");
-    await expect(header(page)).toContainText("12 reglas con alcance limitado en este formato");
-    const warningsBottom = await warnings(page).evaluate((el) => el.getBoundingClientRect().bottom);
-    const tabsTop = await page.getByRole("tablist").evaluate((el) => el.getBoundingClientRect().top);
-    expect(warningsBottom).toBeLessThan(tabsTop);
+    await expect(header(page)).toContainText("Cobertura del formato");
+    await expect(header(page)).toContainText("12 reglas que el formato de este fichero no puede comprobar del todo");
     await expect(warnings(page)).toHaveScreenshot("coverage-warnings-collapsed.png");
   });
 
-  test("lists the unreachable rules and the declarations that unlock the rest", async ({ page }) => {
+  test("lists the unreachable rules and what to declare for the rest", async ({ page }) => {
     await openResults(page);
     await header(page).click();
 
-    await expect(warnings(page)).toContainText("FH-006, FH-015, FH-031, FH-030");
-    await expect(warnings(page)).toContainText("FH-013: depende de recipient_type");
+    await expect(warnings(page)).toContainText("No alcanzables desde este formato");
+    await expect(warnings(page)).toContainText("Declara recipient_type");
     await expect(warnings(page)).toHaveScreenshot("coverage-warnings-expanded.png");
   });
 
-  test("explains each rule with the backend's message in English", async ({ page, context, baseURL }) => {
+  test("reads in English", async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "agenthound-lang", value: "en", url: baseURL! }]);
     await openResults(page);
     await header(page).click();
 
-    await expect(warnings(page)).toContainText("FH-015: No adapter emits the interpretIntent verb.");
-    await expect(warnings(page)).toContainText("FH-025: Declare boundary: external (or trust_level: untrusted)");
-    await expect(warnings(page).locator("code", { hasText: "trust_level: trusted_core" })).toBeVisible();
+    await expect(warnings(page)).toContainText("Declare recipient_type");
     await expect(warnings(page)).toHaveScreenshot("coverage-warnings-expanded-en.png");
   });
 

@@ -5,87 +5,79 @@ import {
   BoxedAccordion,
   BoxedAccordionItem,
   IconAlertRegular,
+  Inline,
   Stack,
+  Tag,
+  Text1,
   Text2,
   skinVars,
 } from "@telefonica/mistica";
 import type { CoverageWarning } from "@/lib/api/types";
+import { describeDeclare, describeIgnored, groupCoverageWarnings } from "@/lib/results/coverageWarnings";
+import type { ReactNode } from "react";
 
-interface CoverageWarningsProps {
-  warnings: CoverageWarning[];
+function RuleTags({ rules }: { rules: string[] }) {
+  return (
+    <Inline space={4} wrap verticalSpace={4}>
+      {rules.map((rule) => <Tag key={rule} type="inactive" small>{rule}</Tag>)}
+    </Inline>
+  );
 }
 
-const CODE_STYLE = { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: "0.9em" };
-
-function BackendMessage({ text }: { text: string }) {
-  return text.split("`").map((part, i) => (i % 2 ? <code key={i} style={CODE_STYLE}>{part}</code> : part));
+function Section({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
+  return (
+    <Stack space={8}>
+      <Stack space={2}>
+        <Text2 medium>{title}</Text2>
+        {desc && <Text1 regular color={skinVars.colors.textSecondary}>{desc}</Text1>}
+      </Stack>
+      {children}
+    </Stack>
+  );
 }
 
-function CoverageWarnings({ warnings }: CoverageWarningsProps) {
+/** What a framework file's format leaves unchecked, collapsed by default.
+ * Renders nothing for the generic format, which returns no warnings.
+ * `framework` is the analysis' source framework: Dify declarations go in the
+ * node's `data` block. */
+function CoverageWarnings({ warnings, framework }: { warnings: CoverageWarning[]; framework: string }) {
   const t = useTranslations("results.coverage");
-  const explained = useLocale() === "en";
-  const notExpressible = warnings.filter((w) => w.kind === "not_expressible");
-  const unreachable = [...new Set(notExpressible.flatMap((w) => w.rules))];
-  const declarable = warnings.filter((w) => w.kind === "needs_declaration");
-  const ignored = warnings.filter((w) => w.kind === "ignored_property");
-  const ruleCount = new Set([...unreachable, ...declarable.flatMap((w) => w.rules)]).size;
-  const summary = [
-    ruleCount > 0 && t("rulesSummary", { count: ruleCount }),
-    ignored.length > 0 && t("ignoredSummary", { count: ignored.length }),
-  ].filter(Boolean).join(" · ");
+  const locale = useLocale();
+  if (warnings.length === 0) return null;
+  const { notExpressible, needsDeclaration, ignored, ruleCount } = groupCoverageWarnings(warnings);
 
   return (
     <BoxedAccordion dataAttributes={{ testid: "coverage-warnings" }}>
       <BoxedAccordionItem
-        title={ruleCount > 0 ? t("title") : t("ignoredTitle")}
-        subtitle={summary}
-        asset={<IconAlertRegular color={skinVars.colors.warning} />}
+        title={t("title")}
+        subtitle={ruleCount > 0 ? t("subtitle", { count: ruleCount }) : undefined}
+        asset={<IconAlertRegular size={20} color={skinVars.colors.warning} />}
         content={
-          <Stack space={16}>
-            {unreachable.length > 0 && (
-              <Stack space={4}>
-                <Text2 medium>{t("unreachableTitle")}</Text2>
-                {explained && notExpressible.every((w) => w.message) ? (
-                  notExpressible.map((w) => (
-                    <Text2 key={w.rules.join()} regular color={skinVars.colors.textSecondary}>
-                      {w.rules.join(", ")}: <BackendMessage text={w.message} />
-                    </Text2>
-                  ))
-                ) : (
-                  <Text2 regular color={skinVars.colors.textSecondary}>{unreachable.join(", ")}</Text2>
-                )}
-              </Stack>
+          <Stack space={24}>
+            {ruleCount > 0 && <Text1 regular color={skinVars.colors.textSecondary}>{t("intro")}</Text1>}
+            {notExpressible.length > 0 && (
+              <Section title={t("notExpressibleTitle")} desc={t("notExpressibleDesc")}>
+                <RuleTags rules={notExpressible} />
+              </Section>
             )}
-            {declarable.length > 0 && (
-              <Stack space={4}>
-                <Text2 medium>{t("declarableTitle")}</Text2>
-                {declarable.map((w) => (
-                  <Text2 key={w.rules.join()} regular color={skinVars.colors.textSecondary}>
-                    {explained && w.message ? (
-                      <>
-                        {w.rules.join(", ")}: <BackendMessage text={w.message} />
-                      </>
-                    ) : (
-                      t("declarable", { rules: w.rules.join(", "), properties: w.properties.join(", ") })
-                    )}
-                  </Text2>
-                ))}
-              </Stack>
+            {needsDeclaration.length > 0 && (
+              <Section title={t("needsDeclarationTitle")} desc={t(framework === "dify" ? "needsDeclarationDescDify" : "needsDeclarationDesc")}>
+                <Stack space={12}>
+                  {needsDeclaration.map((w) => (
+                    <Stack key={w.rules.join()} space={4}>
+                      <RuleTags rules={w.rules} />
+                      <Text1 regular>{t("declare", { what: describeDeclare(w.declare ?? [], t, locale) })}</Text1>
+                    </Stack>
+                  ))}
+                </Stack>
+              </Section>
             )}
             {ignored.length > 0 && (
-              <Stack space={4}>
-                {ruleCount > 0 && <Text2 medium>{t("ignoredTitle")}</Text2>}
-                {ignored.map((w, i) => {
-                  const values = { property: w.properties.join(", "), node: w.node ?? "" };
-                  return (
-                    <Text2 key={`${values.node}-${values.property}-${i}`} regular color={skinVars.colors.textSecondary}>
-                      {w.suggestion
-                        ? t("ignoredWithSuggestion", { ...values, suggestion: w.suggestion })
-                        : t("ignored", values)}
-                    </Text2>
-                  );
-                })}
-              </Stack>
+              <Section title={t("ignoredTitle")}>
+                <Stack space={4}>
+                  {ignored.map((w, i) => <Text1 key={i} regular>{describeIgnored(w, t)}</Text1>)}
+                </Stack>
+              </Section>
             )}
           </Stack>
         }

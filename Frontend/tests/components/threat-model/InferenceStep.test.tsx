@@ -18,15 +18,21 @@ const noop = () => {};
 describe("InferenceStep — coverage warnings", () => {
   it("flags the rules out of reach before the analysis runs", () => {
     const warnings: CoverageWarning[] = [
-      { kind: "needs_declaration", rules: ["FH-012"], properties: ["capability_kinds"], message: "" },
+      {
+        kind: "needs_declaration",
+        rules: ["FH-012"],
+        properties: ["capability_kinds"],
+        message: "",
+        declare: [[{ node_type: "tool", property: "capability_kinds", values: ["deployRelease"] }]],
+      },
     ];
-    view.render(<InferenceStep nodes={nodes} edges={edges} warnings={warnings} onNodesChange={noop} onEdgesChange={noop} />);
+    view.render(<InferenceStep nodes={nodes} edges={edges} warnings={warnings} framework="langgraph" onNodesChange={noop} onEdgesChange={noop} />);
 
-    expect(box()?.textContent).toContain("1 regla con alcance limitado en este formato");
+    expect(box()?.textContent).toContain("1 regla que el formato de este fichero no puede comprobar del todo");
   });
 
   it("renders nothing for a file without warnings", () => {
-    view.render(<InferenceStep nodes={nodes} edges={edges} warnings={[]} onNodesChange={noop} onEdgesChange={noop} />);
+    view.render(<InferenceStep nodes={nodes} edges={edges} warnings={[]} framework="generic" onNodesChange={noop} onEdgesChange={noop} />);
 
     expect(box()).toBeNull();
   });

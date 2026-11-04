@@ -53,6 +53,18 @@
       "message": "Declare `capability_kinds: [deployRelease]` (or `moveResource`) on the tool; no tool name maps to these verbs.",
       "properties": [
         "capability_kinds"
+      ],
+      "declare": [
+        [
+          {
+            "node_type": "tool",
+            "property": "capability_kinds",
+            "values": [
+              "deployRelease",
+              "moveResource"
+            ]
+          }
+        ]
       ]
     },
     {
@@ -63,6 +75,19 @@
       "message": "Declare `recipient_type: public_channel` (or `broadcast`) on the output the agent sends to.",
       "properties": [
         "recipient_type"
+      ],
+      "declare": [
+        [
+          {
+            "node_type": "output",
+            "role": "sent_to",
+            "property": "recipient_type",
+            "values": [
+              "public_channel",
+              "broadcast"
+            ]
+          }
+        ]
       ]
     },
     {
@@ -73,6 +98,18 @@
       "message": "Declare `trust_level: trusted_core` on the agent named in `delegates_to`.",
       "properties": [
         "trust_level"
+      ],
+      "declare": [
+        [
+          {
+            "node_type": "agent",
+            "role": "delegate",
+            "property": "trust_level",
+            "values": [
+              "trusted_core"
+            ]
+          }
+        ]
       ]
     },
     {
@@ -84,6 +121,25 @@
       "properties": [
         "exposure_boundary",
         "authentication_scope"
+      ],
+      "declare": [
+        [
+          {
+            "node_type": "agent",
+            "property": "exposure_boundary",
+            "values": [
+              "external"
+            ]
+          },
+          {
+            "node_type": "tool",
+            "role": "reachable",
+            "property": "authentication_scope",
+            "values": [
+              "elevated"
+            ]
+          }
+        ]
       ]
     },
     {
@@ -91,10 +147,21 @@
       "rules": [
         "FH-025"
       ],
-      "message": "Declare `boundary: external` (or `trust_level: untrusted`) on the data asset being read.",
+      "message": "Declare `boundary: external` on the data asset being read.",
       "properties": [
-        "boundary",
-        "trust_level"
+        "boundary"
+      ],
+      "declare": [
+        [
+          {
+            "node_type": "data_asset",
+            "role": "read",
+            "property": "boundary",
+            "values": [
+              "external"
+            ]
+          }
+        ]
       ]
     },
     {
@@ -105,6 +172,17 @@
       "message": "Declare `contains_regulated_data: [gdpr]` on the data asset.",
       "properties": [
         "contains_regulated_data"
+      ],
+      "declare": [
+        [
+          {
+            "node_type": "data_asset",
+            "property": "contains_regulated_data",
+            "values": [
+              "gdpr"
+            ]
+          }
+        ]
       ]
     },
     {
@@ -116,6 +194,18 @@
       "message": "Memory nodes are private by default; declare `shared: true` on memory that more than one agent uses.",
       "properties": [
         "shared"
+      ],
+      "declare": [
+        [
+          {
+            "node_type": "memory",
+            "role": "shared",
+            "property": "shared",
+            "values": [
+              true
+            ]
+          }
+        ]
       ]
     }
   ]

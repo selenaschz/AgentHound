@@ -66,6 +66,7 @@ function NewThreatModelScreen() {
   const [inferenceNodes, setInferenceNodes] = useState<GraphNode[]>([]);
   const [inferenceEdges, setInferenceEdges] = useState<GraphEdge[]>([]);
   const [warnings, setWarnings] = useState<CoverageWarning[]>([]);
+  const [sourceFramework, setSourceFramework] = useState("generic");
   // `dirty`: the capabilities were edited since the last analysis.
   // `analyzed`: the analysis has run at least once for the current parse.
   const [dirty, setDirty] = useState(false);
@@ -123,6 +124,7 @@ function NewThreatModelScreen() {
       setInferenceNodes(toGraphNodes(graph.nodes));
       setInferenceEdges(toGraphEdges(graph.edges));
       setWarnings(created.warnings);
+      setSourceFramework(created.source_framework);
       setRequestDone(true);
     } catch (err) {
       logger.error("Parse request failed", err);
@@ -245,6 +247,7 @@ function NewThreatModelScreen() {
                 nodes={inferenceNodes}
                 edges={inferenceEdges}
                 warnings={warnings}
+                framework={sourceFramework}
                 onNodesChange={(ns) => {
                   setInferenceNodes(ns);
                   setDirty(true);

@@ -89,6 +89,55 @@ describe("ResultsStep — finding cards", () => {
   });
 });
 
+describe("ResultsStep — coverage warnings", () => {
+  const coverage = () => view.container.querySelector("[data-testid=coverage-warnings]");
+
+  it("shows nothing for the generic format", () => {
+    expect(coverage()).toBeNull();
+  });
+
+  it("lists what a framework file's format can't check, translated from the structured fields", () => {
+    view.render(
+      <ResultsStep
+        result={{
+          ...result,
+          warnings: [
+            { kind: "not_expressible", rules: ["FH-006"], properties: [], message: "No adapter passes it on." },
+            {
+              kind: "needs_declaration",
+              rules: ["FH-017"],
+              properties: ["exposure_boundary", "authentication_scope"],
+              message: "Declare `exposure_boundary: external` on the agent and ...",
+              declare: [[
+                { node_type: "agent", property: "exposure_boundary", values: ["external"] },
+                { node_type: "tool", property: "authentication_scope", values: ["elevated"] },
+              ]],
+            },
+            {
+              kind: "ignored_property",
+              rules: [],
+              properties: ["sensitivty"],
+              message: "",
+              node: "Patients",
+              node_type: "data_asset",
+              suggestion: "sensitivity",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(coverage()!.textContent).toContain("2 reglas que el formato de este fichero no puede comprobar del todo");
+    press(coverage()!.querySelector("[aria-expanded]")!);
+
+    const text = coverage()!.textContent;
+    expect(text).toContain("FH-006");
+    expect(text).toContain("Declara exposure_boundary: external en el agente y authentication_scope: elevated en la herramienta");
+    expect(text).toContain("sensitivty en Patients no es una propiedad conocida y se ha ignorado. ¿Querías decir sensitivity?");
+    expect(text).not.toContain("Declare `exposure_boundary");
+  });
+});
+
 describe("ResultsStep — resolved findings", () => {
   beforeEach(() => {
     view.render(

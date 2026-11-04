@@ -43,5 +43,6 @@ export const result: AnalysisResult = {
   nodes,
   edges,
   attacks: [],
+  warnings: [],
   solution: null,
 };

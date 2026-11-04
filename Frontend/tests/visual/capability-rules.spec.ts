@@ -50,6 +50,14 @@ test.describe("Capability rules in the agent editor", () => {
     await expect(toolsRow(page)).toHaveScreenshot("catalog-tools-row.png");
   });
 
+  test("names the rules that check a verb on hover", async ({ page }) => {
+    await openAgentEditor(page);
+
+    await page.getByRole("dialog").getByRole("button", { name: "invokeTool", exact: true }).hover();
+
+    await expect(page.getByRole("tooltip")).toContainText("Lo comprueban FH-");
+  });
+
   test("warns when adding a verb no rule looks at", async ({ page }) => {
     await openAgentEditor(page);
 

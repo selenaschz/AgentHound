@@ -26,16 +26,28 @@ async function open() {
 
 beforeEach(() => {
   resetCapabilityRules();
+  vi.clearAllMocks();
   vi.mocked(getCapabilities).mockResolvedValue({
     capabilities: [capability("read", ["FH-001", "FH-004"]), capability("summarize", [])],
   });
   view = mount();
 });
 
-afterEach(() => view.unmount());
+afterEach(() => {
+  view.unmount();
+  vi.restoreAllMocks();
+});
 
 const unchecked = () => Array.from(document.body.querySelectorAll("[data-testid=unchecked-verbs]"), (el) => el.textContent).join();
 const chip = (verb: string) => Array.from(document.body.querySelectorAll("button")).find((b) => b.textContent === verb)!;
+const tooltip = () => document.body.querySelector("[role=tooltip]")?.textContent ?? null;
+
+async function hover(el: Element) {
+  await act(async () => {
+    el.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  });
+}
 
 describe("AgentEditModal — verbs no rule looks at", () => {
   it("sets apart the verbs no rule looks at", async () => {
@@ -49,8 +61,26 @@ describe("AgentEditModal — verbs no rule looks at", () => {
   it("names the rules that look at a verb on hover", async () => {
     await open();
 
-    expect(chip("read").closest("[title]")?.getAttribute("title")).toBe("Lo comprueban FH-001, FH-004");
-    expect(chip("summarize").closest("[title]")).toBeNull();
+    await hover(chip("read"));
+    expect(tooltip()).toContain("Lo comprueban FH-001, FH-004");
+  });
+
+  it("shows no tooltip on a verb no rule looks at", async () => {
+    await open();
+
+    await hover(chip("summarize"));
+    expect(tooltip()).toBeNull();
+  });
+
+  it("reuses the loaded catalog when the editor opens again", async () => {
+    await open();
+    view.unmount();
+    view = mount();
+
+    view.render(<AgentEditModal agentId="planner" nodes={nodes} edges={edges} onSave={() => {}} onClose={() => {}} />);
+
+    expect(unchecked()).toContain("summarize");
+    expect(getCapabilities).toHaveBeenCalledTimes(1);
   });
 
   it("warns when adding a verb no rule looks at", async () => {
@@ -64,10 +94,25 @@ describe("AgentEditModal — verbs no rule looks at", () => {
   });
 
   it("keeps a single list per row when the catalog can't be loaded", async () => {
-    vi.mocked(getCapabilities).mockRejectedValue(new Error("offline"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getCapabilities).mockRejectedValueOnce(new Error("offline"));
     await open();
 
+    expect(consoleError).toHaveBeenCalledWith("[ERROR]", "Capability catalog failed", expect.any(Error));
     expect(unchecked()).toBe("");
     expect(chip("summarize")).toBeDefined();
+  });
+
+  it("asks for the catalog again after a failure", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getCapabilities).mockRejectedValueOnce(new Error("offline"));
+    await open();
+    view.unmount();
+    view = mount();
+
+    await open();
+
+    expect(getCapabilities).toHaveBeenCalledTimes(2);
+    expect(unchecked()).toContain("summarize");
   });
 });

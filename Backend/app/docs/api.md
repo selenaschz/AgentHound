@@ -62,10 +62,12 @@ lists). `declare` holds alternative options, any one of which unlocks the rule;
 each option is a list of requirements that must all hold, and each requirement
 names the `node_type` the property goes on, the `property` and the `values`
 that trigger the rule (any one of them; for a list property, the list must
-contain it). `properties` is the property names in `declare`, in order. These
-are always absent for the generic format, which covers
-the full rule catalog. They depend only on the framework, so they're also
-returned for analyses saved before the field existed.
+contain it). `properties` is the property names in `declare`, in order. Once
+the analysis has run, a `needs_declaration` entry is left out if any of its
+rules fired: the file already has the declaration. These are always absent for
+the generic format, which covers the full rule catalog. They're computed from
+the framework and the findings on every read, so they're also returned for
+analyses saved before the field existed.
 
 Then come the file's own `ignored_property` entries: a key on a framework node
 that looks like a property declaration but was dropped, either a near-miss of a

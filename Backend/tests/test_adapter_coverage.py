@@ -19,7 +19,7 @@ from app.core.catalogs import (
     node_property_catalog,
     rule_catalog,
 )
-from app.core.coverage import coverage_warnings
+from app.core.coverage import analysis_warnings, coverage_warnings
 from app.core.ir.models import NodeType, SourceFramework
 from app.core.parser.adapters._common import declarable_properties
 from app.core.pipeline import analyze_text
@@ -130,6 +130,24 @@ def test_needs_declaration_rules_depend_on_the_declaration(framework):
     assert not still_firing, sorted(still_firing)
 
 
+@pytest.mark.parametrize("framework", FRAMEWORKS, ids=lambda f: f.value)
+def test_a_declaration_in_effect_is_not_asked_for(framework):
+    # Once a needs_declaration rule fires, the file has the declaration: the
+    # entry goes. Without the declarations, the entries stay.
+    def asked(text: str) -> set[str]:
+        result = analyze_text(text)
+        warnings = analysis_warnings(result.ir, result.findings)
+        return {r for w in warnings if w["kind"] == "needs_declaration" for r in w["rules"]}
+
+    declared = fixture_text(f"coverage_{framework.value}.yaml")
+    assert asked(declared) == set()
+    expected = _gap_rules(framework, "needs_declaration")
+    if framework == SourceFramework.DIFY:
+        # The stripped fixture keeps the answer node's `boundary: external`.
+        expected -= {"FH-004", "FH-034"}
+    assert asked(_strip_declarations(declared)) == expected
+
+
 def test_generic_has_no_warnings():
     assert coverage_warnings(SourceFramework.GENERIC) == []
 
@@ -180,7 +198,10 @@ def test_api_returns_warnings_on_parse_detail_and_analyze():
     assert client.get(f"/analyses/{analysis_id}").json()["warnings"] == expected
     analyzed = client.post(f"/analyses/{analysis_id}/analyze")
     assert analyzed.status_code == 200, analyzed.text
-    assert analyzed.json()["warnings"] == expected
+    # The fixture declares everything, so once analysed only the gaps remain.
+    not_expressible = [w for w in expected if w["kind"] == "not_expressible"]
+    assert analyzed.json()["warnings"] == not_expressible
+    assert client.get(f"/analyses/{analysis_id}").json()["warnings"] == not_expressible
 
 
 def test_api_appends_ignored_property_warnings_after_coverage():

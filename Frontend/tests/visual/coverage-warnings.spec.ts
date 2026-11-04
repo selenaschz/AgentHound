@@ -37,6 +37,17 @@ test.describe("Coverage warnings", () => {
     await expect(warnings(page)).toHaveScreenshot("coverage-warnings-expanded.png");
   });
 
+  test("explains each rule with the backend's message in English", async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: "agenthound-lang", value: "en", url: baseURL! }]);
+    await openResults(page);
+    await header(page).click();
+
+    await expect(warnings(page)).toContainText("FH-015: No adapter emits the interpretIntent verb.");
+    await expect(warnings(page)).toContainText("FH-025: Declare boundary: external (or trust_level: untrusted)");
+    await expect(warnings(page).locator("code", { hasText: "trust_level: trusted_core" })).toBeVisible();
+    await expect(warnings(page)).toHaveScreenshot("coverage-warnings-expanded-en.png");
+  });
+
   test("reads in dark mode", async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("colorScheme", "dark"));
     await openResults(page);

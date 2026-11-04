@@ -92,3 +92,52 @@ test.describe("Large graph fit", () => {
     await expectWholeGraphVisible(page);
   });
 });
+
+const minimap = (page: Page) => canvas(page).locator(".react-flow__minimap");
+const viewportTransform = (page: Page) =>
+  canvas(page).locator(".react-flow__viewport").evaluate((el) => getComputedStyle(el).transform);
+
+test.describe("Large graph overview map", () => {
+  test("draws every node of a large graph in the overview map", async ({ page }) => {
+    await expectWholeGraphVisible(page);
+
+    await expect(minimap(page)).toBeVisible();
+    await expect(minimap(page).locator(".react-flow__minimap-node")).toHaveCount(graph.nodes.length + BRANCHES * 2);
+    await settledZoom(page);
+    await expect(minimap(page)).toHaveScreenshot("minimap-large-graph.png");
+  });
+
+  test("frames the visible part of the graph once zoomed in", async ({ page }) => {
+    await expectWholeGraphVisible(page);
+    await canvas(page).hover();
+    await page.mouse.wheel(0, -1200);
+    await settledZoom(page);
+
+    await expect(minimap(page)).toHaveScreenshot("minimap-zoomed-in.png");
+  });
+
+  test("reads in dark mode", async ({ page }) => {
+    await page.evaluate(() => localStorage.setItem("colorScheme", "dark"));
+    await page.reload();
+    await expectWholeGraphVisible(page);
+    await settledZoom(page);
+
+    await expect(minimap(page)).toHaveScreenshot("minimap-large-graph-dark.png");
+  });
+
+  test("moves the canvas when the overview map is dragged", async ({ page }) => {
+    await expectWholeGraphVisible(page);
+    await canvas(page).hover();
+    await page.mouse.wheel(0, -1200);
+    await settledZoom(page);
+    const before = await viewportTransform(page);
+
+    const map = (await minimap(page).boundingBox())!;
+    await page.mouse.move(map.x + map.width / 2, map.y + map.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(map.x + map.width / 4, map.y + map.height / 4, { steps: 5 });
+    await page.mouse.up();
+
+    await expect.poll(() => viewportTransform(page)).not.toBe(before);
+  });
+});

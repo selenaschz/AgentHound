@@ -80,7 +80,7 @@ interface MetricRowProps {
 
 function MetricRow({ label, value, color }: MetricRowProps) {
   return (
-    <Inline space="between" alignItems="baseline">
+    <Inline space="between" alignItems="baseline" dataAttributes={{ testid: "metric-row" }}>
       <Text1 regular color={skinVars.colors.textSecondary}>{label}</Text1>
       <Text1 medium color={color}>{value}</Text1>
     </Inline>
@@ -334,6 +334,16 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
     const all = result?.findings ?? [];
     return [all.filter((f) => broken.has(f.id)), all.filter((f) => !broken.has(f.id))];
   }, [result]);
+  const findingGroups = useMemo(
+    () =>
+      (["attack", "hygiene"] as const)
+        .map((cls) => {
+          const items = (result?.findings ?? []).filter((f: Finding) => f.findingClass === cls);
+          return { cls, items, patterns: groupFindings(items) };
+        })
+        .filter(({ items }) => items.length > 0),
+    [result],
+  );
 
   if (!result) {
     return <InlineError message={tCommon("error.description")} />;
@@ -341,12 +351,6 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
 
   const { counts, findings } = result;
   const sol = result.solution;
-  const findingGroups = (["attack", "hygiene"] as const)
-    .map((cls) => {
-      const items = findings.filter((f: Finding) => f.findingClass === cls);
-      return { cls, items, patterns: groupFindings(items) };
-    })
-    .filter(({ items }) => items.length > 0);
   const cardProps = {
     nodesById,
     isDarkMode,

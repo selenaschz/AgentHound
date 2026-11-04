@@ -136,9 +136,10 @@ interface FindingCardProps {
   routeHint: string;
   selected: boolean;
   onSelect?: (id: string) => void;
+  inPattern?: boolean;
 }
 
-function FindingCard({ finding, label, nodesById, isDarkMode, tSeverity, scoreLabel, routeHint, selected, onSelect }: FindingCardProps) {
+function FindingCard({ finding, label, nodesById, isDarkMode, tSeverity, scoreLabel, routeHint, selected, onSelect, inPattern = false }: FindingCardProps) {
   const accent = severityAccentColor(finding.severity, isDarkMode);
   const hasRefs = Boolean(
     finding.owaspAgentic?.length || finding.owaspLlm?.length || finding.mitre?.length,
@@ -157,9 +158,9 @@ function FindingCard({ finding, label, nodesById, isDarkMode, tSeverity, scoreLa
             <Text2 medium color={accent}>{scoreLabel}: {finding.score}</Text2>
           </Inline>
           <Stack space={4}>
-            <Text2 medium>{finding.title}</Text2>
+            {!inPattern && <Text2 medium>{finding.title}</Text2>}
             <FindingRoute path={finding.path} nodesById={nodesById} />
-            {finding.desc && <Text1 regular color={skinVars.colors.textSecondary}>{finding.desc}</Text1>}
+            {!inPattern && finding.desc && <Text1 regular color={skinVars.colors.textSecondary}>{finding.desc}</Text1>}
             {finding.evidence && Object.keys(finding.evidence).length > 0 && (
               <Inline space={4} wrap verticalSpace={4}>
                 {Object.entries(finding.evidence).map(([key, value]) => (
@@ -201,7 +202,7 @@ function FindingCard({ finding, label, nodesById, isDarkMode, tSeverity, scoreLa
   );
 }
 
-interface FindingPatternCardProps extends Omit<FindingCardProps, "finding" | "label" | "selected" | "onSelect"> {
+interface FindingPatternCardProps extends Omit<FindingCardProps, "finding" | "label" | "selected" | "onSelect" | "inPattern"> {
   pattern: FindingPattern<Finding>;
   title: string;
   labelById: Map<string, string>;
@@ -266,6 +267,7 @@ function FindingPatternCard({ pattern, title, labelById, selectedFindingId, onSe
                       label={labelById.get(f.id) ?? f.ruleId}
                       selected={f.id === selectedFindingId}
                       onSelect={f.path.length > 0 ? onSelect : undefined}
+                      inPattern
                     />
                   ))}
                   {count > VISIBLE_OCCURRENCES && (

@@ -62,6 +62,13 @@ describe("ResultsStep — finding patterns", () => {
     expect(cardFor("FH-001 #1")).toBeUndefined();
   });
 
+  it("leaves the cause's title to the pattern card, not to each occurrence", () => {
+    press(occurrencesToggle());
+
+    expect(cardFor("FH-001 #1")!.textContent).not.toContain("Datos sensibles alcanzables");
+    expect(cardFor("FH-004")!.textContent).toContain("Escritura en logs");
+  });
+
   it("marks a folded cause that holds the graph's selection", () => {
     act(() => graph.props?.onSelectFinding("f2"));
 

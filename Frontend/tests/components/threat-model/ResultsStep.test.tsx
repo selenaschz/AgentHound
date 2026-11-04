@@ -25,15 +25,52 @@ beforeEach(() => {
 
 afterEach(() => view.unmount());
 
+const toggles = () => Array.from(view.container.querySelectorAll<HTMLElement>("[aria-expanded]"));
+const attackHeader = () => toggles().find((el) => el.textContent?.includes("ataque"))!;
+const occurrencesToggle = () => toggles().find((el) => el.textContent?.includes("ocurrencias"))!;
+const pattern = () => view.container.querySelector("[data-testid=finding-pattern]");
+
 function openAttackGroup() {
-  const header = Array.from(view.container.querySelectorAll("[aria-expanded]")).find((el) =>
-    el.textContent?.includes("ataque"),
-  );
-  press(header!);
+  press(attackHeader());
+  press(occurrencesToggle());
 }
 
-const cards = () => Array.from(view.container.querySelectorAll<HTMLButtonElement>("button[aria-description]"));
+const cards = () => Array.from(view.container.querySelectorAll<HTMLButtonElement>("[data-testid=finding-card]"));
 const cardFor = (label: string) => cards().find((b) => b.textContent?.includes(label));
+
+describe("ResultsStep — finding patterns", () => {
+  beforeEach(() => press(attackHeader()));
+
+  it("counts causes, not occurrences, in the group header", () => {
+    expect(attackHeader().textContent).toContain("2 causas");
+  });
+
+  it("folds the occurrences of one cause into a single card", () => {
+    expect(pattern()!.textContent).toContain("2 hallazgos");
+    expect(pattern()!.textContent).toContain("Datos sensibles alcanzables desde entrada no confiable desde Email entrante");
+    expect(cardFor("FH-001 #1")).toBeUndefined();
+    expect(cardFor("FH-004")).toBeDefined();
+  });
+
+  it("lists every occurrence with its own label once expanded, and folds them back", () => {
+    press(occurrencesToggle());
+    expect(occurrencesToggle().getAttribute("aria-expanded")).toBe("true");
+    expect(cardFor("FH-001 #1")).toBeDefined();
+    expect(cardFor("FH-001 #2")).toBeDefined();
+
+    press(occurrencesToggle());
+    expect(cardFor("FH-001 #1")).toBeUndefined();
+  });
+
+  it("marks a folded cause that holds the graph's selection", () => {
+    act(() => graph.props?.onSelectFinding("f2"));
+
+    expect(occurrencesToggle().getAttribute("aria-description")).toBe("Contiene el hallazgo seleccionado");
+    press(occurrencesToggle());
+    expect(occurrencesToggle().hasAttribute("aria-description")).toBe(false);
+    expect(cardFor("FH-001 #2")!.getAttribute("aria-current")).toBe("true");
+  });
+});
 
 describe("ResultsStep — finding cards", () => {
   it("labels duplicate rules with an ordinal and shows each route", () => {
@@ -99,7 +136,7 @@ describe("ResultsStep — resolved findings", () => {
             remediation: [],
             beforeAfter: {
               before: { findingCount: 4, criticalCount: 2, maxScore: 9.1, riskScoreTotal: 27.4 },
-              after: { findingCount: 0, criticalCount: 0, maxScore: 0, riskReductionPct: 100 },
+              after: { findingCount: 0, criticalCount: 0, maxScore: 0, riskReductionPct: 100, riskReductionByGroupPct: 80 },
             },
             nodes,
             edges,
@@ -127,6 +164,12 @@ describe("ResultsStep — resolved findings", () => {
       "Email entrante → Planner → Logs",
     ]));
     expect(texts).toContain("FH-001 #2");
+  });
+
+  it("shows the risk reduction with each cause counted once", () => {
+    const row = Array.from(view.container.querySelectorAll("*")).find((el) => el.textContent === "Reducción por causa-80%");
+
+    expect(row).toBeDefined();
   });
 
   it("lists only the findings the simulation broke", () => {

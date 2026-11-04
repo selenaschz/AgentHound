@@ -101,7 +101,7 @@ describe("ResultsStep — coverage warnings", () => {
   const header = () => Array.from(view.container.querySelectorAll("[aria-expanded]")).find((el) => el.textContent?.includes("Cobertura"));
 
   it("stays hidden when the analysis has no warnings", () => {
-    expect(header()).toBeUndefined();
+    expect(view.container.querySelector('[data-testid="coverage-warnings"]')).toBeNull();
   });
 
   it("summarises the rules out of reach and the ignored properties", () => {

@@ -11,6 +11,7 @@ import {
   Drawer,
   Grid,
   IconAddMoreRegular,
+  IconInformationRegular,
   IconPuzzleRegular,
   IconRobotRegular,
   Inline,
@@ -20,6 +21,7 @@ import {
   Text1,
   Text2,
   TextField,
+  Tooltip,
   skinVars,
   useScreenSize,
 } from "@telefonica/mistica";
@@ -73,20 +75,24 @@ function CatalogChip({
   if (disabled) {
     return <Tag small type="inactive">{capability}</Tag>;
   }
-  return (
+  const chip = (
     <span
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData(DND_MIME, JSON.stringify({ row, capability }));
         e.dataTransfer.effectAllowed = "copy";
       }}
-      title={rules?.length ? t("checkedBy", { rules: rules.join(", ") }) : undefined}
       style={{ display: "inline-flex", cursor: "grab" }}
     >
       <Chip small Icon={IconAddMoreRegular} onPress={onAdd}>
         {capability}
       </Chip>
     </span>
+  );
+  return rules?.length ? (
+    <Tooltip description={t("checkedBy", { rules: rules.join(", ") })} target={chip} />
+  ) : (
+    chip
   );
 }
 
@@ -316,9 +322,12 @@ function AgentEditModal({ agentId, nodes, edges, onSave, onClose }: AgentEditMod
                       {t("addingCapability", { capability: pending.capability, row: t(pending.row) })}
                     </Text1>
                     {isUnchecked(pending.capability) && (
-                      <Text1 regular color={skinVars.colors.warning}>
-                        {t("uncheckedVerbNote", { capability: pending.capability })}
-                      </Text1>
+                      <Inline space={8}>
+                        <IconInformationRegular size={16} color={skinVars.colors.neutralHigh} />
+                        <Text1 regular color={skinVars.colors.textSecondary}>
+                          {t("uncheckedVerbNote", { capability: pending.capability })}
+                        </Text1>
+                      </Inline>
                     )}
                     {pending.row === "delegatesTo" ? (
                       <Select

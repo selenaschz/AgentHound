@@ -7,6 +7,7 @@ import {
   BackgroundVariant,
   ControlButton,
   Controls,
+  MiniMap,
   Panel,
   ReactFlow,
   ReactFlowProvider,
@@ -66,6 +67,7 @@ export interface CyberGraphProps {
     playRoute: (label: string) => string;
     stop: string;
     fit: string;
+    minimap: string;
     fullscreen: string;
     exitFullscreen: string;
     viewFindings: string;
@@ -120,6 +122,7 @@ const MAX_ZOOM = 2.5;
 // Fitting ignores the zoom floor, otherwise large graphs never fit whole.
 const FIT_OPTIONS = { padding: 0.08, minZoom: 0 };
 const ROUTE_FIT_OPTIONS = { padding: 0.3, minZoom: 0, maxZoom: 1.2 };
+const MINIMAP_MIN_NODES = 15;
 const TOOLBAR_CLEARANCE = 56;
 const TITLE_GAP = 12;
 
@@ -474,6 +477,20 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
           </ControlButton>
         </Controls>
 
+        {nodes.length >= MINIMAP_MIN_NODES && (
+          <MiniMap
+            pannable
+            zoomable
+            ariaLabel={labels.minimap}
+            className="ch-minimap"
+            bgColor={cyber.surface}
+            maskColor={cyber.overlay}
+            nodeColor={(n) => NODE_STYLE[(n as CyberNode).data.gnode.type].accent}
+            nodeStrokeWidth={0}
+            nodeBorderRadius={6}
+          />
+        )}
+
         {isFullscreen && name && (
           <Panel position="top-center" style={{ marginTop: titleClash ? TOOLBAR_CLEARANCE : undefined, transition: "margin-top .2s ease" }}>
             <div ref={titleRef} style={fullscreenTitleBox} title={name} data-testid="fullscreen-title">
@@ -793,6 +810,7 @@ const CYBER_CSS = `
 .ch-controls button { background: ${cyber.surface}; border-bottom: 1px solid ${cyber.laneBorder}; color: ${cyber.textPrimary}; }
 .ch-controls button:hover { background: ${cyber.surfaceHover}; }
 .ch-controls button svg { fill: ${cyber.textPrimary}; }
+.ch-minimap { border: 1px solid ${cyber.laneBorder}; border-radius: 8px; overflow: hidden; }
 
 /* ---- agent "reactor core" hero node -------------------------------------- */
 @property --ch-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }

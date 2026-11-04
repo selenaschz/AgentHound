@@ -235,6 +235,17 @@
     "isolateError": "Couldn't load this finding's route.",
     "chokepointTitle": "Recommended choke point",
     "chokepointDesc": "Apply {control} on {node} — eliminates {pct}% of the risk (cost: {cost})",
+    "coverage": {
+      "title": "Partial rule coverage",
+      "rulesSummary": "{count, plural, one {# rule with limited reach} other {# rules with limited reach}} in this format",
+      "ignoredSummary": "{count, plural, one {# property ignored} other {# properties ignored}}",
+      "unreachableTitle": "Rules this format can't trigger",
+      "declarableTitle": "Rules that fire once the file declares a property",
+      "declarable": "{rules}: declare {properties}",
+      "ignoredTitle": "Ignored properties",
+      "ignored": "{property} on “{node}” isn't read on this node type",
+      "ignoredWithSuggestion": "{property} on “{node}” isn't a known property; did you mean {suggestion}?"
+    },
     "metricsTitleFindings": "Risk Metrics",
     "metricsTitleSolution": "Post-remediation Metrics",
     "before": "Before",

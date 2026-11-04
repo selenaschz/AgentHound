@@ -38,6 +38,7 @@ import {
   useTheme,
 } from "@telefonica/mistica";
 import type { IconProps } from "@telefonica/mistica";
+import CoverageWarnings from "@/components/threat-model/CoverageWarnings";
 import { FindingId, FindingRoute } from "@/components/threat-model/FindingIdentity";
 import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import InlineError from "@/components/ui/InlineError";
@@ -271,6 +272,8 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
           })}
         </Text2>
       </Stack>
+
+      {result.warnings.length > 0 && <CoverageWarnings warnings={result.warnings} />}
 
       <Tabs
         selectedIndex={tab}

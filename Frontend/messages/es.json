@@ -235,6 +235,17 @@
     "isolateError": "No se pudo cargar la ruta de este hallazgo.",
     "chokepointTitle": "Punto de control recomendado",
     "chokepointDesc": "Aplica {control} en {node} — elimina el {pct}% del riesgo (coste: {cost})",
+    "coverage": {
+      "title": "Cobertura parcial de reglas",
+      "rulesSummary": "{count, plural, one {# regla con alcance limitado} other {# reglas con alcance limitado}} en este formato",
+      "ignoredSummary": "{count, plural, one {# propiedad ignorada} other {# propiedades ignoradas}}",
+      "unreachableTitle": "Reglas que este formato no puede disparar",
+      "declarableTitle": "Reglas que se disparan si el fichero declara una propiedad",
+      "declarable": "{rules}: declara {properties}",
+      "ignoredTitle": "Propiedades ignoradas",
+      "ignored": "{property} en «{node}» no se lee en este tipo de nodo",
+      "ignoredWithSuggestion": "{property} en «{node}» no es una propiedad conocida; ¿querías decir {suggestion}?"
+    },
     "metricsTitleFindings": "Métricas de riesgo",
     "metricsTitleSolution": "Métricas post-remediación",
     "before": "Antes",

@@ -14,14 +14,12 @@ import {
   skinVars,
   useTheme,
 } from "@telefonica/mistica";
-import { groupFindings, routeSummary, type FindingPattern } from "@/lib/results/findingDisplay";
+import { groupFindings, routeSummary, VISIBLE_OCCURRENCES, type FindingPattern } from "@/lib/results/findingDisplay";
+import { usePatternTitle, type NodesById } from "@/lib/results/usePatternTitle";
 import { severityAccentColor } from "@/lib/threatModelColors";
-import type { Finding, GraphNode } from "@/types/ThreatModel";
+import type { Finding } from "@/types/ThreatModel";
 
 export const VISIBLE_GROUPS = 5;
-export const VISIBLE_OCCURRENCES = 10;
-
-type NodesById = Map<string, Pick<GraphNode, "label" | "type">>;
 
 interface PrioritizedFindingsProps {
   findings: Finding[];
@@ -40,16 +38,6 @@ const rowStyle = (highlighted: boolean) => ({
 
 function capped<T>(items: T[], limit: number, holdsSelection: (item: T) => boolean): T[] {
   return items.filter((item, i) => i < limit || holdsSelection(item));
-}
-
-function usePatternTitle(nodesById: NodesById) {
-  const t = useTranslations("results");
-  return (finding: Finding) => {
-    const anchorId = finding.groupAnchor;
-    if (!anchorId) return finding.title;
-    const key = nodesById.get(anchorId)?.type === "input" ? "findingGroupFrom" : "findingGroupAt";
-    return t(key, { title: finding.title, node: routeSummary([anchorId], nodesById) });
-  };
 }
 
 interface FindingRowProps {

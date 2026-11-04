@@ -2,6 +2,8 @@
 
 import type { Finding, GraphNode } from "@/types/ThreatModel";
 
+export const VISIBLE_OCCURRENCES = 10;
+
 export function findingLabels(findings: Pick<Finding, "id" | "ruleId">[]): Map<string, string> {
   const totals = new Map<string, number>();
   findings.forEach((f) => totals.set(f.ruleId, (totals.get(f.ruleId) ?? 0) + 1));

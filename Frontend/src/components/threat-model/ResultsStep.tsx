@@ -44,7 +44,7 @@ import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import InlineError from "@/components/ui/InlineError";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import { formatSnakeCase, formatValue } from "@/lib/format";
-import { findingLabels, groupFindings, VISIBLE_OCCURRENCES, type FindingPattern } from "@/lib/results/findingDisplay";
+import { capped, findingLabels, groupFindings, VISIBLE_OCCURRENCES, type FindingPattern } from "@/lib/results/findingDisplay";
 import { usePatternTitle } from "@/lib/results/usePatternTitle";
 import { SEVERITY_STYLES } from "@/lib/severity";
 import type { AnalysisResult, ChokepointRec } from "@/lib/api/adapters";
@@ -216,11 +216,8 @@ function FindingPatternCard({ pattern, title, labelById, selectedFindingId, onSe
   const [showAll, setShowAll] = useState(false);
   const [top] = pattern.findings;
   const count = pattern.findings.length;
-  const maxScore = Math.max(...pattern.findings.map((f) => f.score));
   const holdsSelection = !expanded && pattern.findings.some((f) => f.id === selectedFindingId);
-  const visible = showAll
-    ? pattern.findings
-    : pattern.findings.filter((f, i) => i < VISIBLE_OCCURRENCES || f.id === selectedFindingId);
+  const visible = showAll ? pattern.findings : capped(pattern.findings, VISIBLE_OCCURRENCES, (f) => f.id === selectedFindingId);
   return (
     <div
       data-testid="finding-pattern"
@@ -240,7 +237,7 @@ function FindingPatternCard({ pattern, title, labelById, selectedFindingId, onSe
                 <Tag type="inactive" small>{t("findingGroupCount", { count })}</Tag>
                 <Tag type="inactive" small>{formatSnakeCase(top.category)}</Tag>
               </Inline>
-              <Text2 medium color={severityAccentColor(top.severity, cardProps.isDarkMode)}>{cardProps.scoreLabel}: {maxScore}</Text2>
+              <Text2 medium color={severityAccentColor(top.severity, cardProps.isDarkMode)}>{cardProps.scoreLabel}: {top.score}</Text2>
             </Inline>
             <Stack space={4}>
               <Text2 medium>{title}</Text2>

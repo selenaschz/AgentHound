@@ -14,8 +14,8 @@ import {
   skinVars,
   useTheme,
 } from "@telefonica/mistica";
-import { groupFindings, routeSummary, VISIBLE_OCCURRENCES, type FindingPattern } from "@/lib/results/findingDisplay";
-import { usePatternTitle, type NodesById } from "@/lib/results/usePatternTitle";
+import { capped, groupFindings, routeSummary, VISIBLE_OCCURRENCES, type FindingPattern, type NodesById } from "@/lib/results/findingDisplay";
+import { usePatternTitle } from "@/lib/results/usePatternTitle";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import type { Finding } from "@/types/ThreatModel";
 
@@ -35,10 +35,6 @@ const rowStyle = (highlighted: boolean) => ({
   borderRadius: skinVars.borderRadii.container,
   background: highlighted ? skinVars.colors.brandLow : undefined,
 });
-
-function capped<T>(items: T[], limit: number, holdsSelection: (item: T) => boolean): T[] {
-  return items.filter((item, i) => i < limit || holdsSelection(item));
-}
 
 interface FindingRowProps {
   finding: Finding;

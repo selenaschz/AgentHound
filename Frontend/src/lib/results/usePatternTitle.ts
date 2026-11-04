@@ -1,8 +1,6 @@
 import { useTranslations } from "next-intl";
-import { routeSummary } from "@/lib/results/findingDisplay";
-import type { Finding, GraphNode } from "@/types/ThreatModel";
-
-export type NodesById = Map<string, Pick<GraphNode, "label" | "type">>;
+import { routeSummary, type NodesById } from "@/lib/results/findingDisplay";
+import type { Finding } from "@/types/ThreatModel";
 
 export function usePatternTitle(nodesById: NodesById) {
   const t = useTranslations("results");

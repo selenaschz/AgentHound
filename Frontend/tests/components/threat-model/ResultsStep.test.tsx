@@ -123,8 +123,13 @@ describe("ResultsStep — coverage warnings", () => {
   it("titles a file with only ignored properties after them", () => {
     view.render(<ResultsStep result={{ ...result, warnings: warnings.slice(3) }} />);
 
-    expect(header()).toBeUndefined();
-    expect(view.container.textContent).toContain("1 propiedad ignorada");
+    const box = view.container.querySelector('[data-testid="coverage-warnings"]')!;
+    const title = box.querySelector("[aria-expanded]")!;
+    expect(title.textContent).toContain("Propiedades ignoradas");
+    expect(title.textContent).toContain("1 propiedad ignorada");
+
+    press(title);
+    expect(box.textContent!.split("Propiedades ignoradas")).toHaveLength(2);
   });
 });
 

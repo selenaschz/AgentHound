@@ -52,7 +52,7 @@ function CoverageWarnings({ warnings }: CoverageWarningsProps) {
             )}
             {ignored.length > 0 && (
               <Stack space={4}>
-                <Text2 medium>{t("ignoredTitle")}</Text2>
+                {ruleCount > 0 && <Text2 medium>{t("ignoredTitle")}</Text2>}
                 {ignored.map((w, i) => {
                   const values = { property: w.properties.join(", "), node: w.node ?? "" };
                   return (

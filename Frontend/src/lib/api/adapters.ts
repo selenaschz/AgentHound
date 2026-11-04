@@ -33,6 +33,7 @@ import type {
   BackendGraphNode,
   BackendSummary,
   ControlRecommendation,
+  CoverageWarning,
   CreateAnalysisResponse,
   FindingDetailResponse,
   FindingsResponse,
@@ -403,6 +404,7 @@ export interface AnalysisResult {
   nodes: GraphNode[];
   edges: GraphEdge[];
   attacks: Attack[];
+  warnings: CoverageWarning[];
   /** Populated once the Phase 2 recommend + simulate calls resolve; null while
    * loading or if they fail (the Findings tab stays usable either way). */
   solution: SolutionResult | null;
@@ -439,6 +441,7 @@ export function toAnalysisResult(
     nodes: toGraphNodes(graph.nodes),
     edges: toGraphEdges(graph.edges),
     attacks: attacksFromFindings(findings),
+    warnings: create.warnings,
     solution: null,
   };
 }

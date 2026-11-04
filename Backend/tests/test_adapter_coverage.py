@@ -12,7 +12,13 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.catalogs import adapter_coverage_catalog, rule_catalog
+from app.core.catalogs import (
+    adapter_coverage_catalog,
+    capabilities,
+    default_properties,
+    node_property_catalog,
+    rule_catalog,
+)
 from app.core.coverage import coverage_warnings
 from app.core.ir.models import NodeType, SourceFramework
 from app.core.parser.adapters._common import declarable_properties
@@ -62,15 +68,35 @@ def test_catalog_entries_are_well_formed():
         assert gap["rules"] and set(gap["rules"]) <= rules, gap
         assert gap["frameworks"] and set(gap["frameworks"]) <= valid, gap
         assert str(gap["message"]).strip(), gap
-        # needs_declaration names its properties so a client can render its own
-        # text; each one must be a real property and appear in the message.
+        # coverage_warnings derives properties from declare.
+        assert "properties" not in gap, gap
         if gap["kind"] == "needs_declaration":
-            assert gap["properties"], gap
-            for prop in gap["properties"]:
-                assert any(prop in declarable_properties(t) for t in NodeType), (gap, prop)
-                assert f"`{prop}" in gap["message"], (gap, prop)
+            assert gap["declare"], gap
+            for option in gap["declare"]:
+                assert option, gap
+                for requirement in option:
+                    _assert_declarable(gap, requirement)
         else:
-            assert not gap.get("properties"), gap
+            assert "declare" not in gap, gap
+
+
+def _assert_declarable(gap: dict, requirement: dict) -> None:
+    """The requirement names a property its node type accepts, with values the
+    property can take, so the catalog can't drift from the adapters."""
+    assert set(requirement) == {"node_type", "property", "values"}, (gap, requirement)
+    node_type = NodeType(requirement["node_type"])
+    prop, values = requirement["property"], requirement["values"]
+    assert prop in declarable_properties(node_type), (gap, requirement)
+    assert values, (gap, requirement)
+    # The message is the English rendering of the same declaration.
+    assert f"`{prop}" in gap["message"], (gap, prop)
+    enum = node_property_catalog()["enums"].get(prop)
+    if enum:
+        assert set(values) <= set(enum), (gap, requirement)
+    if prop == "capability_kinds":
+        assert set(values) <= capabilities(), (gap, requirement)
+    if isinstance(default_properties(node_type.value).get(prop), bool):
+        assert all(isinstance(v, bool) for v in values), (gap, requirement)
 
 
 def test_a_rule_is_not_both_expressible_and_not_for_one_framework():
@@ -108,10 +134,32 @@ def test_warnings_carry_kind_rules_properties_and_one_line_message():
     warnings = coverage_warnings(SourceFramework.CREWAI)
     assert warnings
     for warning in warnings:
-        assert set(warning) == {"kind", "rules", "message", "properties"}
+        expected = {"kind", "rules", "message", "properties"}
+        if warning["kind"] == "needs_declaration":
+            expected.add("declare")
+        assert set(warning) == expected
         assert "\n" not in warning["message"]
     declared = {r for w in warnings if w["kind"] == "needs_declaration" for r in w["rules"]}
     assert {"FH-012", "FH-017", "FH-025", "FH-026"} <= declared
+
+
+def test_declare_carries_node_type_values_and_grouping():
+    # FH-017 needs both properties, on different node types; FH-013 takes
+    # either value. properties is derived from declare.
+    by_rule = {w["rules"][0]: w for w in coverage_warnings(SourceFramework.CREWAI)}
+    fh_017, fh_013 = by_rule["FH-017"], by_rule["FH-013"]
+    assert fh_017["properties"] == ["exposure_boundary", "authentication_scope"]
+    assert fh_017["declare"] == [
+        [
+            {"node_type": "agent", "property": "exposure_boundary", "values": ["external"]},
+            {"node_type": "tool", "property": "authentication_scope", "values": ["elevated"]},
+        ]
+    ]
+    assert fh_013["properties"] == ["recipient_type"]
+    assert fh_013["declare"] == [
+        [{"node_type": "output", "property": "recipient_type", "values": ["public_channel", "broadcast"]}],
+    ]
+    assert by_rule["FH-006"]["properties"] == [] and "declare" not in by_rule["FH-006"]
 
 
 def test_api_returns_warnings_on_parse_detail_and_analyze():

@@ -10,7 +10,8 @@
 /** A rule the uploaded file's framework can't reach, or only reaches once the
  * file declares a property (`catalogs/adapter_coverage.yaml`).
  * `not_expressible`: the adapter can't produce the shape the rule needs.
- * `needs_declaration`: `properties` lists the properties to declare.
+ * `needs_declaration`: `declare` says what to declare; `properties` lists the
+ * property names in it.
  * `ignored_property`: a key in the file that looks like a declaration (a typo,
  * or a property of another node type) was dropped; `rules` is empty.
  * Always empty for the generic format. `message` is English; build translated
@@ -20,11 +21,23 @@ export interface CoverageWarning {
   rules: string[];
   properties: string[];
   message: string;
+  /** `needs_declaration` only: alternative options, any one of which unlocks
+   * the rules; each is a list of requirements that must all hold. */
+  declare?: DeclarationRequirement[][];
   /** `ignored_property` only: the node the key was on. */
   node?: string;
   node_type?: string;
   /** `ignored_property` only: the property the key resembles, if any. */
   suggestion?: string | null;
+}
+
+/** One property to declare for a `needs_declaration` warning: on a node of
+ * `node_type`, set `property` to any one of `values` (for a list property,
+ * include one of them). */
+export interface DeclarationRequirement {
+  node_type: string;
+  property: string;
+  values: (string | boolean)[];
 }
 
 /** Summary block returned by `POST /analyses` (spec section 12.1). */

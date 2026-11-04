@@ -22,20 +22,27 @@ from .ir.models import AnalysisIR, SourceFramework
 def coverage_warnings(framework: SourceFramework) -> list[dict[str, Any]]:
     """``{kind, rules, message, properties}`` per gap that applies to ``framework``.
 
-    ``properties`` lists the property names a ``needs_declaration`` entry asks
-    for, so a client can render its own (translated) text instead of
-    ``message``. It's empty for ``not_expressible``.
+    A ``needs_declaration`` entry also carries ``declare``: alternative options,
+    each a list of ``{node_type, property, values}`` requirements, so a client
+    can render its own (translated) text instead of ``message``. ``properties``
+    is the property names in ``declare``, in order; it's empty for
+    ``not_expressible``.
     """
-    return [
-        {
+    warnings = []
+    for gap in adapter_coverage_catalog():
+        if framework.value not in gap.get("frameworks", []):
+            continue
+        declare = [[dict(req) for req in option] for option in gap.get("declare") or []]
+        warning: dict[str, Any] = {
             "kind": gap["kind"],
             "rules": list(gap["rules"]),
             "message": " ".join(str(gap["message"]).split()),
-            "properties": list(gap.get("properties") or []),
+            "properties": list(dict.fromkeys(req["property"] for option in declare for req in option)),
         }
-        for gap in adapter_coverage_catalog()
-        if framework.value in gap.get("frameworks", [])
-    ]
+        if gap["kind"] == "needs_declaration":
+            warning["declare"] = declare
+        warnings.append(warning)
+    return warnings
 
 
 def analysis_warnings(ir: AnalysisIR) -> list[dict[str, Any]]:

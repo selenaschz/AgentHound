@@ -3,7 +3,7 @@ import { act, type ComponentProps } from "react";
 import ResultsStep from "@/components/threat-model/ResultsStep";
 import type CapabilityGraph from "@/components/threat-model/CapabilityGraph";
 import { mount, press } from "../test-utils";
-import { edges, nodes, result } from "./fixtures";
+import { edges, findings, nodes, result } from "./fixtures";
 
 type GraphProps = ComponentProps<typeof CapabilityGraph>;
 
@@ -76,6 +76,37 @@ describe("ResultsStep — finding patterns", () => {
     press(occurrencesToggle());
     expect(occurrencesToggle().hasAttribute("aria-description")).toBe(false);
     expect(cardFor("FH-001 #2")!.getAttribute("aria-current")).toBe("true");
+  });
+});
+
+describe("ResultsStep — a cause with many occurrences", () => {
+  const many = Array.from({ length: 12 }, (_, i) => ({ ...findings[0]!, id: `o${i + 1}` }));
+  const moreToggle = () => toggles().find((el) => el.textContent?.includes("más") || el.textContent?.includes("primeros"))!;
+
+  beforeEach(() => {
+    view.render(<ResultsStep result={{ ...result, findings: many }} />);
+    press(attackHeader());
+  });
+
+  it("caps the unfolded occurrences and shows the rest on demand", () => {
+    press(occurrencesToggle());
+    expect(cards()).toHaveLength(10);
+    expect(moreToggle().textContent).toBe("Ver 2 más");
+
+    press(moreToggle());
+    expect(cards()).toHaveLength(12);
+
+    press(moreToggle());
+    expect(cards()).toHaveLength(10);
+  });
+
+  it("keeps a selected occurrence past the cap visible", () => {
+    act(() => graph.props?.onSelectFinding("o12"));
+    press(occurrencesToggle());
+
+    expect(cards()).toHaveLength(11);
+    expect(cardFor("FH-001 #12")!.getAttribute("aria-current")).toBe("true");
+    expect(moreToggle().textContent).toBe("Ver 1 más");
   });
 });
 
@@ -174,9 +205,9 @@ describe("ResultsStep — resolved findings", () => {
   });
 
   it("shows the risk reduction with each cause counted once", () => {
-    const row = Array.from(view.container.querySelectorAll("*")).find((el) => el.textContent === "Reducción por causa-80%");
+    const rows = Array.from(view.container.querySelectorAll("[data-testid=metric-row]"), (el) => el.textContent);
 
-    expect(row).toBeDefined();
+    expect(rows).toContain("Reducción por causa-80%");
   });
 
   it("lists only the findings the simulation broke", () => {

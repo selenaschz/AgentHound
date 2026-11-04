@@ -17,8 +17,14 @@
 # option is a list of requirements that must all hold. A requirement names the
 # `node_type` the property goes on (as in the IR), the `property` and the
 # `values` that trigger the rule (any one of them; for a list property, the
-# list contains it). `message` says the same in English for humans; the
-# structured form lets a client render its own text.
+# list contains it). An optional `role` narrows which node of that type:
+#   delegate   the agent another agent delegates to
+#   reachable  a tool the agent of the same option can reach
+#   read       the data asset the agent reads
+#   sent_to    the output the agent sends or writes to
+#   shared     memory that more than one agent uses
+# `message` says the same in English for humans; the structured form lets a
+# client render its own text.
 #
 # Only format limits belong here. A rule that the adapter can reach but a given
 # file happens not to trigger is not a gap. Pinned by
@@ -87,7 +93,7 @@ gaps:
     frameworks: [crewai, dify, langgraph]
     rules: [FH-013]
     declare:
-      - [{ node_type: output, property: recipient_type, values: [public_channel, broadcast] }]
+      - [{ node_type: output, role: sent_to, property: recipient_type, values: [public_channel, broadcast] }]
     message: >-
       Declare `recipient_type: public_channel` (or `broadcast`) on the output
       the agent sends to.
@@ -96,7 +102,7 @@ gaps:
     frameworks: [crewai, langgraph]
     rules: [FH-014]
     declare:
-      - [{ node_type: agent, property: trust_level, values: [trusted_core] }]
+      - [{ node_type: agent, role: delegate, property: trust_level, values: [trusted_core] }]
     message: >-
       Declare `trust_level: trusted_core` on the agent named in `delegates_to`.
 
@@ -105,7 +111,7 @@ gaps:
     rules: [FH-017]
     declare:
       - - { node_type: agent, property: exposure_boundary, values: [external] }
-        - { node_type: tool, property: authentication_scope, values: [elevated] }
+        - { node_type: tool, role: reachable, property: authentication_scope, values: [elevated] }
     message: >-
       Declare `exposure_boundary: external` on the agent and
       `authentication_scope: elevated` on a tool it can reach.
@@ -116,7 +122,7 @@ gaps:
     # FH-025 also accepts trust_level: untrusted, but data assets don't take
     # trust_level in a framework file, so boundary is the only way in.
     declare:
-      - [{ node_type: data_asset, property: boundary, values: [external] }]
+      - [{ node_type: data_asset, role: read, property: boundary, values: [external] }]
     message: >-
       Declare `boundary: external` on the data asset being read.
 
@@ -132,7 +138,7 @@ gaps:
     frameworks: [dify]
     rules: [FH-004, FH-034]
     declare:
-      - [{ node_type: output, property: boundary, values: [external] }]
+      - [{ node_type: output, role: sent_to, property: boundary, values: [external] }]
     message: >-
       Answer/end nodes are internal unless declared otherwise; declare
       `boundary: external` on the one the agent writes to. Outputs created for
@@ -142,7 +148,7 @@ gaps:
     frameworks: [langgraph]
     rules: [FH-009, FH-020]
     declare:
-      - [{ node_type: memory, property: shared, values: [true] }]
+      - [{ node_type: memory, role: shared, property: shared, values: [true] }]
     message: >-
       Memory nodes are private by default; declare `shared: true` on memory
       that more than one agent uses.

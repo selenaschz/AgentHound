@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, type ComponentProps } from "react";
 import ResultsStep from "@/components/threat-model/ResultsStep";
+import type { AnalysisResult } from "@/lib/api/adapters";
 import type CapabilityGraph from "@/components/threat-model/CapabilityGraph";
 import { mount, press } from "../test-utils";
 import { edges, nodes, result } from "./fixtures";
@@ -96,45 +97,55 @@ describe("ResultsStep — coverage warnings", () => {
     expect(coverage()).toBeNull();
   });
 
-  it("lists what a framework file's format can't check, translated from the structured fields", () => {
-    view.render(
-      <ResultsStep
-        result={{
-          ...result,
-          warnings: [
-            { kind: "not_expressible", rules: ["FH-006"], properties: [], message: "No adapter passes it on." },
-            {
-              kind: "needs_declaration",
-              rules: ["FH-017"],
-              properties: ["exposure_boundary", "authentication_scope"],
-              message: "Declare `exposure_boundary: external` on the agent and ...",
-              declare: [[
-                { node_type: "agent", property: "exposure_boundary", values: ["external"] },
-                { node_type: "tool", property: "authentication_scope", values: ["elevated"] },
-              ]],
-            },
-            {
-              kind: "ignored_property",
-              rules: [],
-              properties: ["sensitivty"],
-              message: "",
-              node: "Patients",
-              node_type: "data_asset",
-              suggestion: "sensitivity",
-            },
-          ],
-        }}
-      />,
-    );
+  const warnings: AnalysisResult["warnings"] = [
+    { kind: "not_expressible", rules: ["FH-006"], properties: [], message: "No adapter passes it on." },
+    {
+      kind: "needs_declaration",
+      rules: ["FH-017"],
+      properties: ["exposure_boundary", "authentication_scope"],
+      message: "Declare `exposure_boundary: external` on the agent and ...",
+      declare: [[
+        { node_type: "agent", property: "exposure_boundary", values: ["external"] },
+        { node_type: "tool", role: "reachable", property: "authentication_scope", values: ["elevated"] },
+      ]],
+    },
+    {
+      kind: "ignored_property",
+      rules: [],
+      properties: ["sensitivty"],
+      message: "",
+      node: "Patients",
+      node_type: "data_asset",
+      suggestion: "sensitivity",
+    },
+  ];
 
-    expect(coverage()!.textContent).toContain("2 reglas que el formato de este fichero no puede comprobar del todo");
+  function openCoverage(sourceFramework: string): string {
+    view.render(<ResultsStep result={{ ...result, sourceFramework, warnings }} />);
     press(coverage()!.querySelector("[aria-expanded]")!);
+    return coverage()!.textContent ?? "";
+  }
 
-    const text = coverage()!.textContent;
+  it("lists what a framework file's format can't check, translated from the structured fields", () => {
+    const text = openCoverage("crewai");
+
+    expect(text).toContain("2 reglas que el formato de este fichero no puede comprobar del todo");
     expect(text).toContain("FH-006");
-    expect(text).toContain("Declara exposure_boundary: external en el agente y authentication_scope: elevated en la herramienta");
+    expect(text).toContain(
+      "Declara exposure_boundary: external en el agente y authentication_scope: elevated en una herramienta que ese agente pueda alcanzar",
+    );
     expect(text).toContain("sensitivty en Patients no es una propiedad conocida y se ha ignorado. ¿Querías decir sensitivity?");
     expect(text).not.toContain("Declare `exposure_boundary");
+  });
+
+  it("points other frameworks at the node's entry", () => {
+    const text = openCoverage("crewai");
+    expect(text).toContain("Añádela a la entrada del nodo");
+    expect(text).not.toContain("bloque data");
+  });
+
+  it("points Dify files at the node's data block", () => {
+    expect(openCoverage("dify")).toContain("Añádela al bloque data del nodo");
   });
 });
 

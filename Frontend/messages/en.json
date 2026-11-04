@@ -242,7 +242,8 @@
       "notExpressibleTitle": "Not reachable from this format",
       "notExpressibleDesc": "The adapter can't produce what these rules look for, whatever the file declares. Describe the system in the generic format to check them.",
       "needsDeclarationTitle": "Checked once you declare a property",
-      "needsDeclarationDesc": "Add it to the node's entry in the file (in Dify, to its data block) and analyze again.",
+      "needsDeclarationDesc": "Add it to the node's entry in the file and analyze again.",
+      "needsDeclarationDescDify": "Add it to the node's data block in the file and analyze again.",
       "declare": "Declare {what}",
       "requirement": "{property}: {values} {node}",
       "on": {
@@ -253,6 +254,13 @@
         "output": "on the output",
         "memory": "on the memory node",
         "control": "on the control"
+      },
+      "role": {
+        "delegate": "on the agent another agent delegates to",
+        "reachable": "on a tool that agent can reach",
+        "read": "on the data asset the agent reads",
+        "sent_to": "on the output the agent sends to",
+        "shared": "on memory that more than one agent uses"
       },
       "ignoredTitle": "Ignored in your file",
       "ignoredSuggestion": "{property} on {node} isn't a known property and was ignored. Did you mean {suggestion}?",

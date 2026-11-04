@@ -36,6 +36,11 @@ export interface CoverageWarning {
  * include one of them). */
 export interface DeclarationRequirement {
   node_type: string;
+  /** Which node of that type, when not any: `delegate` (the agent another
+   * agent delegates to), `reachable` (a tool the option's agent can reach),
+   * `read` (the data asset the agent reads), `sent_to` (the output the agent
+   * sends to) or `shared` (memory more than one agent uses). */
+  role?: string;
   property: string;
   values: (string | boolean)[];
 }
@@ -84,6 +89,8 @@ export interface CreateAnalysisResponse {
   status: string;
   /** Authoritative analysis name (the submitted name, or the YAML's metadata.name). */
   name: string;
+  /** Detected input format: `generic`, `crewai`, `dify` or `langgraph`. */
+  source_framework: string;
   summary: BackendSummary;
   warnings: CoverageWarning[];
 }
@@ -298,6 +305,7 @@ export interface AnalyzeResponse {
   analysis_id: string;
   status: string;
   name: string;
+  source_framework: string;
   summary: BackendSummary;
   graph: BackendGraph;
   findings: BackendFinding[];

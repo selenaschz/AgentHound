@@ -84,10 +84,22 @@ def test_catalog_entries_are_well_formed():
             assert "declare" not in gap, gap
 
 
+# The roles the catalog header documents, and the node type each one narrows.
+ROLES = {
+    "delegate": "agent",
+    "reachable": "tool",
+    "read": "data_asset",
+    "sent_to": "output",
+    "shared": "memory",
+}
+
+
 def _assert_declarable(gap: dict, requirement: dict) -> None:
     """The requirement names a property its node type accepts, with values the
     property can take, so the catalog can't drift from the adapters."""
-    assert set(requirement) == {"node_type", "property", "values"}, (gap, requirement)
+    assert set(requirement) - {"role"} == {"node_type", "property", "values"}, (gap, requirement)
+    if "role" in requirement:
+        assert ROLES.get(requirement["role"]) == requirement["node_type"], (gap, requirement)
     node_type = NodeType(requirement["node_type"])
     prop, values = requirement["property"], requirement["values"]
     assert prop in declarable_properties(node_type), (gap, requirement)
@@ -166,20 +178,21 @@ def test_warnings_carry_kind_rules_properties_and_one_line_message():
 
 
 def test_declare_carries_node_type_values_and_grouping():
-    # FH-017 needs both properties, on different node types; FH-013 takes
-    # either value. properties is derived from declare.
+    # FH-017 needs both properties, on different node types, the tool one
+    # reachable from the agent; FH-013 takes either value. properties is
+    # derived from declare.
     by_rule = {w["rules"][0]: w for w in coverage_warnings(SourceFramework.CREWAI)}
     fh_017, fh_013 = by_rule["FH-017"], by_rule["FH-013"]
     assert fh_017["properties"] == ["exposure_boundary", "authentication_scope"]
     assert fh_017["declare"] == [
         [
             {"node_type": "agent", "property": "exposure_boundary", "values": ["external"]},
-            {"node_type": "tool", "property": "authentication_scope", "values": ["elevated"]},
+            {"node_type": "tool", "role": "reachable", "property": "authentication_scope", "values": ["elevated"]},
         ]
     ]
     assert fh_013["properties"] == ["recipient_type"]
     assert fh_013["declare"] == [
-        [{"node_type": "output", "property": "recipient_type", "values": ["public_channel", "broadcast"]}],
+        [{"node_type": "output", "role": "sent_to", "property": "recipient_type", "values": ["public_channel", "broadcast"]}],
     ]
     assert by_rule["FH-006"]["properties"] == [] and "declare" not in by_rule["FH-006"]
 
@@ -193,6 +206,7 @@ def test_api_returns_warnings_on_parse_detail_and_analyze():
     body = created.json()
     expected = coverage_warnings(SourceFramework.DIFY)
     assert body["warnings"] == expected
+    assert body["source_framework"] == "dify"
 
     analysis_id = body["analysis_id"]
     assert client.get(f"/analyses/{analysis_id}").json()["warnings"] == expected
@@ -201,6 +215,7 @@ def test_api_returns_warnings_on_parse_detail_and_analyze():
     # The fixture declares everything, so once analysed only the gaps remain.
     not_expressible = [w for w in expected if w["kind"] == "not_expressible"]
     assert analyzed.json()["warnings"] == not_expressible
+    assert analyzed.json()["source_framework"] == "dify"
     assert client.get(f"/analyses/{analysis_id}").json()["warnings"] == not_expressible
 
 

@@ -286,7 +286,7 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
         <InlineError message={tCommon("error.description")} />
       ) : (
         <Stack space={32}>
-          {!solved && <CoverageWarnings warnings={result.warnings} />}
+          {!solved && <CoverageWarnings warnings={result.warnings} framework={result.sourceFramework} />}
 
           <div ref={graphSectionRef} style={{ scrollMarginTop: 16, scrollMarginBottom: 16 }}>
             <Stack space={16}>

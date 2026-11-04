@@ -43,6 +43,23 @@ describe("describeDeclare", () => {
     );
   });
 
+  it("names the node by its role when the requirement has one", () => {
+    const declare = [[
+      { node_type: "agent", property: "exposure_boundary", values: ["external"] },
+      { node_type: "tool", role: "reachable", property: "authentication_scope", values: ["elevated"] },
+    ]];
+    expect(describeDeclare(declare, tEn, "en")).toBe(
+      "exposure_boundary: external on the agent and authentication_scope: elevated on a tool that agent can reach",
+    );
+    const fh014 = [[{ node_type: "agent", role: "delegate", property: "trust_level", values: ["trusted_core"] }]];
+    expect(describeDeclare(fh014, tEs, "es")).toBe("trust_level: trusted_core en el agente al que delega otro agente");
+  });
+
+  it("falls back to the node type for a role it doesn't know", () => {
+    const declare = [[{ node_type: "output", role: "future_role", property: "boundary", values: ["external"] }]];
+    expect(describeDeclare(declare, tEn, "en")).toBe("boundary: external on the output");
+  });
+
   it("translates the joins and the node types", () => {
     expect(describeDeclare(fh017, tEs, "es")).toBe(
       "exposure_boundary: external en el agente y authentication_scope: elevated en la herramienta",

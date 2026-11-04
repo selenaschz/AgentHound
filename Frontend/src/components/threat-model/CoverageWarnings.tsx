@@ -37,8 +37,10 @@ function Section({ title, desc, children }: { title: string; desc?: string; chil
 }
 
 /** What a framework file's format leaves unchecked, collapsed by default.
- * Renders nothing for the generic format, which returns no warnings. */
-function CoverageWarnings({ warnings }: { warnings: CoverageWarning[] }) {
+ * Renders nothing for the generic format, which returns no warnings.
+ * `framework` is the analysis' source framework: Dify declarations go in the
+ * node's `data` block. */
+function CoverageWarnings({ warnings, framework }: { warnings: CoverageWarning[]; framework: string }) {
   const t = useTranslations("results.coverage");
   const locale = useLocale();
   if (warnings.length === 0) return null;
@@ -59,7 +61,7 @@ function CoverageWarnings({ warnings }: { warnings: CoverageWarning[] }) {
               </Section>
             )}
             {needsDeclaration.length > 0 && (
-              <Section title={t("needsDeclarationTitle")} desc={t("needsDeclarationDesc")}>
+              <Section title={t("needsDeclarationTitle")} desc={t(framework === "dify" ? "needsDeclarationDescDify" : "needsDeclarationDesc")}>
                 <Stack space={12}>
                   {needsDeclaration.map((w) => (
                     <Stack key={w.rules.join()} space={4}>

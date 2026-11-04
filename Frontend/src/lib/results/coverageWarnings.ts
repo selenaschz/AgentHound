@@ -7,16 +7,24 @@ import type { CoverageWarning, DeclarationRequirement } from "@/lib/api/types";
 export type CoverageT = (key: string, values?: Record<string, string | number>) => string;
 
 const NODE_TYPES = new Set(["agent", "input", "tool", "data_asset", "output", "memory", "control"]);
+const ROLES = new Set(["delegate", "reachable", "read", "sent_to", "shared"]);
 
 function joinList(items: string[], locale: string, type: "conjunction" | "disjunction"): string {
   return new Intl.ListFormat(locale, { style: "long", type }).format(items);
+}
+
+/** Where the property goes: the role's phrase when it names one, else the
+ * node type's. */
+function describeNode(req: DeclarationRequirement, t: CoverageT): string {
+  if (req.role && ROLES.has(req.role)) return t(`role.${req.role}`);
+  return NODE_TYPES.has(req.node_type) ? t(`on.${req.node_type}`) : req.node_type;
 }
 
 function describeRequirement(req: DeclarationRequirement, t: CoverageT, locale: string): string {
   return t("requirement", {
     property: req.property,
     values: joinList(req.values.map(String), locale, "disjunction"),
-    node: NODE_TYPES.has(req.node_type) ? t(`on.${req.node_type}`) : req.node_type,
+    node: describeNode(req, t),
   });
 }
 

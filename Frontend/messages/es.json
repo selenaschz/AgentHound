@@ -242,7 +242,8 @@
       "notExpressibleTitle": "No alcanzables desde este formato",
       "notExpressibleDesc": "El adaptador no puede producir lo que buscan estas reglas, diga lo que diga el fichero. Describe el sistema en el formato genérico para comprobarlas.",
       "needsDeclarationTitle": "Se comprueban al declarar una propiedad",
-      "needsDeclarationDesc": "Añádela a la entrada del nodo en el fichero (en Dify, a su bloque data) y vuelve a analizar.",
+      "needsDeclarationDesc": "Añádela a la entrada del nodo en el fichero y vuelve a analizar.",
+      "needsDeclarationDescDify": "Añádela al bloque data del nodo en el fichero y vuelve a analizar.",
       "declare": "Declara {what}",
       "requirement": "{property}: {values} {node}",
       "on": {
@@ -253,6 +254,13 @@
         "output": "en la salida",
         "memory": "en el nodo de memoria",
         "control": "en el control"
+      },
+      "role": {
+        "delegate": "en el agente al que delega otro agente",
+        "reachable": "en una herramienta que ese agente pueda alcanzar",
+        "read": "en el activo de datos que lee el agente",
+        "sent_to": "en la salida a la que envía el agente",
+        "shared": "en una memoria que use más de un agente"
       },
       "ignoredTitle": "Ignorado en tu fichero",
       "ignoredSuggestion": "{property} en {node} no es una propiedad conocida y se ha ignorado. ¿Querías decir {suggestion}?",

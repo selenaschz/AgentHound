@@ -36,6 +36,7 @@ Response:
   "analysis_id": "uuid",
   "status": "parsed",
   "name": "HireSmart Copilot",
+  "source_framework": "crewai",
   "summary": { "nodes": 7, "edges": 6, "findings": 0,
                "critical": 0, "high": 0, "medium": 0, "max_score": 0.0 },
   "warnings": [
@@ -62,12 +63,19 @@ lists). `declare` holds alternative options, any one of which unlocks the rule;
 each option is a list of requirements that must all hold, and each requirement
 names the `node_type` the property goes on, the `property` and the `values`
 that trigger the rule (any one of them; for a list property, the list must
-contain it). `properties` is the property names in `declare`, in order. Once
+contain it). An optional `role` narrows which node of that type: `delegate`
+(the agent another agent delegates to), `reachable` (a tool the option's agent
+can reach), `read` (the data asset the agent reads), `sent_to` (the output the
+agent sends to) or `shared` (memory more than one agent uses). `properties` is the property names in `declare`, in order. Once
 the analysis has run, a `needs_declaration` entry is left out if any of its
 rules fired: the file already has the declaration. These are always absent for
 the generic format, which covers the full rule catalog. They're computed from
 the framework and the findings on every read, so they're also returned for
 analyses saved before the field existed.
+
+`source_framework` is the detected input format (`generic`, `crewai`, `dify` or
+`langgraph`); `POST .../analyze` and `GET /analyses/{analysis_id}` return it
+too. In a Dify file, declarations go in the node's `data` block.
 
 Then come the file's own `ignored_property` entries: a key on a framework node
 that looks like a property declaration but was dropped, either a near-miss of a
@@ -112,6 +120,7 @@ Response (same shape as `/analyze` produces for the results view):
   "analysis_id": "uuid",
   "status": "completed",
   "name": "HireSmart Copilot",
+  "source_framework": "crewai",
   "summary": { "nodes": 7, "edges": 6, "findings": 3,
                "critical": 1, "high": 2, "medium": 0, "max_score": 10.0 },
   "graph": { "nodes": [], "edges": [] },

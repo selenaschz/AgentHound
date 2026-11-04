@@ -404,6 +404,8 @@ export interface AnalysisResult {
   nodes: GraphNode[];
   edges: GraphEdge[];
   attacks: Attack[];
+  /** Detected input format: `generic`, `crewai`, `dify` or `langgraph`. */
+  sourceFramework: string;
   /** Rules the file's framework can't reach or only reaches once declared, and
    * declarations the adapter dropped. Always empty for the generic format. */
   warnings: CoverageWarning[];
@@ -443,6 +445,7 @@ export function toAnalysisResult(
     nodes: toGraphNodes(graph.nodes),
     edges: toGraphEdges(graph.edges),
     attacks: attacksFromFindings(findings),
+    sourceFramework: create.source_framework,
     warnings: create.warnings,
     solution: null,
   };
@@ -490,6 +493,7 @@ export function toAnalyzedResult(resp: AnalyzeResponse): AnalysisResult {
       analysis_id: resp.analysis_id,
       status: resp.status,
       name: resp.name,
+      source_framework: resp.source_framework,
       summary: resp.summary,
       warnings: resp.warnings,
     },

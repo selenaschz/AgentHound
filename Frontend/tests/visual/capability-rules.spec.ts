@@ -23,6 +23,7 @@ async function openAgentEditor(page: Page) {
     route.fulfill({ status: 200, headers: CORS, contentType: "application/json", body: JSON.stringify(capabilities) }),
   );
   await page.goto("/tests/new");
+  await expect(page.locator('input[name="threat-model-name"]')).toHaveCount(1);
   await page.getByRole("textbox", { name: "Nombre del análisis" }).fill("IT Ops");
   const uploads = page.locator("input[type=file]");
   await uploads.nth(0).setInputFiles({ name: "agents.yaml", ...YAML });

@@ -217,7 +217,7 @@ describe("CapabilityGraph — prioritized findings", () => {
 
     expect(rows()).toHaveLength(14);
 
-    press(buttonNamed("Ver solo los 10 primeros")!);
+    press(buttonNamed("Ver solo las 10 primeras")!);
 
     expect(rows()).toHaveLength(10);
   });

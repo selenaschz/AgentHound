@@ -42,4 +42,17 @@ test.describe("Finding patterns", () => {
     await expect(page.getByText("Reducción por causa")).toBeVisible();
     await expect(page.getByText("-50%", { exact: true })).toBeVisible();
   });
+
+  test("lines up the before and after rows", async ({ page }) => {
+    await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
+    await page.getByRole("tab", { name: "Solución propuesta" }).click();
+    await page.getByTestId("before-after").waitFor();
+    await page.evaluate(() => document.fonts.ready);
+
+    const [before, after] = await page.getByTestId("before-after-card").all();
+    const rowTops = (card: typeof before) => card!.getByTestId("metric-row").evaluateAll((rows) => rows.map((r) => r.getBoundingClientRect().top));
+    const [beforeTops, afterTops] = [await rowTops(before), await rowTops(after)];
+    expect(afterTops.slice(0, beforeTops.length)).toEqual(beforeTops);
+    await expect(page.getByTestId("before-after")).toHaveScreenshot("before-after.png");
+  });
 });

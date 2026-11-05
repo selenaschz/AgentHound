@@ -44,7 +44,8 @@ import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import InlineError from "@/components/ui/InlineError";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import { formatSnakeCase, formatValue } from "@/lib/format";
-import { capped, findingLabels, groupFindings, VISIBLE_OCCURRENCES, type FindingPattern } from "@/lib/results/findingDisplay";
+import { ShowMoreOccurrences, useCappedOccurrences } from "@/components/threat-model/CappedOccurrences";
+import { findingLabels, groupFindings, type FindingPattern } from "@/lib/results/findingDisplay";
 import { usePatternTitle } from "@/lib/results/usePatternTitle";
 import { SEVERITY_STYLES } from "@/lib/severity";
 import type { AnalysisResult, ChokepointRec } from "@/lib/api/adapters";
@@ -97,7 +98,7 @@ interface BeforeAfterCardProps {
 
 function BeforeAfterCard({ label, Icon, color, rows, headerBadge }: BeforeAfterCardProps) {
   return (
-    <Boxed>
+    <Boxed height="100%" dataAttributes={{ testid: "before-after-card" }}>
       <Box paddingX={20} paddingY={20}>
         <Stack space={16}>
           <Inline space="between" alignItems="center">
@@ -214,11 +215,16 @@ function FindingPatternCard({ pattern, title, labelById, selectedFindingId, onSe
   const t = useTranslations("results");
   const contentId = useId();
   const [expanded, setExpanded] = useState(false);
-  const [showAll, setShowAll] = useState(false);
+  const [seenSelection, setSeenSelection] = useState(selectedFindingId);
+  const { visible, showAll, toggleShowAll } = useCappedOccurrences(pattern.findings, selectedFindingId);
   const [top] = pattern.findings;
   const count = pattern.findings.length;
-  const holdsSelection = !expanded && pattern.findings.some((f) => f.id === selectedFindingId);
-  const visible = showAll ? pattern.findings : capped(pattern.findings, VISIBLE_OCCURRENCES, (f) => f.id === selectedFindingId);
+  const contains = (id: string | null) => pattern.findings.some((f) => f.id === id);
+  if (selectedFindingId !== seenSelection) {
+    setSeenSelection(selectedFindingId);
+    if (contains(selectedFindingId)) setExpanded(true);
+  }
+  const holdsSelection = !expanded && contains(selectedFindingId);
   return (
     <div
       data-testid="finding-pattern"
@@ -249,7 +255,7 @@ function FindingPatternCard({ pattern, title, labelById, selectedFindingId, onSe
                 small
                 bleedLeft
                 aria-expanded={expanded}
-                aria-controls={contentId}
+                aria-controls={expanded ? contentId : undefined}
                 aria-description={holdsSelection ? t("findingGroupHoldsSelection") : undefined}
                 onPress={() => setExpanded((v) => !v)}
               >
@@ -270,15 +276,7 @@ function FindingPatternCard({ pattern, title, labelById, selectedFindingId, onSe
                       inPattern
                     />
                   ))}
-                  {count > VISIBLE_OCCURRENCES && (
-                    <Box>
-                      <ButtonLink small bleedLeft aria-expanded={showAll} aria-controls={contentId} onPress={() => setShowAll((v) => !v)}>
-                        {showAll
-                          ? t("showTopFindingGroups", { count: VISIBLE_OCCURRENCES })
-                          : t("showMoreOccurrences", { count: count - visible.length })}
-                      </ButtonLink>
-                    </Box>
-                  )}
+                  <ShowMoreOccurrences total={count} visibleCount={visible.length} showAll={showAll} onToggle={toggleShowAll} controls={contentId} />
                 </Stack>
               </Box>
             )}
@@ -358,6 +356,7 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
     scoreLabel: t("tableHeaders.score"),
     routeHint: t("showRouteHint"),
   };
+  const causeCount = (items: Finding[]) => new Set(items.map((f) => f.groupId)).size;
   // The Proposed Solution tab needs the live simulation; if it failed to load
   // (Phase 2 unavailable), surface a notice rather than a misleading green graph.
   const solutionUnavailable = solved && !sol;
@@ -484,18 +483,21 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
               </Grid>
             ) : (
               sol && (
-                <Inline space={16} alignItems="center" expand={[0, 2]}>
+                <Inline space={16} alignItems="stretch" expand={[0, 2]} dataAttributes={{ testid: "before-after" }}>
                   <BeforeAfterCard
                     label={t("before")}
                     Icon={SEVERITY_STYLES.critical.Icon}
                     color={severityAccentColor("critical", isDarkMode)}
                     rows={[
                       { label: t("beforeAfter.findingCount"), value: sol.beforeAfter.before.findingCount, color: severityAccentColor("critical", isDarkMode) },
+                      { label: t("beforeAfter.causeCount"), value: causeCount(findings), color: severityAccentColor("critical", isDarkMode) },
                       { label: t("beforeAfter.criticalCount"), value: sol.beforeAfter.before.criticalCount, color: severityAccentColor("critical", isDarkMode) },
                       { label: t("beforeAfter.maxScore"), value: sol.beforeAfter.before.maxScore, color: severityAccentColor("critical", isDarkMode) },
                     ]}
                   />
-                  <IconArrowLineRightRegular color={skinVars.colors.brand} />
+                  <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
+                    <IconArrowLineRightRegular color={skinVars.colors.brand} />
+                  </div>
                   <BeforeAfterCard
                     label={t("after")}
                     Icon={IconShieldCheckedOkRegular}
@@ -506,10 +508,11 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                       color: severityAccentColor("none", isDarkMode),
                     }}
                     rows={[
-                      { label: t("beforeAfter.riskReductionByGroup"), value: `-${sol.beforeAfter.after.riskReductionByGroupPct}%`, color: severityAccentColor("none", isDarkMode) },
                       { label: t("beforeAfter.findingCount"), value: sol.beforeAfter.after.findingCount, color: severityAccentColor("none", isDarkMode) },
+                      { label: t("beforeAfter.causeCount"), value: causeCount(openFindings), color: severityAccentColor("none", isDarkMode) },
                       { label: t("beforeAfter.criticalCount"), value: sol.beforeAfter.after.criticalCount, color: severityAccentColor("none", isDarkMode) },
                       { label: t("beforeAfter.maxScore"), value: sol.beforeAfter.after.maxScore, color: severityAccentColor("none", isDarkMode) },
+                      { label: t("beforeAfter.riskReductionByGroup"), value: `-${sol.beforeAfter.after.riskReductionByGroupPct}%`, color: severityAccentColor("none", isDarkMode) },
                     ]}
                   />
                 </Inline>

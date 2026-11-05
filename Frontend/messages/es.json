@@ -219,6 +219,7 @@
     "showAllFindingGroups": "Ver los {count} patrones",
     "showMoreOccurrences": "Ver {count} más",
     "showTopFindingGroups": "Ver solo los {count} primeros",
+    "showTopOccurrences": "Ver solo las {count} primeras",
     "findingPatternsCount": "{count, plural, one {# causa} other {# causas}}",
     "showOccurrences": "Ver las {count} ocurrencias",
     "hideOccurrences": "Ocultar ocurrencias",
@@ -252,6 +253,7 @@
     },
     "beforeAfter": {
       "findingCount": "Hallazgos",
+      "causeCount": "Causas",
       "criticalCount": "Hallazgos críticos",
       "maxScore": "Puntuación máxima",
       "riskReduction": "Reducción de riesgo",

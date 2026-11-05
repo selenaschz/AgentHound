@@ -219,6 +219,7 @@
     "showAllFindingGroups": "Show all {count} patterns",
     "showMoreOccurrences": "Show {count} more",
     "showTopFindingGroups": "Show only the top {count}",
+    "showTopOccurrences": "Show only the first {count}",
     "findingPatternsCount": "{count, plural, one {# cause} other {# causes}}",
     "showOccurrences": "Show the {count} occurrences",
     "hideOccurrences": "Hide occurrences",
@@ -252,6 +253,7 @@
     },
     "beforeAfter": {
       "findingCount": "Findings",
+      "causeCount": "Causes",
       "criticalCount": "Critical findings",
       "maxScore": "Max score",
       "riskReduction": "Risk reduction",

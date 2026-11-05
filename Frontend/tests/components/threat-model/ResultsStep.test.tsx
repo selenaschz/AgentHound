@@ -69,19 +69,40 @@ describe("ResultsStep — finding patterns", () => {
     expect(cardFor("FH-004")!.textContent).toContain("Escritura en logs");
   });
 
-  it("marks a folded cause that holds the graph's selection", () => {
+  it("only points at the occurrences while they are in the page", () => {
+    expect(occurrencesToggle().hasAttribute("aria-controls")).toBe(false);
+
+    press(occurrencesToggle());
+    const id = occurrencesToggle().getAttribute("aria-controls");
+    expect(id && view.container.querySelector(`[id="${id}"]`)).toBeTruthy();
+  });
+
+  it("unfolds a cause when the graph selects one of its occurrences", () => {
     act(() => graph.props?.onSelectFinding("f2"));
 
-    expect(occurrencesToggle().getAttribute("aria-description")).toBe("Contiene el hallazgo seleccionado");
-    press(occurrencesToggle());
+    expect(occurrencesToggle().getAttribute("aria-expanded")).toBe("true");
     expect(occurrencesToggle().hasAttribute("aria-description")).toBe(false);
     expect(cardFor("FH-001 #2")!.getAttribute("aria-current")).toBe("true");
+  });
+
+  it("lets the user fold a cause back and marks that it holds the selection", () => {
+    act(() => graph.props?.onSelectFinding("f2"));
+    press(occurrencesToggle());
+
+    expect(cardFor("FH-001 #2")).toBeUndefined();
+    expect(occurrencesToggle().getAttribute("aria-description")).toBe("Contiene el hallazgo seleccionado");
+  });
+
+  it("leaves a cause folded when the selection lands elsewhere", () => {
+    act(() => graph.props?.onSelectFinding("f3"));
+
+    expect(occurrencesToggle().getAttribute("aria-expanded")).toBe("false");
   });
 });
 
 describe("ResultsStep — a cause with many occurrences", () => {
   const many = Array.from({ length: 12 }, (_, i) => ({ ...findings[0]!, id: `o${i + 1}` }));
-  const moreToggle = () => toggles().find((el) => el.textContent?.includes("más") || el.textContent?.includes("primeros"))!;
+  const moreToggle = () => toggles().find((el) => el.textContent?.includes("más") || el.textContent?.includes("primeras"))!;
 
   beforeEach(() => {
     view.render(<ResultsStep result={{ ...result, findings: many }} />);
@@ -98,11 +119,18 @@ describe("ResultsStep — a cause with many occurrences", () => {
 
     press(moreToggle());
     expect(cards()).toHaveLength(10);
+    expect(moreToggle().textContent).toBe("Ver 2 más");
+  });
+
+  it("names the collapse after occurrences, not groups", () => {
+    press(occurrencesToggle());
+    press(moreToggle());
+
+    expect(moreToggle().textContent).toBe("Ver solo las 10 primeras");
   });
 
   it("keeps a selected occurrence past the cap visible", () => {
     act(() => graph.props?.onSelectFinding("o12"));
-    press(occurrencesToggle());
 
     expect(cards()).toHaveLength(11);
     expect(cardFor("FH-001 #12")!.getAttribute("aria-current")).toBe("true");
@@ -208,6 +236,15 @@ describe("ResultsStep — resolved findings", () => {
     const rows = Array.from(view.container.querySelectorAll("[data-testid=metric-row]"), (el) => el.textContent);
 
     expect(rows).toContain("Reducción por causa-80%");
+  });
+
+  it("counts causes on both sides so the rows line up", () => {
+    const [before, after] = Array.from(view.container.querySelectorAll("[data-testid=before-after-card]"), (card) =>
+      Array.from(card.querySelectorAll("[data-testid=metric-row]"), (el) => el.textContent),
+    );
+
+    expect(before!.slice(0, 2)).toEqual(["Hallazgos4", "Causas3"]);
+    expect(after!.slice(0, 2)).toEqual(["Hallazgos0", "Causas2"]);
   });
 
   it("lists only the findings the simulation broke", () => {

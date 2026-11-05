@@ -17,12 +17,13 @@ import {
   useNodesState,
   useReactFlow,
   useStore,
+  type Node,
 } from "@xyflow/react";
 import { toPng } from "html-to-image";
 import { Spinner, Tag, applyAlpha } from "@telefonica/mistica";
 import type { Attack, ControlInfo, Finding, GraphEdge, GraphNode, NodeType } from "@/types/ThreatModel";
 import { cyber, getSeverityPath, NODE_STYLE, useIsDarkMode, type PathSeverity } from "@/components/threat-model/graph/cyberGraphTheme";
-import { GLYPH, nodeTypes } from "@/components/threat-model/graph/nodeTypes";
+import { accentFor, GLYPH, nodeTypes } from "@/components/threat-model/graph/nodeTypes";
 import { edgeTypes, SeverityPathContext } from "@/components/threat-model/graph/edgeTypes";
 import { buildGraph, playbackFrame, primaryRouteId, type CyberNode, type FindingRoute } from "@/components/threat-model/graph/toReactFlow";
 import { dagreLayout } from "@/components/threat-model/graph/dagreLayout";
@@ -123,6 +124,9 @@ const MAX_ZOOM = 2.5;
 const FIT_OPTIONS = { padding: 0.08, minZoom: 0 };
 const ROUTE_FIT_OPTIONS = { padding: 0.3, minZoom: 0, maxZoom: 1.2 };
 const MINIMAP_MIN_NODES = 15;
+const MINIMAP_CLEARANCE = 200 + 15 + 2 + 12;
+const minimapNodeColor = (n: Node) => accentFor((n as CyberNode).data).accent;
+const minimapNodeClassName = (n: Node) => n.className ?? "";
 const TOOLBAR_CLEARANCE = 56;
 const TITLE_GAP = 12;
 
@@ -410,6 +414,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
   }, [getNodes]);
 
   const canPlay = !solved && !pendingRoute && playRoute.nodeIds.length > 0;
+  const showMinimap = built.nodes.length >= MINIMAP_MIN_NODES;
 
   return (
     <div
@@ -477,7 +482,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
           </ControlButton>
         </Controls>
 
-        {nodes.length >= MINIMAP_MIN_NODES && (
+        {showMinimap && (
           <MiniMap
             pannable
             zoomable
@@ -485,7 +490,10 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
             className="ch-minimap"
             bgColor={cyber.surface}
             maskColor={cyber.overlay}
-            nodeColor={(n) => NODE_STYLE[(n as CyberNode).data.gnode.type].accent}
+            maskStrokeColor={cyber.gridStrong}
+            maskStrokeWidth={1}
+            nodeColor={minimapNodeColor}
+            nodeClassName={minimapNodeClassName}
             nodeStrokeWidth={0}
             nodeBorderRadius={6}
           />
@@ -528,7 +536,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
         </Panel>
 
         {shownRoute && (
-          <Panel position="bottom-center">
+          <Panel position="bottom-center" style={showMinimap ? { maxWidth: `calc(100% - ${2 * MINIMAP_CLEARANCE}px)` } : undefined}>
             <div style={highlightBox} role="status">
               <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                 <span style={legendHeading}>{isPlaying ? labels.playingRoute : isolated ? labels.isolatedRoute : labels.highlightedRoute}</span>
@@ -798,7 +806,7 @@ const CYBER_CSS = `
 .react-flow__edge.ch-edge-flow path.react-flow__edge-path,
 .react-flow__edge-path.ch-edge-flow { animation: chDash .6s linear infinite; }
 @keyframes chDash { to { stroke-dashoffset: -28; } }
-.react-flow__node.ch-dim, .react-flow__edge.ch-dim { opacity: .22; }
+.react-flow__node.ch-dim, .react-flow__edge.ch-dim, .react-flow__minimap-node.ch-dim { opacity: .22; }
 .react-flow__viewport { transition: opacity .2s ease; }
 [data-ch-pending] .react-flow__viewport, [data-ch-pending] .react-flow__panel.bottom.center { opacity: .3; }
 .react-flow__node.ch-current .ch-node { transform: scale(1.09); box-shadow: 0 0 0 2px ${cyber.danger}, 0 0 34px 7px ${cyber.dangerGlow} !important; }

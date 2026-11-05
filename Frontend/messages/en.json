@@ -256,7 +256,7 @@
       "causeCount": "Causes",
       "criticalCount": "Critical findings",
       "maxScore": "Max score",
-      "riskReduction": "Risk reduction",
+      "riskReduction": "Reduction by finding",
       "riskReductionByGroup": "Reduction by cause"
     },
     "findingsTableTitle": "Inferred Findings",

@@ -242,7 +242,7 @@ describe("ResultsStep — resolved findings", () => {
     const after = Array.from(view.container.querySelectorAll("[data-testid=before-after-card]"))[1]!;
     const rows = Array.from(after.querySelectorAll("[data-testid=metric-row]"), (el) => el.textContent);
 
-    expect(rows.slice(-2)).toEqual(["Reducción de riesgo-100%", "Reducción por causa-80%"]);
+    expect(rows.slice(-2)).toEqual(["Reducción por hallazgo-100%", "Reducción por causa-80%"]);
   });
 
   it("counts causes on both sides so the rows line up", () => {

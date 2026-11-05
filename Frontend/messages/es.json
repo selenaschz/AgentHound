@@ -256,7 +256,7 @@
       "causeCount": "Causas",
       "criticalCount": "Hallazgos críticos",
       "maxScore": "Puntuación máxima",
-      "riskReduction": "Reducción de riesgo",
+      "riskReduction": "Reducción por hallazgo",
       "riskReductionByGroup": "Reducción por causa"
     },
     "findingsTableTitle": "Hallazgos inferidos",

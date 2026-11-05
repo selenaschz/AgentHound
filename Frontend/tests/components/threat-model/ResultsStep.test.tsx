@@ -238,6 +238,13 @@ describe("ResultsStep — resolved findings", () => {
     expect(rows).toContain("Reducción por causa-80%");
   });
 
+  it("shows both risk reductions together as rows", () => {
+    const after = Array.from(view.container.querySelectorAll("[data-testid=before-after-card]"))[1]!;
+    const rows = Array.from(after.querySelectorAll("[data-testid=metric-row]"), (el) => el.textContent);
+
+    expect(rows.slice(-2)).toEqual(["Reducción de riesgo-100%", "Reducción por causa-80%"]);
+  });
+
   it("counts causes on both sides so the rows line up", () => {
     const [before, after] = Array.from(view.container.querySelectorAll("[data-testid=before-after-card]"), (card) =>
       Array.from(card.querySelectorAll("[data-testid=metric-row]"), (el) => el.textContent),

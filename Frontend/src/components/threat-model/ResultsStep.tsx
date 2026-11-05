@@ -93,27 +93,18 @@ interface BeforeAfterCardProps {
   Icon: (props: IconProps) => ReactElement;
   color: string;
   rows: { label: string; value: string | number; color?: string }[];
-  headerBadge?: { label: string; value: string | number; color: string };
 }
 
-function BeforeAfterCard({ label, Icon, color, rows, headerBadge }: BeforeAfterCardProps) {
+function BeforeAfterCard({ label, Icon, color, rows }: BeforeAfterCardProps) {
   return (
     <Boxed height="100%" dataAttributes={{ testid: "before-after-card" }}>
       <Box paddingX={20} paddingY={20}>
         <Stack space={16}>
-          <Inline space="between" alignItems="center">
-            <Inline space={12} alignItems="center">
-              <Circle size={32} backgroundColor={skinVars.colors.neutralLow}>
-                <Icon size={18} color={color} />
-              </Circle>
-              <Text2 medium color={color}>{label}</Text2>
-            </Inline>
-            {headerBadge && (
-              <Inline space={4} alignItems="baseline">
-                <Text2 medium color={headerBadge.color}>{headerBadge.value}</Text2>
-                <Text1 regular color={skinVars.colors.textSecondary}>{headerBadge.label}</Text1>
-              </Inline>
-            )}
+          <Inline space={12} alignItems="center">
+            <Circle size={32} backgroundColor={skinVars.colors.neutralLow}>
+              <Icon size={18} color={color} />
+            </Circle>
+            <Text2 medium color={color}>{label}</Text2>
           </Inline>
           <Divider />
           <Stack space={8}>
@@ -502,16 +493,12 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                     label={t("after")}
                     Icon={IconShieldCheckedOkRegular}
                     color={severityAccentColor("none", isDarkMode)}
-                    headerBadge={{
-                      label: t("beforeAfter.riskReduction"),
-                      value: `-${sol.beforeAfter.after.riskReductionPct}%`,
-                      color: severityAccentColor("none", isDarkMode),
-                    }}
                     rows={[
                       { label: t("beforeAfter.findingCount"), value: sol.beforeAfter.after.findingCount, color: severityAccentColor("none", isDarkMode) },
                       { label: t("beforeAfter.causeCount"), value: causeCount(openFindings), color: severityAccentColor("none", isDarkMode) },
                       { label: t("beforeAfter.criticalCount"), value: sol.beforeAfter.after.criticalCount, color: severityAccentColor("none", isDarkMode) },
                       { label: t("beforeAfter.maxScore"), value: sol.beforeAfter.after.maxScore, color: severityAccentColor("none", isDarkMode) },
+                      { label: t("beforeAfter.riskReduction"), value: `-${sol.beforeAfter.after.riskReductionPct}%`, color: severityAccentColor("none", isDarkMode) },
                       { label: t("beforeAfter.riskReductionByGroup"), value: `-${sol.beforeAfter.after.riskReductionByGroupPct}%`, color: severityAccentColor("none", isDarkMode) },
                     ]}
                   />

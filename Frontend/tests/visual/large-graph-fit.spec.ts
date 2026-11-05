@@ -51,15 +51,36 @@ async function settledZoom(page: Page) {
   return previous;
 }
 
-test.beforeEach(async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
-  await mockOpsDestructiveAnalysis(page);
-  const body = JSON.stringify(largeGraph());
+function graphOf(drawn: number, controls: number) {
+  const nodes: object[] = [...graph.nodes];
+  const edges: object[] = [...graph.edges];
+  for (let i = graph.nodes.length; i < drawn; i++) {
+    nodes.push({ id: `tool_extra_${i}`, label: `extra tool ${i}`, type: "tool", risk_score: 1, properties: {}, badges: [] });
+    edges.push({ ...graph.edges[0], id: `edge_extra_${i}`, source: "agent_ops_executor", target: `tool_extra_${i}`, finding_ids: [] });
+  }
+  for (let i = 0; i < controls; i++) {
+    nodes.push({ id: `control_extra_${i}`, label: `extra control ${i}`, type: "control", risk_score: 0, properties: {}, badges: [] });
+  }
+  return { nodes, edges };
+}
+
+async function serveGraph(page: Page, body: object) {
   await page.route(`${API_ORIGIN}/analyses/${OPS_DESTRUCTIVE_ID}/graph`, (route) =>
     route.request().method() === "OPTIONS"
       ? route.fallback()
-      : route.fulfill({ status: 200, headers: { "Access-Control-Allow-Origin": "*" }, contentType: "application/json", body }),
+      : route.fulfill({
+          status: 200,
+          headers: { "Access-Control-Allow-Origin": "*" },
+          contentType: "application/json",
+          body: JSON.stringify(body),
+        }),
   );
+}
+
+test.beforeEach(async ({ page, context, baseURL }) => {
+  await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
+  await mockOpsDestructiveAnalysis(page);
+  await serveGraph(page, largeGraph());
   await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
   await page.getByTestId("prioritized-finding").first().waitFor();
 });
@@ -101,7 +122,7 @@ test.describe("Large graph overview map", () => {
   test("draws every node of a large graph in the overview map", async ({ page }) => {
     await expectWholeGraphVisible(page);
 
-    await expect(minimap(page)).toBeVisible();
+    await expect(canvas(page).getByRole("img", { name: "Vista general del grafo" })).toBeVisible();
     await expect(minimap(page).locator(".react-flow__minimap-node")).toHaveCount(graph.nodes.length + BRANCHES * 2);
     await settledZoom(page);
     await expect(minimap(page)).toHaveScreenshot("minimap-large-graph.png");
@@ -174,6 +195,41 @@ test.describe("Large graph overview map", () => {
       await expectWholeGraphVisible(page);
 
       await expect(minimap(page)).toHaveCount(0);
+    });
+  }
+
+  test("shows the overview map in fullscreen when the window is too narrow for it", async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await expectWholeGraphVisible(page);
+    await expect(minimap(page)).toHaveCount(0);
+
+    await canvas(page).getByRole("button", { name: "Pantalla completa" }).click();
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.hasAttribute("data-ch-canvas"))).toBe(true);
+
+    await expect(minimap(page)).toBeVisible();
+  });
+
+  test("dims the nodes outside a highlighted route in the overview map", async ({ page }) => {
+    await expectWholeGraphVisible(page);
+    await page.getByTestId("prioritized-finding").first().click();
+    await expect(canvas(page).getByRole("status")).toBeVisible();
+
+    const dimmed = await canvas(page).locator(".react-flow__node.ch-dim").count();
+    expect(dimmed).toBeGreaterThan(0);
+    await expect(minimap(page).locator(".react-flow__minimap-node.ch-dim")).toHaveCount(dimmed);
+    await expect(minimap(page).locator(".react-flow__minimap-node:not(.ch-dim)")).toHaveCount(
+      graph.nodes.length + BRANCHES * 2 - dimmed,
+    );
+    await expect(minimap(page).locator(".ch-hl, .ch-live, .ch-current")).toHaveCount(0);
+  });
+
+  for (const [drawn, shown] of [[14, false], [15, true]] as const) {
+    test(`${shown ? "shows" : "hides"} the overview map with ${drawn} drawn nodes and controls left out`, async ({ page }) => {
+      await serveGraph(page, graphOf(drawn, 3));
+      await page.reload();
+      await expect(canvas(page).locator(".react-flow__node")).toHaveCount(drawn);
+
+      await expect(minimap(page)).toHaveCount(shown ? 1 : 0);
     });
   }
 });

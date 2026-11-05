@@ -142,7 +142,7 @@
     "catalogHint": "Arrastra una capacidad sobre el agente, o haz clic para añadirla.",
     "uncheckedVerbs": "Ninguna regla mira estos verbos",
     "uncheckedVerbNote": "Ninguna regla mira el verbo \"{capability}\": la conexión cuenta para las rutas como cualquier otra, pero el verbo no activa ninguna regla por sí mismo.",
-    "checkedBy": "Lo comprueban {rules}",
+    "checkedBy": "{count, plural, one {Lo comprueba} other {Lo comprueban}} {rules}",
     "detectedCapabilities": "Capacidades detectadas",
     "addingCapability": "Añadiendo \"{capability}\" a {row}",
     "dropHint": "Aún no hay capacidades. Arrastra una aquí desde el catálogo.",

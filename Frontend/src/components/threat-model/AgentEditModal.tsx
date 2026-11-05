@@ -90,7 +90,7 @@ function CatalogChip({
     </span>
   );
   return rules?.length ? (
-    <Tooltip description={t("checkedBy", { rules: rules.join(", ") })} target={chip} />
+    <Tooltip description={t("checkedBy", { count: rules.length, rules: rules.join(", ") })} target={chip} />
   ) : (
     chip
   );
@@ -107,8 +107,10 @@ function AgentEditModal({ agentId, nodes, edges, onSave, onClose }: AgentEditMod
   const [pending, setPending] = useState<PendingEntry | null>(null);
   const [pendingTarget, setPendingTarget] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [hasFinePointer] = useState(() => !window.matchMedia("(pointer: coarse)").matches);
   const rulesByVerb = useCapabilityRules();
-  const isUnchecked = (verb: string) => rulesByVerb?.get(verb)?.length === 0;
+  const isUnchecked = (verb: string) => rulesByVerb != null && !rulesByVerb.get(verb)?.length;
+  const pendingRules = pending ? rulesByVerb?.get(pending.capability) : undefined;
 
   const group = useMemo(
     () => groupByAgent(draftNodes, draftEdges).agents.find((a) => a.agent.id === agentId) ?? null,
@@ -246,7 +248,7 @@ function AgentEditModal({ agentId, nodes, edges, onSave, onClose }: AgentEditMod
                     key={capability}
                     row={row}
                     capability={capability}
-                    rules={rulesByVerb?.get(capability)}
+                    rules={hasFinePointer ? rulesByVerb?.get(capability) : undefined}
                     disabled={row === "delegatesTo" && !canDelegate}
                     onAdd={() => startAdd(row, capability)}
                   />
@@ -321,6 +323,11 @@ function AgentEditModal({ agentId, nodes, edges, onSave, onClose }: AgentEditMod
                     <Text1 regular color={skinVars.colors.textSecondary}>
                       {t("addingCapability", { capability: pending.capability, row: t(pending.row) })}
                     </Text1>
+                    {pendingRules?.length ? (
+                      <Text1 regular color={skinVars.colors.textSecondary}>
+                        {t("checkedBy", { count: pendingRules.length, rules: pendingRules.join(", ") })}
+                      </Text1>
+                    ) : null}
                     {isUnchecked(pending.capability) && (
                       <Inline space={8}>
                         <IconInformationRegular size={16} color={skinVars.colors.neutralHigh} />

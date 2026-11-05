@@ -110,6 +110,16 @@ describe("AgentEditModal — verbs no rule looks at", () => {
     expect(getCapabilities).toHaveBeenCalledTimes(1);
   });
 
+  it("names the rules when adding a verb some rule looks at", async () => {
+    await open();
+
+    press(chip("read"));
+    expect(document.body.textContent).toContain("Lo comprueban FH-001, FH-004");
+
+    press(chip("summarize"));
+    expect(document.body.textContent).not.toContain("Lo comprueban");
+  });
+
   it("warns when adding a verb no rule looks at", async () => {
     await open();
 

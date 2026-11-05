@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act } from "react";
 import InferenceStep from "@/components/threat-model/InferenceStep";
 import { getCapabilities } from "@/lib/api/agentHound";
 import { resetCapabilityRules } from "@/hooks/useCapabilityRules";
@@ -12,6 +13,7 @@ let view: ReturnType<typeof mount>;
 
 beforeEach(() => {
   resetCapabilityRules();
+  vi.clearAllMocks();
   vi.mocked(getCapabilities).mockResolvedValue({ capabilities: [] });
   view = mount();
 });
@@ -41,5 +43,25 @@ describe("InferenceStep — coverage warnings", () => {
     view.render(<InferenceStep nodes={nodes} edges={edges} warnings={[]} framework="generic" onNodesChange={noop} onEdgesChange={noop} />);
 
     expect(box()).toBeNull();
+  });
+});
+
+describe("InferenceStep — capability catalog", () => {
+  it("starts loading the catalog before the agent editor opens", () => {
+    view.render(<InferenceStep nodes={nodes} edges={edges} warnings={[]} framework="generic" onNodesChange={noop} onEdgesChange={noop} />);
+
+    expect(getCapabilities).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks for the catalog again after a failed preload", async () => {
+    vi.mocked(getCapabilities).mockRejectedValueOnce(new Error("offline"));
+    view.render(<InferenceStep nodes={nodes} edges={edges} warnings={[]} framework="generic" onNodesChange={noop} onEdgesChange={noop} />);
+    await act(async () => {});
+    view.unmount();
+    view = mount();
+
+    view.render(<InferenceStep nodes={nodes} edges={edges} warnings={[]} framework="generic" onNodesChange={noop} onEdgesChange={noop} />);
+
+    expect(getCapabilities).toHaveBeenCalledTimes(2);
   });
 });

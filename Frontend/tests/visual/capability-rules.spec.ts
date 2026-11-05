@@ -58,11 +58,32 @@ test.describe("Capability rules in the agent editor", () => {
     await expect(page.getByRole("tooltip")).toContainText("Lo comprueban FH-");
   });
 
+  test("names the rules when adding a verb some rule looks at", async ({ page }) => {
+    await openAgentEditor(page);
+
+    await page.getByRole("dialog").getByRole("button", { name: "invokeTool", exact: true }).click();
+
+    await expect(page.getByRole("dialog")).toContainText("Lo comprueban FH-");
+  });
+
   test("warns when adding a verb no rule looks at", async ({ page }) => {
     await openAgentEditor(page);
 
     await page.getByRole("dialog").getByRole("button", { name: "summarize", exact: true }).click();
 
     await expect(page.getByRole("dialog")).toContainText("Ninguna regla mira el verbo \"summarize\"");
+  });
+});
+
+test.describe("Capability rules in the agent editor on a touch screen", () => {
+  test.use({ viewport: { width: 1366, height: 1024 }, hasTouch: true, isMobile: true });
+
+  test("names the rules when a verb is tapped instead of opening a tooltip", async ({ page }) => {
+    await openAgentEditor(page);
+
+    await page.getByRole("dialog").getByRole("button", { name: "invokeTool", exact: true }).tap();
+
+    await expect(page.getByRole("dialog")).toContainText("Lo comprueban FH-");
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
   });
 });

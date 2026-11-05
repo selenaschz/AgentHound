@@ -26,7 +26,7 @@ async function openResults(page: Page, order: "listed" | "reversed") {
 }
 
 test.beforeEach(async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
+  await context.addCookies([{ name: "agenthound-lang", value: "en", url: baseURL! }]);
   await mockOpsDestructiveAnalysis(page);
 });
 
@@ -37,7 +37,7 @@ test.describe("Primary route", () => {
       await openResults(page, order);
 
       await expect(primaryPath(page)).toContainText(label);
-      await expect(canvas(page).getByText(`Ruta principal ${label}`)).toBeVisible();
+      await expect(canvas(page).getByText(`${label} primary route`)).toBeVisible();
       await expect(primaryPath(page)).toContainText("customer_records_delete");
       await expect(primaryPath(page)).not.toContainText("crm_records_update");
       expect(await flowingEdges(page)).toEqual(["edge_003", "edge_004", "edge_007", "edge_008"]);

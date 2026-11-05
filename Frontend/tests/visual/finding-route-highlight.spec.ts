@@ -34,15 +34,15 @@ async function expectNormalView(page: Page) {
 }
 
 async function openAttackGroup(page: Page) {
-  await page.getByRole("button", { name: /Rutas de ataque/ }).click();
+  await page.getByRole("button", { name: /Attack Paths/ }).click();
 }
 
 async function openPattern(page: Page, ruleId: string) {
-  await page.getByTestId("finding-pattern").filter({ hasText: ruleId }).getByRole("button", { name: /ocurrencias/ }).click();
+  await page.getByTestId("finding-pattern").filter({ hasText: ruleId }).getByRole("button", { name: /occurrences/ }).click();
 }
 
 test.beforeEach(async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
+  await context.addCookies([{ name: "agenthound-lang", value: "en", url: baseURL! }]);
   await mockOpsDestructiveAnalysis(page);
 });
 
@@ -128,7 +128,7 @@ test.describe("Finding route highlight", () => {
     await row(page, "FH-002").click();
     await expect(routePanel(page)).toBeVisible();
 
-    await routePanel(page).getByRole("button", { name: /Ver todo/ }).click();
+    await routePanel(page).getByRole("button", { name: /Show all/ }).click();
 
     await expect(row(page, "FH-002")).not.toHaveAttribute("aria-current", "true");
     await expectNormalView(page);
@@ -176,15 +176,15 @@ test.describe("Finding route highlight", () => {
     await row(page, "FH-011 #2").click();
     await expect(routePanel(page)).toBeVisible();
 
-    await canvas(page).getByRole("button", { name: "Reproducir FH-011 #2" }).click();
+    await canvas(page).getByRole("button", { name: "Play FH-011 #2" }).click();
 
-    await expect(routePanel(page)).toContainText("Reproduciendo ruta");
+    await expect(routePanel(page)).toContainText("Playing route");
     await expect(routePanel(page)).toContainText("FH-011 #2");
-    await expect(routePanel(page).getByRole("button", { name: /Ver todo/ })).toHaveCount(0);
+    await expect(routePanel(page).getByRole("button", { name: /Show all/ })).toHaveCount(0);
     await expect(canvas(page).locator(".react-flow__node.ch-hl")).toHaveCount(0);
     await expect(canvas(page).locator(".react-flow__node.ch-current")).toHaveCount(1);
 
-    await canvas(page).getByRole("button", { name: "Detener" }).click();
+    await canvas(page).getByRole("button", { name: "Stop" }).click();
 
     await expect(routePanel(page)).toContainText("FH-011 #2");
     await expect(canvas(page).locator(".react-flow__node.ch-current")).toHaveCount(0);
@@ -193,17 +193,17 @@ test.describe("Finding route highlight", () => {
 
   test("plays the selected finding's route instead of the primary attack", async ({ page }) => {
     await openResults(page);
-    await expect(canvas(page).getByRole("button", { name: "Reproducir ataque" })).toBeVisible();
+    await expect(canvas(page).getByRole("button", { name: "Play attack" })).toBeVisible();
 
     for (const label of ["FH-011 #2", "FH-002"]) {
       await row(page, label).click();
       await expect(routePanel(page)).toContainText(label);
       const route = await nodeIds(page, ".ch-hl");
 
-      await canvas(page).getByRole("button", { name: `Reproducir ${label}` }).click();
+      await canvas(page).getByRole("button", { name: `Play ${label}` }).click();
 
       await expect.poll(() => nodeIds(page, ".ch-current, .ch-live")).toEqual(route);
-      await canvas(page).getByRole("button", { name: "Detener" }).click();
+      await canvas(page).getByRole("button", { name: "Stop" }).click();
       await expect(routePanel(page)).toContainText(label);
     }
   });
@@ -216,14 +216,14 @@ test.describe("Finding route highlight", () => {
     const started = await nodeIds(page, ".ch-hl");
     expect(started).not.toEqual(other);
 
-    await canvas(page).getByRole("button", { name: "Reproducir FH-011 #2" }).click();
+    await canvas(page).getByRole("button", { name: "Play FH-011 #2" }).click();
     await row(page, "FH-002").click();
 
-    await expect(canvas(page).getByRole("button", { name: "Detener" })).toBeVisible();
+    await expect(canvas(page).getByRole("button", { name: "Stop" })).toBeVisible();
     await expect(routePanel(page)).toContainText("FH-011 #2");
-    await expect(routePanel(page)).toContainText("FH-002 se resaltará al terminar");
+    await expect(routePanel(page)).toContainText("FH-002 will be highlighted when this run ends");
     await expect.poll(() => nodeIds(page, ".ch-current, .ch-live")).toEqual(started);
-    await canvas(page).getByRole("button", { name: "Detener" }).click();
+    await canvas(page).getByRole("button", { name: "Stop" }).click();
     await expect(routePanel(page)).toContainText("FH-002");
   });
 
@@ -232,8 +232,8 @@ test.describe("Finding route highlight", () => {
     await openResults(page);
     await row(page, "FH-011 #2").click();
     const steps = (await nodeIds(page, ".ch-hl")).length;
-    const play = canvas(page).getByRole("button", { name: "Reproducir FH-011 #2" });
-    const stop = canvas(page).getByRole("button", { name: "Detener" });
+    const play = canvas(page).getByRole("button", { name: "Play FH-011 #2" });
+    const stop = canvas(page).getByRole("button", { name: "Stop" });
 
     await play.click();
     await page.clock.runFor(760 * steps);
@@ -249,13 +249,13 @@ test.describe("Finding route highlight", () => {
     await openResults(page);
     await row(page, "FH-011 #1").click();
 
-    await canvas(page).getByRole("button", { name: "Pantalla completa" }).click();
+    await canvas(page).getByRole("button", { name: "Fullscreen" }).click();
 
     await expect.poll(() => page.evaluate(() => document.fullscreenElement?.hasAttribute("data-ch-canvas"))).toBe(true);
     await expect(routePanel(page)).toContainText("FH-011 #1");
     await expect(page).toHaveScreenshot("graph-fh-011-1-fullscreen.png");
 
-    await routePanel(page).getByRole("button", { name: /Ver todo/ }).click();
+    await routePanel(page).getByRole("button", { name: /Show all/ }).click();
 
     await expect(routePanel(page)).toHaveCount(0);
     await expect(canvas(page).locator(".ch-hl, .ch-edge-hl, .ch-dim")).toHaveCount(0);

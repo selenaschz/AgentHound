@@ -35,7 +35,7 @@ async function showGraphedScreen(page: Page) {
 }
 
 test.beforeEach(async ({ context, baseURL }) => {
-  await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
+  await context.addCookies([{ name: "agenthound-lang", value: "en", url: baseURL! }]);
 });
 
 test.describe("Analysis result screen", () => {
@@ -44,20 +44,20 @@ test.describe("Analysis result screen", () => {
     await openResult(page, OPS_DESTRUCTIVE_ID);
 
     await expect(page.getByRole("heading", { name: "IT Ops Assistant (risky)" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Hallazgos (17)" })).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByRole("button", { name: "Volver al resumen" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Findings (17)" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("button", { name: "Back to overview" })).toBeVisible();
     await showGraphedScreen(page);
     await expect(page).toHaveScreenshot("analysis-findings.png");
   });
 
-  test("reads in English", async ({ page, context, baseURL }) => {
-    await context.addCookies([{ name: "agenthound-lang", value: "en", url: baseURL! }]);
+  test("reads in Spanish", async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
     await mockOpsDestructiveAnalysis(page);
     await openResult(page, OPS_DESTRUCTIVE_ID);
 
-    await expect(page.getByRole("tab", { name: "Findings (17)" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Hallazgos (17)" })).toBeVisible();
     await showGraphedScreen(page);
-    await expect(page).toHaveScreenshot("analysis-findings-en.png");
+    await expect(page).toHaveScreenshot("analysis-findings-es.png");
   });
 
   test("shows the findings of another framework file's analysis", async ({ page }) => {
@@ -65,7 +65,7 @@ test.describe("Analysis result screen", () => {
     await openResult(page, DATA_CODEEXEC_ID);
 
     await expect(page.getByRole("heading", { name: "Data Analysis Assistant (risky)" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Hallazgos (13)" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Findings (13)" })).toBeVisible();
     await showGraphedScreen(page);
     await expect(page).toHaveScreenshot("analysis-findings-data-codeexec.png");
   });
@@ -74,23 +74,23 @@ test.describe("Analysis result screen", () => {
     await mockOpsDestructiveAnalysis(page);
     await openResult(page, OPS_DESTRUCTIVE_ID);
 
-    await page.getByRole("tab", { name: "Solución propuesta" }).click();
+    await page.getByRole("tab", { name: "Proposed Solution" }).click();
 
-    await expect(page.getByRole("tab", { name: "Solución propuesta" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: "Proposed Solution" })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByTestId("coverage-warnings")).toHaveCount(0);
     await showGraphedScreen(page);
     await expect(page).toHaveScreenshot("analysis-solution.png");
   });
 
-  test("reads the proposed solution in English", async ({ page, context, baseURL }) => {
-    await context.addCookies([{ name: "agenthound-lang", value: "en", url: baseURL! }]);
+  test("reads the proposed solution in Spanish", async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
     await mockOpsDestructiveAnalysis(page);
     await openResult(page, OPS_DESTRUCTIVE_ID);
 
-    await page.getByRole("tab", { name: "Proposed solution" }).click();
+    await page.getByRole("tab", { name: "Solución propuesta" }).click();
 
     await showGraphedScreen(page);
-    await expect(page).toHaveScreenshot("analysis-solution-en.png");
+    await expect(page).toHaveScreenshot("analysis-solution-es.png");
   });
 
   test("keeps the findings usable but flags the solution when the simulation fails", async ({ page }) => {
@@ -98,10 +98,10 @@ test.describe("Analysis result screen", () => {
     await mockEndpointError(page, "POST", `/analyses/${OPS_DESTRUCTIVE_ID}/simulate-controls`);
     await openResult(page, OPS_DESTRUCTIVE_ID);
 
-    await page.getByRole("tab", { name: "Solución propuesta" }).click();
+    await page.getByRole("tab", { name: "Proposed Solution" }).click();
     await page.mouse.move(0, 0);
 
-    await expect(page.getByText("No se ha podido cargar el contenido. Inténtalo de nuevo.")).toBeVisible();
+    await expect(page.getByText("Couldn't load the content. Please try again.")).toBeVisible();
     await expect(canvas(page)).toHaveCount(0);
     await expect(page).toHaveScreenshot("analysis-solution-unavailable.png");
   });
@@ -110,10 +110,10 @@ test.describe("Analysis result screen", () => {
     await mockOpsDestructiveAnalysis(page);
     await mockEndpointError(page, "GET", `/analyses/${OPS_DESTRUCTIVE_ID}/findings`);
     await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
-    await page.getByText("No se pudieron cargar tus pruebas.").waitFor();
+    await page.getByText("Could not load your tests.").waitFor();
     await settle(page);
 
-    await expect(page.getByRole("button", { name: "Reintentar" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
     await expect(page).toHaveScreenshot("analysis-error.png");
   });
 
@@ -121,7 +121,7 @@ test.describe("Analysis result screen", () => {
     await mockOpsDestructiveAnalysis(page);
     await openResult(page, OPS_DESTRUCTIVE_ID, "?from=results");
 
-    await expect(page.getByRole("button", { name: "Volver a resultados" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Volver al resumen" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Back to results" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Back to overview" })).toHaveCount(0);
   });
 });

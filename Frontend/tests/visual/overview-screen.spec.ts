@@ -29,7 +29,7 @@ async function openOverview(page: Page, ready: string) {
 }
 
 test.beforeEach(async ({ context, baseURL }) => {
-  await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
+  await context.addCookies([{ name: "agenthound-lang", value: "en", url: baseURL! }]);
 });
 
 test.describe("Overview screen", () => {
@@ -37,21 +37,21 @@ test.describe("Overview screen", () => {
     await mockAnalysesList(page);
     await openOverview(page, "IT Ops Assistant (risky)");
 
-    await expect(page.getByText("Pruebas totales")).toBeVisible();
-    await expect(page.getByText("Limpio", { exact: true })).toBeVisible();
-    await expect(page.getByText("langgraph · 23 oct 2026")).toBeVisible();
+    await expect(page.getByText("Total tests")).toBeVisible();
+    await expect(page.getByText("Clean", { exact: true })).toBeVisible();
+    await expect(page.getByText("langgraph · Oct 23, 2026")).toBeVisible();
     await showWholeScreen(page);
     await expect(page).toHaveScreenshot("overview-list.png");
   });
 
-  test("reads in English", async ({ page, context, baseURL }) => {
-    await context.addCookies([{ name: "agenthound-lang", value: "en", url: baseURL! }]);
+  test("reads in Spanish", async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
     await mockAnalysesList(page);
     await openOverview(page, "IT Ops Assistant (risky)");
 
-    await expect(page.getByText("Total tests")).toBeVisible();
+    await expect(page.getByText("Pruebas totales")).toBeVisible();
     await showWholeScreen(page);
-    await expect(page).toHaveScreenshot("overview-list-en.png");
+    await expect(page).toHaveScreenshot("overview-list-es.png");
   });
 
   test("pages through more tests than fit on one page", async ({ page }) => {
@@ -59,7 +59,7 @@ test.describe("Overview screen", () => {
     await openOverview(page, "Agent architecture 1");
     await expect(page.getByText(/^Agent architecture \d+$/)).toHaveCount(5);
 
-    await page.getByRole("button", { name: "Página 2" }).click();
+    await page.getByRole("button", { name: "Page 2" }).click();
     await page.mouse.move(0, 0);
 
     await expect(page.getByText("Agent architecture 6", { exact: true })).toBeVisible();
@@ -70,35 +70,35 @@ test.describe("Overview screen", () => {
 
   test("invites to create the first test when there are none", async ({ page }) => {
     await mockAnalysesList(page, []);
-    await openOverview(page, "Crea tu primera prueba");
+    await openOverview(page, "Create your first test");
 
-    await expect(page.getByText("Pruebas totales")).toBeVisible();
+    await expect(page.getByText("Total tests")).toBeVisible();
     await expect(page).toHaveScreenshot("overview-empty.png");
   });
 
-  test("reads the empty state in English", async ({ page, context, baseURL }) => {
-    await context.addCookies([{ name: "agenthound-lang", value: "en", url: baseURL! }]);
+  test("reads the empty state in Spanish", async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
     await mockAnalysesList(page, []);
-    await openOverview(page, "Create your first test");
+    await openOverview(page, "Crea tu primera prueba");
 
-    await expect(page).toHaveScreenshot("overview-empty-en.png");
+    await expect(page).toHaveScreenshot("overview-empty-es.png");
   });
 
   test("offers a retry when the tests can't be loaded", async ({ page }) => {
     await mockAnalysesListError(page);
-    await openOverview(page, "No se pudieron cargar tus pruebas.");
+    await openOverview(page, "Could not load your tests.");
 
-    await expect(page.getByText("Pruebas totales")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Reintentar" })).toBeVisible();
+    await expect(page.getByText("Total tests")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
     await expect(page).toHaveScreenshot("overview-error.png");
   });
 
   test("lists the tests once a retry succeeds", async ({ page }) => {
     await mockAnalysesListError(page);
-    await openOverview(page, "No se pudieron cargar tus pruebas.");
+    await openOverview(page, "Could not load your tests.");
     await mockAnalysesList(page);
 
-    await page.getByRole("button", { name: "Reintentar" }).click();
+    await page.getByRole("button", { name: "Retry" }).click();
 
     await expect(page.getByText("IT Ops Assistant (risky)")).toBeVisible();
   });
@@ -113,10 +113,10 @@ test.describe("Overview screen", () => {
     });
 
     await page.goto("/overview");
-    await page.getByRole("heading", { name: "Resumen" }).waitFor();
+    await page.getByRole("heading", { name: "Overview" }).waitFor();
     await settle(page);
 
-    await expect(page.getByText("Pruebas totales")).toHaveCount(0);
+    await expect(page.getByText("Total tests")).toHaveCount(0);
     await expect(page).toHaveScreenshot("overview-loading.png");
     release();
     await expect(page.getByText("IT Ops Assistant (risky)")).toBeVisible();
@@ -126,12 +126,12 @@ test.describe("Overview screen", () => {
     await mockAnalysesList(page);
     await openOverview(page, "IT Ops Assistant (risky)");
 
-    await page.getByRole("button", { name: "Eliminar IT Ops Assistant (risky)" }).click();
+    await page.getByRole("button", { name: "Delete IT Ops Assistant (risky)" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.waitFor();
     await page.mouse.move(0, 0);
 
-    await expect(dialog).toContainText("¿Eliminar «IT Ops Assistant (risky)»? Esta acción no se puede deshacer.");
+    await expect(dialog).toContainText("Delete \"IT Ops Assistant (risky)\"? This action can't be undone.");
     await expect(page).toHaveScreenshot("overview-delete-dialog.png");
   });
 
@@ -140,8 +140,8 @@ test.describe("Overview screen", () => {
     await mockDeleteAnalysis(page, OPS_DESTRUCTIVE_ID);
     await openOverview(page, "IT Ops Assistant (risky)");
 
-    await page.getByRole("button", { name: "Eliminar IT Ops Assistant (risky)" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Eliminar" }).click();
+    await page.getByRole("button", { name: "Delete IT Ops Assistant (risky)" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
 
     await expect(page.getByText("IT Ops Assistant (risky)")).toHaveCount(0);
     await expect(page.getByText("Data Analysis Assistant (risky)")).toBeVisible();
@@ -155,6 +155,6 @@ test.describe("Overview screen", () => {
     await page.getByText("IT Ops Assistant (risky)").click();
 
     await expect(page).toHaveURL(`/tests/${OPS_DESTRUCTIVE_ID}`);
-    await expect(page.getByRole("button", { name: "Volver al resumen" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Back to overview" })).toBeVisible();
   });
 });

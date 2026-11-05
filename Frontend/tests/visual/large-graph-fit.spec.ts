@@ -79,7 +79,7 @@ async function serveGraph(page: Page, body: object) {
 }
 
 test.beforeEach(async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
+  await context.addCookies([{ name: "agenthound-lang", value: "en", url: baseURL! }]);
   await mockOpsDestructiveAnalysis(page);
   await serveGraph(page, largeGraph());
   await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
@@ -96,7 +96,7 @@ test.describe("Large graph fit", () => {
     await canvas(page).hover();
     await page.mouse.wheel(0, -1200);
 
-    await canvas(page).getByRole("button", { name: "Ajustar" }).click();
+    await canvas(page).getByRole("button", { name: "Fit" }).click();
 
     await expectWholeGraphVisible(page);
   });
@@ -123,7 +123,7 @@ test.describe("Large graph overview map", () => {
   test("draws every node of a large graph in the overview map", async ({ page }) => {
     await expectWholeGraphVisible(page);
 
-    await expect(canvas(page).getByRole("img", { name: "Vista general del grafo" })).toBeVisible();
+    await expect(canvas(page).getByRole("img", { name: "Graph overview" })).toBeVisible();
     await expect(minimap(page).locator(".react-flow__minimap-node")).toHaveCount(graph.nodes.length + BRANCHES * 2);
     await settledZoom(page);
     await expect(minimap(page)).toHaveScreenshot("minimap-large-graph.png", WITHOUT_GLOW);
@@ -204,7 +204,7 @@ test.describe("Large graph overview map", () => {
     await expectWholeGraphVisible(page);
     await expect(minimap(page)).toHaveCount(0);
 
-    await canvas(page).getByRole("button", { name: "Pantalla completa" }).click();
+    await canvas(page).getByRole("button", { name: "Fullscreen" }).click();
     await expect.poll(() => page.evaluate(() => document.fullscreenElement?.hasAttribute("data-ch-canvas"))).toBe(true);
 
     await expect(minimap(page)).toBeVisible();

@@ -151,4 +151,29 @@ test.describe("Large graph overview map", () => {
 
     await expect.poll(() => viewportTransform(page)).not.toBe(before);
   });
+
+  for (const width of [1280, 1440]) {
+    test(`keeps the route panel clear of the overview map at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await expectWholeGraphVisible(page);
+      await page.getByTestId("prioritized-finding").first().click();
+      const panel = canvas(page).getByRole("status");
+      await expect(panel).toBeVisible();
+      await expect(minimap(page)).toBeVisible();
+
+      const a = (await panel.boundingBox())!;
+      const b = (await minimap(page).boundingBox())!;
+      const overlaps = a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+      expect(overlaps).toBe(false);
+    });
+  }
+
+  for (const width of [1024, 1100]) {
+    test(`hides the overview map on the narrow canvas at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await expectWholeGraphVisible(page);
+
+      await expect(minimap(page)).toHaveCount(0);
+    });
+  }
 });

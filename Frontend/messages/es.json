@@ -100,6 +100,7 @@
     "fileWorkflowDesc": "Definición completa del flujo: nodos, conexiones, herramientas y salidas.",
     "chooseFileButton": "Elegir archivo",
     "filesRequired": "Sube al menos un archivo YAML para analizar.",
+    "nameRequired": "Ponle un nombre al análisis.",
     "exportHelpLink": "¿Cómo puedo exportar el archivo yaml?",
     "analyzeButton": "Analizar"
   },
@@ -166,7 +167,7 @@
       "worstTitle": "Pruebas de mayor riesgo",
       "maxScoreLabel": "puntuación máx. {score}",
       "frameworkTitle": "Hallazgos por framework",
-      "frameworkRow": "{tests} pruebas · {findings} hallazgos"
+      "frameworkRow": "{tests, plural, one {# prueba} other {# pruebas}} · {findings, plural, one {# hallazgo} other {# hallazgos}}"
     },
     "title": "Análisis de amenazas",
     "subtitleTemplate": "{agents} agentes · {tools} herramientas · {data} activos de datos · {findings} hallazgos · {critical} rutas de ataque críticas detectadas",

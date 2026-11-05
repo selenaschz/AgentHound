@@ -100,6 +100,7 @@
     "fileWorkflowDesc": "Full workflow definition: nodes, connections, tools and outputs.",
     "chooseFileButton": "Choose file",
     "filesRequired": "Upload at least one YAML file to analyze.",
+    "nameRequired": "Give the analysis a name.",
     "exportHelpLink": "How can I export the yaml file?",
     "analyzeButton": "Analyze"
   },
@@ -166,7 +167,7 @@
       "worstTitle": "Highest-risk tests",
       "maxScoreLabel": "max score {score}",
       "frameworkTitle": "Findings by framework",
-      "frameworkRow": "{tests} tests · {findings} findings"
+      "frameworkRow": "{tests, plural, one {# test} other {# tests}} · {findings, plural, one {# finding} other {# findings}}"
     },
     "title": "Threat Analysis",
     "subtitleTemplate": "{agents} agents · {tools} tools · {data} data assets · {findings} findings · {critical} critical attack routes detected",

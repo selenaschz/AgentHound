@@ -1,9 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { mockAnalysesList } from "./mocks";
-
-async function settle(page: Page) {
-  await page.evaluate(() => document.fonts.ready);
-}
+import { settle } from "./screen";
 
 test.beforeEach(async ({ context, baseURL }) => {
   await context.addCookies([{ name: "agenthound-lang", value: "en", url: baseURL! }]);

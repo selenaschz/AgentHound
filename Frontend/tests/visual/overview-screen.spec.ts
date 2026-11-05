@@ -8,7 +8,7 @@ import {
   mockOpsDestructiveAnalysis,
   OPS_DESTRUCTIVE_ID,
 } from "./mocks";
-import { showWholeScreen } from "./screen";
+import { settle, showWholeScreen } from "./screen";
 
 const MANY = Array.from({ length: 12 }, (_, i) =>
   analysisItem({
@@ -17,10 +17,6 @@ const MANY = Array.from({ length: 12 }, (_, i) =>
     uploaded_at: `2026-10-${String(30 - i).padStart(2, "0")}T09:00:00+00:00`,
   }),
 );
-
-async function settle(page: Page) {
-  await page.evaluate(() => document.fonts.ready);
-}
 
 async function openOverview(page: Page, ready: string) {
   await page.goto("/overview");
@@ -152,7 +148,7 @@ test.describe("Overview screen", () => {
     await mockAnalysesList(page);
     await openOverview(page, "IT Ops Assistant (risky)");
 
-    await page.getByText("IT Ops Assistant (risky)").click();
+    await page.getByRole("button", { name: /^IT Ops Assistant \(risky\)/ }).click();
 
     await expect(page).toHaveURL(`/tests/${OPS_DESTRUCTIVE_ID}`);
     await expect(page.getByRole("button", { name: "Back to overview" })).toBeVisible();

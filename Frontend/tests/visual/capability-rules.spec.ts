@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import capabilities from "./fixtures/capabilities.json" with { type: "json" };
 import analysis from "./fixtures/ops-destructive/analysis.json" with { type: "json" };
 import { API_ORIGIN, mockOpsDestructiveAnalysis } from "./mocks";
+import { hydrated } from "./screen";
 
 const CORS = { "Access-Control-Allow-Origin": "*" };
 const YAML = { mimeType: "application/x-yaml", buffer: Buffer.from("agents: {}\n") };
@@ -23,7 +24,7 @@ async function openAgentEditor(page: Page) {
     route.fulfill({ status: 200, headers: CORS, contentType: "application/json", body: JSON.stringify(capabilities) }),
   );
   await page.goto("/tests/new");
-  await expect(page.locator('input[name="threat-model-name"]')).toHaveCount(1);
+  await hydrated(page);
   await page.getByRole("textbox", { name: "Analysis name" }).fill("IT Ops");
   const uploads = page.locator("input[type=file]");
   await uploads.nth(0).setInputFiles({ name: "agents.yaml", ...YAML });

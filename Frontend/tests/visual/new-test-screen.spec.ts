@@ -8,52 +8,52 @@ import {
   mockOpsDestructiveAnalysis,
   OPS_DESTRUCTIVE_ID,
 } from "./mocks";
-import { showWholeScreen } from "./screen";
+import { canvas, hydrated, showGraphedScreen, showWholeScreen } from "./screen";
 
 const OPS_DESTRUCTIVE_YAML = path.join(__dirname, "../../../examples/03_ops_destructive/langgraph.yaml");
 
-const canvas = (page: Page) => page.locator("[data-ch-canvas]");
-const viewportTransform = (page: Page) =>
-  canvas(page).locator(".react-flow__viewport").evaluate((el) => getComputedStyle(el).transform);
+const EN = {
+  newTest: "New test",
+  analysisName: "Analysis name",
+  analyze: "Analyze",
+  parsed: "Architecture parsed",
+  next: "Next",
+  inference: "Agents and capabilities",
+};
 
-async function settledViewport(page: Page) {
-  let previous = "";
-  await expect.poll(async () => previous === (previous = await viewportTransform(page)), { intervals: [250] }).toBe(true);
-}
+const ES: typeof EN = {
+  newTest: "Nueva prueba",
+  analysisName: "Nombre del análisis",
+  analyze: "Analizar",
+  parsed: "Arquitectura procesada",
+  next: "Siguiente",
+  inference: "Agentes y capacidades",
+};
 
-async function settle(page: Page) {
-  await page.evaluate(() => document.fonts.ready);
-}
-
-async function hydrated(page: Page) {
-  await expect(page.locator('input[name="threat-model-name"]')).toHaveCount(1);
-  await settle(page);
-}
-
-async function openNewTest(page: Page) {
+async function openNewTest(page: Page, copy = EN) {
   await page.goto("/tests/new");
-  await page.getByRole("heading", { name: "New test" }).waitFor();
+  await page.getByRole("heading", { name: copy.newTest }).waitFor();
   await hydrated(page);
 }
 
-async function fillConfiguration(page: Page) {
-  await page.getByRole("textbox", { name: "Analysis name" }).fill("IT Ops Assistant (risky)");
+async function fillConfiguration(page: Page, copy = EN) {
+  await page.getByRole("textbox", { name: copy.analysisName }).fill("IT Ops Assistant (risky)");
   await page.getByRole("button", { name: /^Framework/ }).click();
   await page.getByRole("option", { name: "LangGraph" }).click();
   await page.getByLabel("workflow.yaml", { exact: true }).setInputFiles(OPS_DESTRUCTIVE_YAML);
   await page.getByText("langgraph.yaml").waitFor();
 }
 
-async function analyzeArchitecture(page: Page) {
-  await fillConfiguration(page);
-  await page.getByRole("button", { name: "Analyze" }).click();
-  await page.getByRole("heading", { name: "Architecture parsed" }).waitFor();
+async function analyzeArchitecture(page: Page, copy = EN) {
+  await fillConfiguration(page, copy);
+  await page.getByRole("button", { name: copy.analyze }).click();
+  await page.getByRole("heading", { name: copy.parsed }).waitFor();
 }
 
-async function reachInference(page: Page) {
-  await analyzeArchitecture(page);
-  await page.getByRole("button", { name: "Next" }).click();
-  await page.getByRole("heading", { name: "Agents and capabilities" }).waitFor();
+async function reachInference(page: Page, copy = EN) {
+  await analyzeArchitecture(page, copy);
+  await page.getByRole("button", { name: copy.next }).click();
+  await page.getByRole("heading", { name: copy.inference }).waitFor();
 }
 
 test.beforeEach(async ({ page, context, baseURL }) => {
@@ -76,9 +76,7 @@ test.describe("New test screen", () => {
 
   test("reads in Spanish", async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
-    await page.goto("/tests/new");
-    await page.getByRole("heading", { name: "Nueva prueba" }).waitFor();
-    await hydrated(page);
+    await openNewTest(page, ES);
 
     await expect(page).toHaveScreenshot("new-test-configuration-es.png");
   });
@@ -143,18 +141,9 @@ test.describe("New test screen", () => {
 
   test("reads the agents step in Spanish", async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "agenthound-lang", value: "es", url: baseURL! }]);
-    await page.goto("/tests/new");
-    await page.getByRole("heading", { name: "Nueva prueba" }).waitFor();
-    await hydrated(page);
+    await openNewTest(page, ES);
 
-    await page.getByRole("textbox", { name: "Nombre del análisis" }).fill("IT Ops Assistant (risky)");
-    await page.getByRole("button", { name: /^Framework/ }).click();
-    await page.getByRole("option", { name: "LangGraph" }).click();
-    await page.getByLabel("workflow.yaml", { exact: true }).setInputFiles(OPS_DESTRUCTIVE_YAML);
-    await page.getByRole("button", { name: "Analizar" }).click();
-    await page.getByRole("heading", { name: "Arquitectura procesada" }).waitFor();
-    await page.getByRole("button", { name: "Siguiente" }).click();
-    await page.getByRole("heading", { name: "Agentes y capacidades" }).waitFor();
+    await reachInference(page, ES);
     await page.mouse.move(0, 0);
 
     await showWholeScreen(page);
@@ -183,10 +172,7 @@ test.describe("New test screen", () => {
 
     await expect(page.getByRole("tab", { name: "Findings (17)" })).toBeVisible();
     await expect(page.getByRole("button", { name: "View Results" })).toHaveCount(0);
-    await settledViewport(page);
-    await showWholeScreen(page);
-    await settledViewport(page);
-    await page.mouse.move(0, 0);
+    await showGraphedScreen(page);
     await expect(page).toHaveScreenshot("new-test-results.png");
   });
 

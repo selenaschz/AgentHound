@@ -5,11 +5,7 @@ import {
   mockOpsDestructiveAnalysis,
   OPS_DESTRUCTIVE_ID,
 } from "./mocks";
-import { showWholeScreen } from "./screen";
-
-async function settle(page: Page) {
-  await page.evaluate(() => document.fonts.ready);
-}
+import { settle, showWholeScreen } from "./screen";
 
 async function openDashboard(page: Page, ready: string) {
   await page.goto("/results");
@@ -64,7 +60,7 @@ test.describe("Results dashboard screen", () => {
     await mockAnalysesList(page);
     await openDashboard(page, "Highest-risk tests");
 
-    await page.getByText("IT Ops Assistant (risky)").click();
+    await page.getByRole("button", { name: /^IT Ops Assistant \(risky\)/ }).click();
 
     await expect(page).toHaveURL(`/tests/${OPS_DESTRUCTIVE_ID}?from=results`);
     await page.getByRole("button", { name: "Back to results" }).click();

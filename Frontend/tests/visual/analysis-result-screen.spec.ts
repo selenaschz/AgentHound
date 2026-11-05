@@ -6,32 +6,12 @@ import {
   mockOpsDestructiveAnalysis,
   OPS_DESTRUCTIVE_ID,
 } from "./mocks";
-import { showWholeScreen } from "./screen";
-
-const canvas = (page: Page) => page.locator("[data-ch-canvas]");
-const viewportTransform = (page: Page) =>
-  canvas(page).locator(".react-flow__viewport").evaluate((el) => getComputedStyle(el).transform);
-
-async function settledViewport(page: Page) {
-  let previous = "";
-  await expect.poll(async () => previous === (previous = await viewportTransform(page)), { intervals: [250] }).toBe(true);
-}
-
-async function settle(page: Page) {
-  await page.evaluate(() => document.fonts.ready);
-}
+import { canvas, settle, showGraphedScreen } from "./screen";
 
 async function openResult(page: Page, id: string, query = "") {
   await page.goto(`/tests/${id}${query}`);
   await canvas(page).locator(".react-flow__node").first().waitFor();
   await settle(page);
-}
-
-async function showGraphedScreen(page: Page) {
-  await settledViewport(page);
-  await showWholeScreen(page);
-  await settledViewport(page);
-  await page.mouse.move(0, 0);
 }
 
 test.beforeEach(async ({ context, baseURL }) => {

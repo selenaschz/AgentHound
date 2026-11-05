@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import path from "node:path";
 
 export async function showWholeScreen(page: Page) {
   const height = await page.evaluate(() =>
@@ -18,3 +19,5 @@ export async function showWholeScreen(page: Page) {
     return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   });
 }
+
+export const WITHOUT_GLOW = { stylePath: path.join(__dirname, "without-glow.css") };

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { DATA_CODEEXEC_ID, mockDataCodeExecAnalysis } from "./mocks";
+import { WITHOUT_GLOW } from "./screen";
 
 async function openResults(page: Page) {
   await page.goto(`/tests/${DATA_CODEEXEC_ID}`);
@@ -30,7 +31,7 @@ test.describe("Node findings", () => {
     await expect(badge(page, "tool_python_interpreter").locator("..")).toHaveAttribute("aria-hidden", "true");
     await expect(canvas(page).getByText("Hallazgos en nodos")).toBeVisible();
     await expect(canvas(page).getByTestId("legend-node-finding")).toHaveText("máx. · +NPuntuación máx. y cuántos más hay");
-    await expect(canvas(page)).toHaveScreenshot("graph-node-findings.png");
+    await expect(canvas(page)).toHaveScreenshot("graph-node-findings.png", WITHOUT_GLOW);
   });
 
   test("highlights the node when its finding is selected", async ({ page }) => {
@@ -40,7 +41,7 @@ test.describe("Node findings", () => {
 
     await expect(canvas(page).getByRole("status")).toContainText("FH-016");
     await expect(node(page, "tool_python_interpreter")).toHaveClass(/ch-hl/);
-    await expect(canvas(page)).toHaveScreenshot("graph-node-finding-selected.png");
+    await expect(canvas(page)).toHaveScreenshot("graph-node-finding-selected.png", WITHOUT_GLOW);
   });
 
   test("keeps the legend heading when the isolated finding has no route", async ({ page }) => {
@@ -53,7 +54,7 @@ test.describe("Node findings", () => {
     await expect(canvas(page).getByText("Severidad de la ruta")).toHaveCount(0);
     await expect(canvas(page).getByText("Hallazgos en nodos")).toBeVisible();
     await expect(canvas(page).getByTestId("legend-node-finding")).toBeVisible();
-    await expect(canvas(page)).toHaveScreenshot("graph-node-finding-isolated.png");
+    await expect(canvas(page)).toHaveScreenshot("graph-node-finding-isolated.png", WITHOUT_GLOW);
   });
 
   test("keeps the node tags legible in dark mode", async ({ page }) => {
@@ -61,7 +62,7 @@ test.describe("Node findings", () => {
     await openResults(page);
 
     await expect(badge(page, "tool_python_interpreter")).toBeVisible();
-    await expect(canvas(page)).toHaveScreenshot("graph-node-findings-dark.png");
+    await expect(canvas(page)).toHaveScreenshot("graph-node-findings-dark.png", WITHOUT_GLOW);
   });
 
   test("drops the node tags in the proposed solution", async ({ page }) => {

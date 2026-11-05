@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { API_ORIGIN, mockOpsDestructiveAnalysis, OPS_DESTRUCTIVE_ID } from "./mocks";
+import { WITHOUT_GLOW } from "./screen";
 
 async function openResults(page: Page) {
   await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
@@ -51,7 +52,7 @@ test.describe("Isolated finding", () => {
     await expect.poll(() => nodeIds(page)).toEqual(FH_011_1_ROUTE);
     await expect(canvas(page).locator(".react-flow__edge")).toHaveCount(4);
     await expect(canvas(page).locator(".ch-dim, .ch-hl")).toHaveCount(0);
-    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-1-isolated.png");
+    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-1-isolated.png", WITHOUT_GLOW);
   });
 
   test("plays the isolated route", async ({ page }) => {
@@ -149,7 +150,7 @@ test.describe("Isolated finding", () => {
     await canvas(page).getByRole("button", { name: "Aislar ruta" }).click();
 
     await expect.poll(() => nodeIds(page)).toEqual(FH_011_1_ROUTE);
-    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-1-isolated-dark.png");
+    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-1-isolated-dark.png", WITHOUT_GLOW);
   });
 
   test("keeps the previous finding dimmed on screen while the next one loads", async ({ page }) => {

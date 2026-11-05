@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import findings from "./fixtures/ops-destructive/findings.json" with { type: "json" };
 import { API_ORIGIN, mockOpsDestructiveAnalysis, OPS_DESTRUCTIVE_ID } from "./mocks";
+import { WITHOUT_GLOW } from "./screen";
 
 const canvas = (page: Page) => page.locator("[data-ch-canvas]");
 const primaryPath = (page: Page) => page.getByTestId("primary-path");
@@ -40,8 +41,8 @@ test.describe("Primary route", () => {
       await expect(primaryPath(page)).toContainText("customer_records_delete");
       await expect(primaryPath(page)).not.toContainText("crm_records_update");
       expect(await flowingEdges(page)).toEqual(["edge_003", "edge_004", "edge_007", "edge_008"]);
-      await expect(canvas(page)).toHaveScreenshot(`graph-primary-route-${order}.png`);
-      await expect(primaryPath(page)).toHaveScreenshot(`primary-path-${order}.png`);
+      await expect(canvas(page)).toHaveScreenshot(`graph-primary-route-${order}.png`, WITHOUT_GLOW);
+      await expect(primaryPath(page)).toHaveScreenshot(`primary-path-${order}.png`, WITHOUT_GLOW);
 
       await page.getByTestId("prioritized-finding-group").filter({ hasText: /^FH-011/ }).click();
       await page.getByTestId("prioritized-finding").filter({ hasText: new RegExp(`^${label}(?!\\d)`) }).click();

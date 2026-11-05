@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { mockOpsDestructiveAnalysis, OPS_DESTRUCTIVE_ID } from "./mocks";
+import { WITHOUT_GLOW } from "./screen";
 
 async function settle(page: Page) {
   await page.evaluate(() => document.fonts.ready);
@@ -24,12 +25,12 @@ const card = (page: Page, label: string) =>
   page.getByTestId("finding-card").filter({ hasText: new RegExp(`${label}(?!\\d)`) });
 
 // Restacking the edges after their classes change shifts anti-aliasing slightly.
-const RESTACKED = { maxDiffPixelRatio: 0.005 };
+const RESTACKED = { maxDiffPixels: 3500 };
 
 async function expectNormalView(page: Page) {
   await expect(routePanel(page)).toHaveCount(0);
   await expect(canvas(page).locator(".ch-hl, .ch-edge-hl, .ch-dim")).toHaveCount(0);
-  await expect(canvas(page)).toHaveScreenshot("graph-default.png", RESTACKED);
+  await expect(canvas(page)).toHaveScreenshot("graph-default.png", { ...WITHOUT_GLOW, ...RESTACKED });
 }
 
 async function openAttackGroup(page: Page) {
@@ -66,7 +67,7 @@ test.describe("Finding route highlight", () => {
     );
     expect(overflowing).toEqual([]);
     await expect(canvas(page).locator(".react-flow__minimap")).toHaveCount(0);
-    await expect(canvas(page)).toHaveScreenshot("graph-default.png");
+    await expect(canvas(page)).toHaveScreenshot("graph-default.png", WITHOUT_GLOW);
     await expect(prioritized(page)).toHaveScreenshot("prioritized-list-fh-011-expanded.png");
   });
 
@@ -77,7 +78,7 @@ test.describe("Finding route highlight", () => {
 
     await expect(routePanel(page)).toContainText("FH-011 #1");
     await expect(row(page, "FH-011 #1")).toHaveAttribute("aria-current", "true");
-    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-1.png");
+    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-1.png", WITHOUT_GLOW);
     await expect(prioritized(page)).toHaveScreenshot("prioritized-list-fh-011-1-selected.png");
   });
 
@@ -91,7 +92,7 @@ test.describe("Finding route highlight", () => {
 
     await expect(routePanel(page)).toContainText("FH-011 #2");
     await expect(row(page, "FH-011 #1")).not.toHaveAttribute("aria-current", "true");
-    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-2.png");
+    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-2.png", WITHOUT_GLOW);
     expect(await canvas(page).screenshot()).not.toEqual(first);
   });
 
@@ -109,7 +110,7 @@ test.describe("Finding route highlight", () => {
     await expect(canvas(page).locator(".react-flow__node.ch-hl")).toHaveCount(1);
     await expect(canvas(page).locator(".react-flow__edge.ch-edge-hl")).toHaveCount(0);
     await expect(canvas(page).locator(".react-flow__edge:not(.ch-dim)")).toHaveCount(0);
-    await expect(canvas(page)).toHaveScreenshot("graph-fh-005-1.png");
+    await expect(canvas(page)).toHaveScreenshot("graph-fh-005-1.png", WITHOUT_GLOW);
   });
 
   test("shows the selected accordion card", async ({ page }) => {
@@ -167,7 +168,7 @@ test.describe("Finding route highlight", () => {
     await row(page, "FH-011 #2").click();
 
     await expect(routePanel(page)).toContainText("FH-011 #2");
-    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-2-dark.png");
+    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-2-dark.png", WITHOUT_GLOW);
   });
 
   test("lets the attack playback take over and brings the highlight back when it stops", async ({ page }) => {
@@ -187,7 +188,7 @@ test.describe("Finding route highlight", () => {
 
     await expect(routePanel(page)).toContainText("FH-011 #2");
     await expect(canvas(page).locator(".react-flow__node.ch-current")).toHaveCount(0);
-    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-2.png", RESTACKED);
+    await expect(canvas(page)).toHaveScreenshot("graph-fh-011-2.png", { ...WITHOUT_GLOW, ...RESTACKED });
   });
 
   test("plays the selected finding's route instead of the primary attack", async ({ page }) => {

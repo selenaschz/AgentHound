@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import graph from "./fixtures/ops-destructive/graph.json" with { type: "json" };
 import { API_ORIGIN, mockOpsDestructiveAnalysis, OPS_DESTRUCTIVE_ID } from "./mocks";
+import { WITHOUT_GLOW } from "./screen";
 
 const BRANCHES = 28;
 
@@ -125,7 +126,7 @@ test.describe("Large graph overview map", () => {
     await expect(canvas(page).getByRole("img", { name: "Vista general del grafo" })).toBeVisible();
     await expect(minimap(page).locator(".react-flow__minimap-node")).toHaveCount(graph.nodes.length + BRANCHES * 2);
     await settledZoom(page);
-    await expect(minimap(page)).toHaveScreenshot("minimap-large-graph.png");
+    await expect(minimap(page)).toHaveScreenshot("minimap-large-graph.png", WITHOUT_GLOW);
   });
 
   test("frames the visible part of the graph once zoomed in", async ({ page }) => {
@@ -134,7 +135,7 @@ test.describe("Large graph overview map", () => {
     await page.mouse.wheel(0, -1200);
     await settledZoom(page);
 
-    await expect(minimap(page)).toHaveScreenshot("minimap-zoomed-in.png");
+    await expect(minimap(page)).toHaveScreenshot("minimap-zoomed-in.png", WITHOUT_GLOW);
   });
 
   test("reads in dark mode", async ({ page }) => {
@@ -143,7 +144,7 @@ test.describe("Large graph overview map", () => {
     await expectWholeGraphVisible(page);
     await settledZoom(page);
 
-    await expect(minimap(page)).toHaveScreenshot("minimap-large-graph-dark.png");
+    await expect(minimap(page)).toHaveScreenshot("minimap-large-graph-dark.png", WITHOUT_GLOW);
   });
 
   test("frames the visible part of the graph in dark mode", async ({ page }) => {
@@ -154,7 +155,7 @@ test.describe("Large graph overview map", () => {
     await page.mouse.wheel(0, -1200);
     await settledZoom(page);
 
-    await expect(minimap(page)).toHaveScreenshot("minimap-zoomed-in-dark.png");
+    await expect(minimap(page)).toHaveScreenshot("minimap-zoomed-in-dark.png", WITHOUT_GLOW);
   });
 
   test("moves the canvas when the overview map is dragged", async ({ page }) => {

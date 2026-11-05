@@ -125,6 +125,17 @@ test.describe("Large graph overview map", () => {
     await expect(minimap(page)).toHaveScreenshot("minimap-large-graph-dark.png");
   });
 
+  test("frames the visible part of the graph in dark mode", async ({ page }) => {
+    await page.evaluate(() => localStorage.setItem("colorScheme", "dark"));
+    await page.reload();
+    await expectWholeGraphVisible(page);
+    await canvas(page).hover();
+    await page.mouse.wheel(0, -1200);
+    await settledZoom(page);
+
+    await expect(minimap(page)).toHaveScreenshot("minimap-zoomed-in-dark.png");
+  });
+
   test("moves the canvas when the overview map is dragged", async ({ page }) => {
     await expectWholeGraphVisible(page);
     await canvas(page).hover();

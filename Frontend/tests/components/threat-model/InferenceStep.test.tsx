@@ -1,12 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import InferenceStep from "@/components/threat-model/InferenceStep";
+import { getCapabilities } from "@/lib/api/agentHound";
+import { resetCapabilityRules } from "@/hooks/useCapabilityRules";
 import type { CoverageWarning } from "@/lib/api/types";
 import { mount } from "../test-utils";
 import { edges, nodes } from "./fixtures";
 
+vi.mock("@/lib/api/agentHound", () => ({ getCapabilities: vi.fn() }));
+
 let view: ReturnType<typeof mount>;
 
 beforeEach(() => {
+  resetCapabilityRules();
+  vi.mocked(getCapabilities).mockResolvedValue({ capabilities: [] });
   view = mount();
 });
 

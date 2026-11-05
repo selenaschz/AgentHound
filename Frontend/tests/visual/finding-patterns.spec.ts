@@ -35,6 +35,18 @@ test.describe("Finding patterns", () => {
     await expect(pattern(page, "FH-011")).toHaveScreenshot("pattern-fh-011-expanded.png");
   });
 
+  test("unfolds the cause of a finding picked in the graph", async ({ page }) => {
+    await openAttackGroup(page);
+    await expect(occurrences(page, "FH-011")).toHaveAttribute("aria-expanded", "false");
+
+    const box = page.getByTestId("prioritized-findings");
+    await box.getByTestId("prioritized-finding-group").filter({ hasText: "FH-011" }).click();
+    await box.getByTestId("prioritized-finding").filter({ hasText: "FH-011 #2" }).click();
+
+    await expect(occurrences(page, "FH-011")).toHaveAttribute("aria-expanded", "true");
+    await expect(pattern(page, "FH-011").getByTestId("finding-card").filter({ hasText: "FH-011 #2" })).toHaveAttribute("aria-current", "true");
+  });
+
   test("shows the risk reduction counting each cause once", async ({ page }) => {
     await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
     await page.getByRole("tab", { name: "Solución propuesta" }).click();
@@ -54,5 +66,17 @@ test.describe("Finding patterns", () => {
     const [beforeTops, afterTops] = [await rowTops(before), await rowTops(after)];
     expect(afterTops.slice(0, beforeTops.length)).toEqual(beforeTops);
     await expect(page.getByTestId("before-after")).toHaveScreenshot("before-after.png");
+  });
+
+  test("keeps the before and after cards readable at the narrowest supported width", async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 900 });
+    await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
+    await page.getByRole("tab", { name: "Solución propuesta" }).click();
+    await page.getByTestId("before-after").waitFor();
+    await page.evaluate(() => document.fonts.ready);
+
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBe(0);
+    await expect(page.getByTestId("before-after")).toHaveScreenshot("before-after-narrow.png");
   });
 });

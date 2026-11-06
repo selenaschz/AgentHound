@@ -225,6 +225,12 @@ class AnalyzeRequest(BaseModel):
     edges: list[AnalyzeEdge] = Field(default_factory=list)
 
 
+class RenameRequest(BaseModel):
+    """Body of PATCH /analyses/{id}: the analysis' new name."""
+
+    name: str = Field(..., description="New analysis name; surrounding whitespace is trimmed.")
+
+
 # --- error envelope (spec section 13) ---
 
 

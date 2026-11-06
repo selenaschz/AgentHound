@@ -13,7 +13,7 @@ from fastapi import APIRouter, File, Form, UploadFile
 
 from ...core.coverage import analysis_warnings
 from ...core.graph.serializer import serialize_graph
-from ...core.ir.models import AnalyzeRequest
+from ...core.ir.models import AnalyzeRequest, RenameRequest
 from ...core.pipeline import analyze_graph, analyze_stored, parse_text
 from ...core.rules.grouping import group_findings
 from ...core.storage.repository import repository
@@ -111,6 +111,24 @@ def get_analysis(analysis_id: str) -> dict:
     if stored is None:
         raise as_http_error("ANALYSIS_NOT_FOUND", f"No analysis {analysis_id}.", status_code=404)
     return _list_item(stored)
+
+
+# Plain def (not async): the read + disk write are synchronous, so FastAPI runs
+# the handler in its threadpool rather than blocking the loop.
+@router.patch("/analyses/{analysis_id}", summary="Rename a stored analysis")
+def rename_analysis(analysis_id: str, request: RenameRequest) -> dict:
+    name = request.name.strip()
+    if not name:
+        raise as_http_error("INVALID_NAME", "The analysis name cannot be empty.", status_code=400)
+    stored = repository.get(analysis_id)
+    if stored is None:
+        raise as_http_error("ANALYSIS_NOT_FOUND", f"No analysis {analysis_id}.", status_code=404)
+    # Save a renamed copy rather than mutating the cached result in place, so a
+    # failed write leaves the cache matching what is on disk.
+    metadata = stored.ir.metadata.model_copy(update={"name": name})
+    renamed = stored.model_copy(update={"ir": stored.ir.model_copy(update={"metadata": metadata})})
+    repository.save(renamed)
+    return _list_item(renamed)
 
 
 # Plain def (not async): the delete does a synchronous cache pop + disk unlink,

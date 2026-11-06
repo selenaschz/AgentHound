@@ -166,6 +166,64 @@ def test_get_unknown_analysis_returns_error_envelope():
     assert resp.json()["error"]["code"] == "ANALYSIS_NOT_FOUND"
 
 
+def test_rename_updates_the_detail_and_the_listing():
+    analysis_id = _create_analyzed("hiresmart_generic.yaml")
+
+    resp = client.patch(f"/analyses/{analysis_id}", json={"name": "  Renamed test  "})
+    assert resp.status_code == 200, resp.text
+    # Same shape as GET /analyses/{id}, with the trimmed name.
+    assert resp.json()["name"] == "Renamed test"
+    assert resp.json() == client.get(f"/analyses/{analysis_id}").json()
+
+    row = next(a for a in client.get("/analyses").json()["analyses"] if a["analysis_id"] == analysis_id)
+    assert row["name"] == "Renamed test"
+
+
+def test_rename_persists_to_disk_and_survives_a_reanalysis():
+    from app.core.storage.repository import AnalysisRepository, repository
+
+    analysis_id = _create("hiresmart_generic.yaml")
+    assert client.patch(f"/analyses/{analysis_id}", json={"name": "Renamed"}).status_code == 200
+
+    # A fresh repository has an empty cache, so this reads the file on disk.
+    assert AnalysisRepository(repository.data_dir).get(analysis_id).ir.metadata.name == "Renamed"
+    # Running the rules again keeps the stored name.
+    assert _analyze(analysis_id)["name"] == "Renamed"
+
+
+def test_rename_rejects_a_blank_name():
+    analysis_id = _create("hiresmart_generic.yaml")
+    original = client.get(f"/analyses/{analysis_id}").json()["name"]
+
+    resp = client.patch(f"/analyses/{analysis_id}", json={"name": "   "})
+    assert resp.status_code == 400
+    assert resp.json()["error"]["code"] == "INVALID_NAME"
+    assert client.get(f"/analyses/{analysis_id}").json()["name"] == original
+
+
+def test_rename_unknown_analysis_returns_error_envelope():
+    resp = client.patch("/analyses/does-not-exist", json={"name": "Renamed"})
+    assert resp.status_code == 404
+    assert resp.json()["error"]["code"] == "ANALYSIS_NOT_FOUND"
+
+
+def test_rename_storage_failure_keeps_the_old_name(monkeypatch):
+    from app.core.storage.repository import repository
+
+    analysis_id = _create("hiresmart_generic.yaml")
+    original = client.get(f"/analyses/{analysis_id}").json()["name"]
+    monkeypatch.setattr(
+        type(repository.data_dir),
+        "write_text",
+        lambda *a, **k: (_ for _ in ()).throw(OSError("disk full")),
+    )
+    resp = client.patch(f"/analyses/{analysis_id}", json={"name": "Renamed"})
+    assert resp.status_code == 500
+    assert resp.json()["error"]["code"] == "STORAGE_ERROR"
+    monkeypatch.undo()
+    assert client.get(f"/analyses/{analysis_id}").json()["name"] == original
+
+
 def test_delete_removes_analysis_and_drops_it_from_the_listing():
     analysis_id = _create("hiresmart_generic.yaml")
 

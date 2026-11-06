@@ -138,6 +138,18 @@ analyzed (and, if edited, corrected) graph. Errors: `ANALYSIS_NOT_FOUND` (404);
 `INVALID_IR`, `UNKNOWN_CAPABILITY`, `INVALID_NODE_TYPE` (400) for a malformed
 edited graph.
 
+## PATCH /analyses/{analysis_id}
+
+**Rename** a stored analysis. Works at either stage (parsed or analyzed), and a
+later `POST .../analyze` keeps the new name.
+
+- Content-Type: `application/json`
+- Body: `{ "name": "New name" }`. Surrounding whitespace is trimmed.
+
+Returns the same object as `GET /analyses/{analysis_id}` (and a row of
+`GET /analyses`), with the new `name`. Errors: `INVALID_NAME` (400) for an
+empty or blank name; `ANALYSIS_NOT_FOUND` (404).
+
 ## GET /analyses/{analysis_id}/graph  (spec §12.2)
 
 Returns the normalized graph in the frontend shape:

@@ -12,7 +12,8 @@ import WizardStepper from "@/components/threat-model/WizardStepper";
 import RenameTestButton from "@/components/threat-model/RenameTestButton";
 import { PROVIDERS, YAML_COUNT } from "@/lib/threatModelData";
 import { buildCrewaiUpload } from "@/lib/crewai";
-import { analyze, createAnalysis, getGraph, renameAnalysis } from "@/lib/api/agentHound";
+import { analyze, createAnalysis, getGraph } from "@/lib/api/agentHound";
+import { useAnalysisName } from "@/hooks/useAnalysisName";
 import { loadSolution } from "@/lib/api/loadAnalysis";
 import {
   toAnalyzeRequest,
@@ -92,8 +93,15 @@ function NewThreatModelScreen() {
     tWizard("steps.results"),
   ];
   const [phase, setPhase] = useState<WizardPhase>("configuration");
-  const [name, setName] = useState("");
-  const [renameError, setRenameError] = useState<string | null>(null);
+  const {
+    name,
+    getName,
+    setName,
+    rename: renameTest,
+    attach: attachName,
+    detach: detachName,
+    saveFailed: renameFailed,
+  } = useAnalysisName();
   const [provider, setProvider] = useState(PROVIDERS[0]?.value ?? "crewai");
   const [showValidation, setShowValidation] = useState(false);
   // Uploads keyed by field ("workflow" for single-file frameworks; "agents" +
@@ -103,15 +111,6 @@ function NewThreatModelScreen() {
   const files = useMemo(() => Object.values(filesByField).flat(), [filesByField]);
 
   const [analysisId, setAnalysisId] = useState<string | null>(null);
-  // The latest name and analysis id, read by the rename and the parse. Both can
-  // run from a stale render: the rename dialog keeps the callback it was opened
-  // with, and the parse awaits the backend. Each side updates its ref before
-  // reading the other's, so whichever runs second stores the new name.
-  const nameRef = useRef(name);
-  const analysisIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    nameRef.current = name;
-  }, [name]);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [requestDone, setRequestDone] = useState(false);
   const [processingComplete, setProcessingComplete] = useState(false);
@@ -153,7 +152,7 @@ function NewThreatModelScreen() {
   const parseArchitecture = useCallback(async () => {
     setResult(null);
     setAnalysisId(null);
-    analysisIdRef.current = null;
+    detachName();
     setRequestDone(false);
     setProcessingComplete(false);
     setAnalysisError(null);
@@ -177,24 +176,10 @@ function NewThreatModelScreen() {
     }
     const framework = BACKEND_FRAMEWORKS.has(provider) ? provider : undefined;
     try {
-      const created = await createAnalysis(file, { framework, name });
-      // From here on a rename stores itself. One made while the parse was
-      // running only changed the local name, so store it now.
-      analysisIdRef.current = created.analysis_id;
-      const latest = nameRef.current.trim();
-      if (latest && latest !== created.name) {
-        try {
-          await renameAnalysis(created.analysis_id, latest);
-        } catch (err) {
-          logger.error("Rename request failed", err);
-          // Unless the user renamed again meanwhile, show the stored name.
-          if (nameRef.current.trim() === latest) {
-            nameRef.current = created.name;
-            setName(created.name);
-            setRenameError(tWizard("rename.error"));
-          }
-        }
-      }
+      const created = await createAnalysis(file, { framework, name: getName() });
+      // From here on renames are saved, and one made while the parse ran is
+      // saved now.
+      attachName(created.analysis_id, created.name);
       const graph = await getGraph(created.analysis_id);
       setAnalysisId(created.analysis_id);
       setInferenceNodes(toGraphNodes(graph.nodes));
@@ -208,37 +193,7 @@ function NewThreatModelScreen() {
         err instanceof ApiError || err instanceof Error ? err.message : "Parsing failed.";
       setAnalysisError(message);
     }
-  }, [filesByField, files, provider, name, tWizard]);
-
-  // Rename from the header pencil. Before the analysis exists only the local
-  // name changes (the parse stores it once it has an id, above). Afterwards the
-  // new name shows at once and is stored; if storing fails it goes back to the
-  // old one, so the header never shows a name the backend does not have.
-  const renameTest = useCallback(
-    async (next: string) => {
-      const previous = nameRef.current;
-      nameRef.current = next;
-      setName(next);
-      setRenameError(null);
-      const id = analysisIdRef.current;
-      if (!id) return;
-      try {
-        const updated = await renameAnalysis(id, next);
-        // A newer rename or a new parse may have happened meanwhile.
-        if (nameRef.current !== next || analysisIdRef.current !== id) return;
-        nameRef.current = updated.name;
-        setName(updated.name);
-        setResult((r) => (r ? { ...r, name: updated.name } : r));
-      } catch (err) {
-        logger.error("Rename request failed", err);
-        if (nameRef.current !== next || analysisIdRef.current !== id) return;
-        nameRef.current = previous;
-        setName(previous);
-        setRenameError(tWizard("rename.error"));
-      }
-    },
-    [tWizard],
-  );
+  }, [filesByField, files, provider, getName, attachName, detachName]);
 
   // Stage 2 (leaving Inference for Results): run the analysis if it has not run
   // yet, or re-run it if the capabilities changed since the last run; otherwise
@@ -304,6 +259,11 @@ function NewThreatModelScreen() {
     else close();
   };
 
+  // The results (and the reports exported from them) carry the header's name,
+  // not the one in the analyze response, which a rename sent while the
+  // analysis ran can make out of date.
+  const shownResult = useMemo(() => (result ? { ...result, name: name.trim() || result.name } : null), [result, name]);
+
   const stepper = <WizardStepper steps={stepLabels} currentStep={STEP_INDEX[phase]} aria-label={tWizard("progressLabel")} />;
 
   const title = (
@@ -313,14 +273,22 @@ function NewThreatModelScreen() {
   );
   // From the Analysis step on the test already exists, so the title gets a
   // pencil that opens the rename dialog.
+  // A failed rename is announced: the alert region is always there, so screen
+  // readers pick up the message when it is filled in.
   const editableHeading = (
-    <Stack space={8}>
+    <div>
       <Inline space={16} alignItems="center" expand={1}>
         {title}
-        <RenameTestButton name={name} onRename={(next) => void renameTest(next)} />
+        <RenameTestButton name={name} onRename={renameTest} />
       </Inline>
-      {renameError && <InlineError message={renameError} />}
-    </Stack>
+      <div role="alert">
+        {renameFailed && (
+          <Box paddingTop={8}>
+            <InlineError message={tWizard("rename.error")} />
+          </Box>
+        )}
+      </div>
+    </div>
   );
   const heading = phase === "configuration" ? title : editableHeading;
 
@@ -406,7 +374,7 @@ function NewThreatModelScreen() {
           stepper={stepper}
           footer={<WizardFooter onPrevious={handlePrevious} onNext={handleNext} hideNext />}
         >
-          <ResultsStep result={result} hideTitle stepTitle={tWizard("steps.results")} />
+          <ResultsStep result={shownResult} hideTitle stepTitle={tWizard("steps.results")} />
         </ContainedStep>
       )}
     </div>

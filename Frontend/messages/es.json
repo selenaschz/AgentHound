@@ -86,7 +86,7 @@
       "update": "Actualizar",
       "cancel": "Cancelar",
       "close": "Cerrar el cuadro de nombre",
-      "error": "No se ha podido guardar el nuevo nombre. La prueba mantiene el anterior."
+      "error": "No se ha podido guardar el nuevo nombre. La prueba mantiene el nombre anterior."
     },
     "steps": {
       "configuration": "Configuración",

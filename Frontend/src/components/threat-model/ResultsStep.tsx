@@ -42,6 +42,7 @@ import type { IconProps } from "@telefonica/mistica";
 import CoverageWarnings from "@/components/threat-model/CoverageWarnings";
 import { FindingId, FindingRoute } from "@/components/threat-model/FindingIdentity";
 import SeverityBadge from "@/components/threat-model/SeverityBadge";
+import { StepHeader } from "@/components/threat-model/StepSection";
 import InlineError from "@/components/ui/InlineError";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import { formatSnakeCase, formatValue } from "@/lib/format";
@@ -298,9 +299,11 @@ function ChokepointCallout({ rec }: { rec: ChokepointRec }) {
 interface ResultsStepProps {
   result: AnalysisResult | null;
   hideTitle?: boolean;
+  /** Wizard step title. When set, the header uses the shared step header (title + paragraph) instead of the page-title style. */
+  stepTitle?: string;
 }
 
-function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
+function ResultsStep({ result, hideTitle = false, stepTitle }: ResultsStepProps) {
   const t = useTranslations("results");
   const tSeverity = useTranslations("overview.severity");
   const tCommon = useTranslations("common");
@@ -352,21 +355,26 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
   // The Proposed Solution tab needs the live simulation; if it failed to load
   // (Phase 2 unavailable), surface a notice rather than a misleading green graph.
   const solutionUnavailable = solved && !sol;
+  const subtitle = t("subtitleTemplate", {
+    agents: counts.agents,
+    tools: counts.tools,
+    data: counts.dataAssets,
+    findings: counts.findings,
+    critical: counts.critical,
+  });
 
   return (
     <Stack space={32}>
-      <Stack space={4}>
-        {!hideTitle && <Text4 medium as="h1">{result.name || t("title")}</Text4>}
-        <Text2 regular color={skinVars.colors.textSecondary}>
-          {t("subtitleTemplate", {
-            agents: counts.agents,
-            tools: counts.tools,
-            data: counts.dataAssets,
-            findings: counts.findings,
-            critical: counts.critical,
-          })}
-        </Text2>
-      </Stack>
+      {stepTitle ? (
+        <StepHeader title={stepTitle} description={subtitle} />
+      ) : (
+        <Stack space={4}>
+          {!hideTitle && <Text4 medium as="h1">{result.name || t("title")}</Text4>}
+          <Text2 regular color={skinVars.colors.textSecondary}>
+            {subtitle}
+          </Text2>
+        </Stack>
+      )}
 
       <Tabs
         selectedIndex={tab}
@@ -522,7 +530,7 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                     key={cls}
                     title={cls === "attack" ? t("attackFindingsTitle") : t("hygieneTitle")}
                     subtitle={t("findingPatternsCount", { count: patterns.length })}
-                    right={<Tag type="inactive" small>{`${items.length}`}</Tag>}
+                    right={<Align y="center" height="100%"><Tag type="inactive" small>{`${items.length}`}</Tag></Align>}
                     content={
                       <Stack space={12}>
                         {patterns.map((pattern) => {
@@ -562,7 +570,7 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                     <BoxedAccordionItem
                       key="controls"
                       title={t("controlsTitle")}
-                      right={<Tag type="active" small>{`${sol.remediation.length}`}</Tag>}
+                      right={<Align y="center" height="100%"><Tag type="active" small>{`${sol.remediation.length}`}</Tag></Align>}
                       content={
                         <Timeline>
                           {sol.remediation.map((step) => (
@@ -586,7 +594,7 @@ function ResultsStep({ result, hideTitle = false }: ResultsStepProps) {
                   <BoxedAccordionItem
                     key="resolved"
                     title={t("resolved")}
-                    right={<Tag type="success" small>{`${resolvedFindings.length}`}</Tag>}
+                    right={<Align y="center" height="100%"><Tag type="success" small>{`${resolvedFindings.length}`}</Tag></Align>}
                     content={
                       <Stack space={8}>
                         {resolvedFindings.map((f) => (

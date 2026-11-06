@@ -44,7 +44,7 @@
   "overview": {
     "title": "Resumen",
     "description": "Prueba la arquitectura de tu agente de IA y detecta rutas de capacidad peligrosas antes que los atacantes.",
-    "newThreatModel": "Nueva prueba",
+    "newThreatModel": "Crear nueva prueba",
     "kpis": {
       "totalModels": "Pruebas totales",
       "critical": "Pruebas de riesgo crítico o alto",
@@ -78,8 +78,20 @@
     "next": "Siguiente",
     "untitled": "Nueva prueba",
     "progressLabel": "Progreso de creación de la prueba",
+    "rename": {
+      "editLabel": "Editar el nombre de la prueba",
+      "title": "Ponle nombre a tu prueba",
+      "description": "Puedes editar el nombre de la prueba actual mientras la configuras",
+      "fieldLabel": "nombre de la prueba*",
+      "update": "Actualizar",
+      "cancel": "Cancelar",
+      "close": "Cerrar el cuadro de nombre",
+      "error": "No se ha podido guardar el nuevo nombre. La prueba mantiene el nombre anterior."
+    },
     "steps": {
       "configuration": "Configuración",
+      "analysis": "Análisis",
+      "capabilities": "Capacidades",
       "inference": "Inferencia",
       "results": "Resultados"
     }
@@ -106,11 +118,12 @@
     "analyzeButton": "Analizar"
   },
   "processing": {
+    "heading": "Analizando",
     "title": "Leyendo la arquitectura del agente…",
     "subtitle": "YAML → normalización IR → grafo de capacidades",
     "progressLabel": "Progreso",
+    "elapsedTime": "Tiempo transcurrido {time}",
     "doneTitle": "Arquitectura procesada",
-    "doneDesc": "{findings, plural, one {# hallazgo detectado} other {# hallazgos detectados}} · {critical, plural, one {# crítico} other {# críticos}} · puntuación máxima {maxScore} · {agents, plural, one {# agente} other {# agentes}}",
     "errorTitle": "El procesado ha fallado"
   },
   "inference": {
@@ -161,8 +174,13 @@
         "totalTests": "Pruebas analizadas",
         "totalFindings": "Hallazgos totales",
         "totalCritical": "Hallazgos críticos",
-        "criticalRate": "Pruebas con críticos",
+        "criticalRate": "Pruebas críticas",
         "avgMaxScore": "Puntuación máx. media"
+      },
+      "kpiInfoLabel": "Más información sobre {name}",
+      "kpiInfo": {
+        "criticalRate": "Porcentaje de pruebas con hallazgos críticos",
+        "avgMaxScore": "Media de la puntuación de riesgo más alta de cada prueba analizada"
       },
       "back": "Volver a resultados",
       "worstTitle": "Pruebas de mayor riesgo",

@@ -44,7 +44,7 @@
   "overview": {
     "title": "Overview",
     "description": "Test your AI Agent architecture and detect dangerous capability paths before attackers do.",
-    "newThreatModel": "New test",
+    "newThreatModel": "Create new test",
     "kpis": {
       "totalModels": "Total tests",
       "critical": "Critical or high risk tests",
@@ -78,8 +78,20 @@
     "next": "Next",
     "untitled": "New test",
     "progressLabel": "Test creation progress",
+    "rename": {
+      "editLabel": "Edit test name",
+      "title": "Name your test",
+      "description": "You can edit current test name while you configure it",
+      "fieldLabel": "test name*",
+      "update": "Update",
+      "cancel": "Cancel",
+      "close": "Close rename dialog",
+      "error": "The new name could not be saved. The test keeps its previous name."
+    },
     "steps": {
       "configuration": "Configuration",
+      "analysis": "Analysis",
+      "capabilities": "Capabilities",
       "inference": "Inference",
       "results": "Results"
     }
@@ -106,11 +118,12 @@
     "analyzeButton": "Analyze"
   },
   "processing": {
+    "heading": "Analyzing",
     "title": "Reading agent architecture…",
     "subtitle": "YAML → IR normalization → capability graph",
     "progressLabel": "Progress",
+    "elapsedTime": "Elapsed time {time}",
     "doneTitle": "Architecture parsed",
-    "doneDesc": "{findings, plural, one {# finding} other {# findings}} detected · {critical} critical · max score {maxScore} · {agents, plural, one {# agent} other {# agents}}",
     "errorTitle": "Parsing failed"
   },
   "inference": {
@@ -161,8 +174,13 @@
         "totalTests": "Tests analyzed",
         "totalFindings": "Total findings",
         "totalCritical": "Critical findings",
-        "criticalRate": "Tests with criticals",
+        "criticalRate": "Critical tests",
         "avgMaxScore": "Avg. max score"
+      },
+      "kpiInfoLabel": "More information about {name}",
+      "kpiInfo": {
+        "criticalRate": "Percentage of tests with critical findings",
+        "avgMaxScore": "Average of the highest risk score found in each analyzed test"
       },
       "back": "Back to results",
       "worstTitle": "Highest-risk tests",

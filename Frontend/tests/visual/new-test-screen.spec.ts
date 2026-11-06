@@ -8,7 +8,7 @@ import {
   mockOpsDestructiveAnalysis,
   OPS_DESTRUCTIVE_ID,
 } from "./mocks";
-import { canvas, hydrated, showGraphedScreen, showWholeScreen } from "./screen";
+import { canvas, fillAnalysisName, settle, showGraphedScreen, showWholeScreen } from "./screen";
 
 const OPS_DESTRUCTIVE_YAML = path.join(__dirname, "../../../examples/03_ops_destructive/langgraph.yaml");
 
@@ -33,11 +33,11 @@ const ES: typeof EN = {
 async function openNewTest(page: Page, copy = EN) {
   await page.goto("/tests/new");
   await page.getByRole("heading", { name: copy.newTest }).waitFor();
-  await hydrated(page);
+  await settle(page);
 }
 
 async function fillConfiguration(page: Page, copy = EN) {
-  await page.getByRole("textbox", { name: copy.analysisName }).fill("IT Ops Assistant (risky)");
+  await fillAnalysisName(page, copy.analysisName, "IT Ops Assistant (risky)");
   await page.getByRole("button", { name: /^Framework/ }).click();
   await page.getByRole("option", { name: "LangGraph" }).click();
   await page.getByLabel("workflow.yaml", { exact: true }).setInputFiles(OPS_DESTRUCTIVE_YAML);
@@ -84,10 +84,12 @@ test.describe("New test screen", () => {
   test("flags the name once the field is left empty", async ({ page }) => {
     await openNewTest(page);
 
-    await page.getByRole("textbox", { name: "Analysis name" }).focus();
-    await page.getByRole("textbox", { name: "Analysis name" }).blur();
-
-    await expect(page.getByRole("textbox", { name: "Analysis name" })).toHaveAttribute("aria-invalid", "true");
+    const field = page.getByRole("textbox", { name: "Analysis name" });
+    await expect(async () => {
+      await field.focus();
+      await field.blur();
+      await expect(field).toHaveAttribute("aria-invalid", "true", { timeout: 1_000 });
+    }).toPass();
     await expect(page).toHaveScreenshot("new-test-configuration-validation.png");
   });
 

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { mockOpsDestructiveAnalysis, OPS_DESTRUCTIVE_ID } from "./mocks";
+import { settle } from "./screen";
 
 const pattern = (page: Page, ruleId: string) => page.getByTestId("finding-pattern").filter({ hasText: ruleId });
 const occurrences = (page: Page, ruleId: string) => pattern(page, ruleId).getByRole("button", { name: /occurrences/ });
@@ -10,7 +11,7 @@ async function openAttackGroup(page: Page) {
   await graphDrawn(page);
   await page.getByRole("button", { name: /Attack Paths/ }).click();
   await pattern(page, "FH-011").waitFor();
-  await page.evaluate(() => document.fonts.ready);
+  await settle(page);
 }
 
 test.beforeEach(async ({ page, context, baseURL }) => {
@@ -63,7 +64,7 @@ test.describe("Finding patterns", () => {
     await page.getByRole("tab", { name: "Proposed Solution" }).click();
     await page.getByTestId("before-after").waitFor();
     await graphDrawn(page);
-    await page.evaluate(() => document.fonts.ready);
+    await settle(page);
 
     const [beforeTops = [], afterTops = []] = await page.getByTestId("before-after-card").evaluateAll((cards) =>
       cards.map((card) => [...card.querySelectorAll("[data-testid=metric-row]")].map((r) => r.getBoundingClientRect().top)),
@@ -78,7 +79,7 @@ test.describe("Finding patterns", () => {
     await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
     await page.getByRole("tab", { name: "Proposed Solution" }).click();
     await page.getByTestId("before-after").waitFor();
-    await page.evaluate(() => document.fonts.ready);
+    await settle(page);
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBe(0);

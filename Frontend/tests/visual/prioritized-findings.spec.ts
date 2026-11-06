@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import fixture from "./fixtures/ops-destructive/findings.json" with { type: "json" };
 import { API_ORIGIN, mockOpsDestructiveAnalysis, OPS_DESTRUCTIVE_ID } from "./mocks";
+import { settle } from "./screen";
 
 const COPIES = 12;
 
@@ -30,7 +31,7 @@ async function openResults(page: Page) {
   );
   await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
   await box(page).waitFor();
-  await page.evaluate(() => document.fonts.ready);
+  await settle(page);
 }
 
 test.beforeEach(async ({ page, context, baseURL }) => {

@@ -1,9 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import findings from "./fixtures/ops-destructive/findings.json" with { type: "json" };
 import { API_ORIGIN, mockOpsDestructiveAnalysis, OPS_DESTRUCTIVE_ID } from "./mocks";
-import { WITHOUT_GLOW } from "./screen";
+import { canvas, settle, WITHOUT_GLOW } from "./screen";
 
-const canvas = (page: Page) => page.locator("[data-ch-canvas]");
 const primaryPath = (page: Page) => page.getByTestId("primary-path");
 const flowingEdges = async (page: Page) =>
   (await canvas(page).locator(".react-flow__edge:has(path.ch-edge-flow)").evaluateAll((els) => els.map((el) => el.dataset.id ?? ""))).sort();
@@ -22,7 +21,7 @@ async function openResults(page: Page, order: "listed" | "reversed") {
   }
   await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
   await page.getByTestId("prioritized-finding").first().waitFor();
-  await page.evaluate(() => document.fonts.ready);
+  await settle(page);
 }
 
 test.beforeEach(async ({ page, context, baseURL }) => {

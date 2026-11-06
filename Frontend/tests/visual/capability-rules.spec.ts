@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import capabilities from "./fixtures/capabilities.json" with { type: "json" };
 import analysis from "./fixtures/ops-destructive/analysis.json" with { type: "json" };
 import { API_ORIGIN, mockOpsDestructiveAnalysis } from "./mocks";
-import { hydrated } from "./screen";
+import { fillAnalysisName, settle } from "./screen";
 
 const CORS = { "Access-Control-Allow-Origin": "*" };
 const YAML = { mimeType: "application/x-yaml", buffer: Buffer.from("agents: {}\n") };
@@ -24,8 +24,7 @@ async function openAgentEditor(page: Page) {
     route.fulfill({ status: 200, headers: CORS, contentType: "application/json", body: JSON.stringify(capabilities) }),
   );
   await page.goto("/tests/new");
-  await hydrated(page);
-  await page.getByRole("textbox", { name: "Analysis name" }).fill("IT Ops");
+  await fillAnalysisName(page, "Analysis name", "IT Ops");
   const uploads = page.locator("input[type=file]");
   await uploads.nth(0).setInputFiles({ name: "agents.yaml", ...YAML });
   await uploads.nth(0).setInputFiles({ name: "tasks.yaml", ...YAML });
@@ -34,7 +33,7 @@ async function openAgentEditor(page: Page) {
   await page.getByRole("button", { name: "Next" }).click();
   await page.getByRole("button", { name: "Edit agent" }).first().click();
   await page.getByRole("dialog").locator("[data-testid=unchecked-verbs]").first().waitFor();
-  await page.evaluate(() => document.fonts.ready);
+  await settle(page);
 }
 
 test.beforeEach(async ({ page, context, baseURL }) => {

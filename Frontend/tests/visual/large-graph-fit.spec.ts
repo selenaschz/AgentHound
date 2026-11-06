@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import graph from "./fixtures/ops-destructive/graph.json" with { type: "json" };
 import { API_ORIGIN, mockOpsDestructiveAnalysis, OPS_DESTRUCTIVE_ID } from "./mocks";
-import { WITHOUT_GLOW } from "./screen";
+import { canvas, WITHOUT_GLOW } from "./screen";
 
 const BRANCHES = 28;
 
@@ -24,8 +24,6 @@ function largeGraph() {
   }
   return { nodes, edges };
 }
-
-const canvas = (page: Page) => page.locator("[data-ch-canvas]");
 
 async function expectWholeGraphVisible(page: Page) {
   await expect(canvas(page).locator(".react-flow__node")).toHaveCount(graph.nodes.length + BRANCHES * 2);

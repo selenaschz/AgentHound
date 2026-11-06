@@ -1,14 +1,13 @@
 import { test, expect, type Page } from "@playwright/test";
 import { DATA_CODEEXEC_ID, mockDataCodeExecAnalysis } from "./mocks";
-import { WITHOUT_GLOW } from "./screen";
+import { canvas, settle, WITHOUT_GLOW } from "./screen";
 
 async function openResults(page: Page) {
   await page.goto(`/tests/${DATA_CODEEXEC_ID}`);
   await page.getByTestId("prioritized-finding").first().waitFor();
-  await page.evaluate(() => document.fonts.ready);
+  await settle(page);
 }
 
-const canvas = (page: Page) => page.locator("[data-ch-canvas]");
 const node = (page: Page, id: string) => canvas(page).locator(`.react-flow__node[data-id="${id}"]`);
 const badge = (page: Page, id: string) => node(page, id).getByTestId("node-finding-badge");
 

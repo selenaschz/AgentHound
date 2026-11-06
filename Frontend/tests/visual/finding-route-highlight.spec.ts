@@ -1,10 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { mockOpsDestructiveAnalysis, OPS_DESTRUCTIVE_ID } from "./mocks";
-import { WITHOUT_GLOW } from "./screen";
-
-async function settle(page: Page) {
-  await page.evaluate(() => document.fonts.ready);
-}
+import { canvas, settle, WITHOUT_GLOW } from "./screen";
 
 async function openResults(page: Page) {
   await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
@@ -14,7 +10,6 @@ async function openResults(page: Page) {
 }
 
 const prioritized = (page: Page) => page.getByTestId("prioritized-findings");
-const canvas = (page: Page) => page.locator("[data-ch-canvas]");
 const routePanel = (page: Page) => canvas(page).getByRole("status");
 const row = (page: Page, label: string) =>
   page.getByTestId("prioritized-finding").filter({ hasText: new RegExp(`^${label}(?!\\d)`) });

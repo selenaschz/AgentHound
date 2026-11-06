@@ -12,9 +12,11 @@ export async function settle(page: Page) {
   await page.evaluate(() => document.fonts.ready);
 }
 
-export async function hydrated(page: Page) {
-  await expect(page.locator('input[name="threat-model-name"]')).toHaveCount(1);
-  await settle(page);
+export async function fillAnalysisName(page: Page, label: string, name: string) {
+  await expect(async () => {
+    await page.getByRole("textbox", { name: label }).fill(name);
+    await expect(page.getByRole("heading", { level: 1, name })).toBeVisible({ timeout: 1_000 });
+  }).toPass();
 }
 
 export async function settledViewport(page: Page) {

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { mockOpsDestructiveAnalysis, OPS_DESTRUCTIVE_ID } from "./mocks";
+import { settle } from "./screen";
 
 const warnings = (page: Page) => page.getByTestId("coverage-warnings");
 const header = (page: Page) => warnings(page).locator("[aria-expanded]");
@@ -7,7 +8,7 @@ const header = (page: Page) => warnings(page).locator("[aria-expanded]");
 async function openResults(page: Page) {
   await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
   await warnings(page).waitFor();
-  await page.evaluate(() => document.fonts.ready);
+  await settle(page);
 }
 
 test.beforeEach(async ({ page, context, baseURL }) => {

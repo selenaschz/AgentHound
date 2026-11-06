@@ -54,6 +54,7 @@
     "listTitle": "Tus pruebas",
     "emptyTitle": "Crea tu primera prueba",
     "loadError": "No se pudieron cargar tus pruebas.",
+    "loadTestError": "No se pudo cargar esta prueba.",
     "back": "Volver al resumen",
     "delete": {
       "action": "Eliminar {name}",

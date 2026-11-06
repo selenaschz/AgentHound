@@ -90,7 +90,7 @@ test.describe("Analysis result screen", () => {
     await mockOpsDestructiveAnalysis(page);
     await mockEndpointError(page, "GET", `/analyses/${OPS_DESTRUCTIVE_ID}/findings`);
     await page.goto(`/tests/${OPS_DESTRUCTIVE_ID}`);
-    await page.getByText("Could not load your tests.").waitFor();
+    await page.getByText("Could not load this test.").waitFor();
     await settle(page);
 
     await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();

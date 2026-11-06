@@ -54,6 +54,7 @@
     "listTitle": "Your tests",
     "emptyTitle": "Create your first test",
     "loadError": "Could not load your tests.",
+    "loadTestError": "Could not load this test.",
     "back": "Back to overview",
     "delete": {
       "action": "Delete {name}",

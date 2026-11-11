@@ -1,30 +1,56 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import NodeDetailDrawer from "@/components/threat-model/NodeDetailDrawer";
 import { findingLabels } from "@/lib/results/findingDisplay";
+import type { Finding } from "@/types/ThreatModel";
 import { mount } from "../test-utils";
-import { findings, nodes } from "./fixtures";
+import { edges, findings as baseFindings, nodes } from "./fixtures";
 
 const nodesById = new Map(nodes.map((n) => [n.id, n]));
 let view: ReturnType<typeof mount>;
 
-beforeEach(() => {
+const onNode = (over: Partial<Finding> & Pick<Finding, "id" | "ruleId">): Finding => ({
+  severity: "medium",
+  category: "missing_control",
+  title: "Agente sin límite de iteraciones",
+  desc: "",
+  path: ["planner"],
+  edges: [],
+  score: 4.8,
+  findingClass: "attack",
+  groupId: `g-${over.id}`,
+  ...over,
+});
+
+const findings: Finding[] = [
+  ...baseFindings,
+  onNode({ id: "n1", ruleId: "FH-021" }),
+  onNode({ id: "n2", ruleId: "FH-022", severity: "high", score: 7.4, title: "Agente sin aprobación" }),
+];
+
+function open(list: Finding[] = findings) {
   view = mount();
   view.render(
     <NodeDetailDrawer
       node={nodesById.get("planner")!}
-      findings={findings}
-      findingLabelById={findingLabels(findings)}
+      findings={list}
+      findingLabelById={findingLabels(list)}
       nodesById={nodesById}
+      edges={edges}
       onClose={() => {}}
     />,
   );
-});
+}
 
 afterEach(() => view.unmount());
 
-const texts = () => Array.from(document.body.querySelectorAll("*"), (el) => el.textContent);
+const body = () => document.body;
+const texts = () => Array.from(body().querySelectorAll("*"), (el) => el.textContent);
+const section = (id: string) => body().querySelector(`[data-testid="${id}"]`);
+const ids = (id: string) => Array.from(section(id)?.querySelectorAll('[data-testid="node-finding"]') ?? [], (el) => el.textContent ?? "");
 
 describe("NodeDetailDrawer — findings through the node", () => {
+  beforeEach(() => open());
+
   it("tells findings of the same rule apart by label, id and route", () => {
     expect(texts()).toEqual(expect.arrayContaining([
       "FH-001 #1",
@@ -38,5 +64,47 @@ describe("NodeDetailDrawer — findings through the node", () => {
 
   it("lists only findings whose path crosses the node", () => {
     expect(texts()).not.toContain("f4");
+  });
+});
+
+describe("NodeDetailDrawer — the node's own findings", () => {
+  beforeEach(() => open());
+
+  it("separates the findings that sit on the node from the routes that pass through it", () => {
+    expect(section("node-own-findings")?.textContent).toContain("Hallazgos en este nodo");
+    expect(ids("node-own-findings")).toHaveLength(2);
+    expect(ids("node-through-findings")).toHaveLength(3);
+    expect(section("node-through-findings")?.textContent).toContain("Rutas de ataque a través de este nodo");
+  });
+
+  it("never lists a finding in both sections", () => {
+    const own = ids("node-own-findings").join("|");
+    const through = ids("node-through-findings").join("|");
+    expect(own).toContain("FH-021");
+    expect(own).toContain("FH-022");
+    expect(through).not.toContain("FH-021");
+    expect(through).toContain("FH-001");
+  });
+
+  it("orders each section by severity, then score", () => {
+    const own = ids("node-own-findings");
+    expect(own[0]).toContain("FH-022");
+    expect(own[1]).toContain("FH-021");
+    const through = ids("node-through-findings");
+    expect(through[0]).toContain("FH-001");
+    expect(through[2]).toContain("FH-004");
+  });
+
+  it("shows how many findings each section holds", () => {
+    expect(section("node-own-findings")?.textContent).toContain("2");
+    expect(section("node-through-findings")?.textContent).toContain("3");
+  });
+});
+
+describe("NodeDetailDrawer — without own findings", () => {
+  it("shows only the routes through the node", () => {
+    open(baseFindings.filter((f) => f.severity === "critical"));
+    expect(section("node-own-findings")).toBeNull();
+    expect(ids("node-through-findings")).toHaveLength(2);
   });
 });

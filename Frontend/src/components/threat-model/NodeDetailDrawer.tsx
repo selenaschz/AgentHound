@@ -2,17 +2,20 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Box, Boxed, Drawer, Inline, Stack, Tag, Text1, skinVars, useTheme } from "@telefonica/mistica";
 import { FindingId, FindingRoute } from "@/components/threat-model/FindingIdentity";
+import { nodeFindingId } from "@/components/threat-model/graph/toReactFlow";
 import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import { propPositive } from "@/lib/api/adapters";
 import { severityAccentColor } from "@/lib/threatModelColors";
 import { formatSnakeCase, formatValue } from "@/lib/format";
-import type { Finding, GraphNode, NodeProp } from "@/types/ThreatModel";
+import { SEVERITY_RANK } from "@/lib/severity";
+import type { Finding, GraphEdge, GraphNode, NodeProp } from "@/types/ThreatModel";
 
 interface NodeDetailDrawerProps {
   node: GraphNode;
   findings: Finding[];
   findingLabelById: Map<string, string>;
   nodesById: Map<string, Pick<GraphNode, "label">>;
+  edges: GraphEdge[];
   onClose: () => void;
 }
 
@@ -20,9 +23,82 @@ function formatProperty(value: unknown): string {
   return value === null || value === undefined ? "—" : formatValue(value);
 }
 
-function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, onClose }: NodeDetailDrawerProps) {
+function bySeverityThenScore(a: Finding, b: Finding): number {
+  return SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] || b.score - a.score;
+}
+
+interface NodeFindingCardProps {
+  finding: Finding;
+  label: string;
+  nodesById: Map<string, Pick<GraphNode, "label">>;
+}
+
+function NodeFindingCard({ finding: f, label, nodesById }: NodeFindingCardProps) {
   const t = useTranslations("node");
   const tSeverity = useTranslations("overview.severity");
+  const { isDarkMode } = useTheme();
+  return (
+    <Boxed key={f.id} dataAttributes={{ testid: "node-finding" }}>
+      <Box padding={12}>
+        <Stack space={4}>
+          <Inline space={8} alignItems="center" wrap verticalSpace={4}>
+            <Tag type="error" small>{label}</Tag>
+            <FindingId id={f.id} />
+            <Tag type="inactive" small>{formatSnakeCase(f.category)}</Tag>
+            <SeverityBadge severity={f.severity} small>{tSeverity(f.severity)}</SeverityBadge>
+            <Text1 medium color={severityAccentColor(f.severity, isDarkMode)}>{f.score}</Text1>
+          </Inline>
+          <Text1 regular color={skinVars.colors.textSecondary}>{f.title}</Text1>
+          <FindingRoute path={f.path} nodesById={nodesById} />
+          <Inline space={4} wrap verticalSpace={4}>
+            {f.owaspAgentic?.map((tag) => <Tag key={tag} small type="inactive">{`OWASP ${tag}`}</Tag>)}
+            {f.owaspLlm?.map((tag) => <Tag key={tag} small type="inactive">{tag}</Tag>)}
+            {f.mitre?.map((tag) => <Tag key={tag} small type="inactive">{tag}</Tag>)}
+          </Inline>
+          {f.evidence && Object.keys(f.evidence).length > 0 && (
+            <Stack space={2}>
+              <Text1 medium color={skinVars.colors.textSecondary}>{t("evidence")}</Text1>
+              {Object.entries(f.evidence).map(([key, value]) => (
+                <Inline key={key} space={8}>
+                  <Text1 regular color={skinVars.colors.textSecondary}>{formatSnakeCase(key)}:</Text1>
+                  <Text1 regular>{formatValue(value)}</Text1>
+                </Inline>
+              ))}
+            </Stack>
+          )}
+        </Stack>
+      </Box>
+    </Boxed>
+  );
+}
+
+interface FindingSectionProps {
+  title: string;
+  findings: Finding[];
+  findingLabelById: Map<string, string>;
+  nodesById: Map<string, Pick<GraphNode, "label">>;
+  testId: string;
+}
+
+function FindingSection({ title, findings, findingLabelById, nodesById, testId }: FindingSectionProps) {
+  if (findings.length === 0) return null;
+  return (
+    <Stack space={8} dataAttributes={{ testid: testId }}>
+      <Inline space={8} alignItems="center">
+        <Text1 medium color={skinVars.colors.textSecondary}>{title}</Text1>
+        <Tag type="inactive" small>{`${findings.length}`}</Tag>
+      </Inline>
+      <Stack space={8}>
+        {findings.map((f) => (
+          <NodeFindingCard key={f.id} finding={f} label={findingLabelById.get(f.id) ?? f.ruleId} nodesById={nodesById} />
+        ))}
+      </Stack>
+    </Stack>
+  );
+}
+
+function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, edges, onClose }: NodeDetailDrawerProps) {
+  const t = useTranslations("node");
   const { isDarkMode } = useTheme();
 
   const properties: NodeProp[] = useMemo(
@@ -40,6 +116,11 @@ function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, onClose
     () => findings.filter((f) => f.path.includes(node.id)),
     [findings, node.id],
   );
+  const [ownFindings, throughFindings] = useMemo(() => {
+    const own = nodeFindings.filter((f) => nodeFindingId(f, edges) === node.id).sort(bySeverityThenScore);
+    const ownIds = new Set(own.map((f) => f.id));
+    return [own, nodeFindings.filter((f) => !ownIds.has(f.id)).sort(bySeverityThenScore)];
+  }, [nodeFindings, edges, node.id]);
 
   // Recommended controls, deduplicated, aggregated across those findings.
   const controls = useMemo(
@@ -116,46 +197,21 @@ function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, onClose
           </Stack>
         )}
 
-        {nodeFindings.length > 0 && (
-          <Stack space={8}>
-            <Text1 medium color={skinVars.colors.textSecondary}>{t("attackPaths")}</Text1>
-            <Stack space={8}>
-              {nodeFindings.map((f) => (
-                <Boxed key={f.id} dataAttributes={{ testid: "node-finding" }}>
-                  <Box padding={12}>
-                    <Stack space={4}>
-                      <Inline space={8} alignItems="center" wrap verticalSpace={4}>
-                        <Tag type="error" small>{findingLabelById.get(f.id) ?? f.ruleId}</Tag>
-                        <FindingId id={f.id} />
-                        <Tag type="inactive" small>{formatSnakeCase(f.category)}</Tag>
-                        <SeverityBadge severity={f.severity} small>{tSeverity(f.severity)}</SeverityBadge>
-                        <Text1 medium color={severityAccentColor(f.severity, isDarkMode)}>{f.score}</Text1>
-                      </Inline>
-                      <Text1 regular color={skinVars.colors.textSecondary}>{f.title}</Text1>
-                      <FindingRoute path={f.path} nodesById={nodesById} />
-                      <Inline space={4} wrap verticalSpace={4}>
-                        {f.owaspAgentic?.map((tag) => <Tag key={tag} small type="inactive">{`OWASP ${tag}`}</Tag>)}
-                        {f.owaspLlm?.map((tag) => <Tag key={tag} small type="inactive">{tag}</Tag>)}
-                        {f.mitre?.map((tag) => <Tag key={tag} small type="inactive">{tag}</Tag>)}
-                      </Inline>
-                      {f.evidence && Object.keys(f.evidence).length > 0 && (
-                        <Stack space={2}>
-                          <Text1 medium color={skinVars.colors.textSecondary}>{t("evidence")}</Text1>
-                          {Object.entries(f.evidence).map(([key, value]) => (
-                            <Inline key={key} space={8}>
-                              <Text1 regular color={skinVars.colors.textSecondary}>{formatSnakeCase(key)}:</Text1>
-                              <Text1 regular>{formatValue(value)}</Text1>
-                            </Inline>
-                          ))}
-                        </Stack>
-                      )}
-                    </Stack>
-                  </Box>
-                </Boxed>
-              ))}
-            </Stack>
-          </Stack>
-        )}
+        <FindingSection
+          title={t("ownFindings")}
+          findings={ownFindings}
+          findingLabelById={findingLabelById}
+          nodesById={nodesById}
+          testId="node-own-findings"
+        />
+
+        <FindingSection
+          title={t("attackPaths")}
+          findings={throughFindings}
+          findingLabelById={findingLabelById}
+          nodesById={nodesById}
+          testId="node-through-findings"
+        />
 
         {controls.length > 0 && (
           <Stack space={8}>

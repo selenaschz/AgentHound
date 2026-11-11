@@ -338,6 +338,7 @@
   },
   "node": {
     "properties": "Propiedades",
+    "ownFindings": "Hallazgos en este nodo",
     "attackPaths": "Rutas de ataque a través de este nodo",
     "recommendedControls": "Controles recomendados",
     "controlEffect": {

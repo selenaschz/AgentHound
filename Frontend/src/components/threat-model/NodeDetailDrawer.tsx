@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { Box, Boxed, Drawer, Inline, Stack, Tag, Text1, Touchable, skinVars, useTheme } from "@telefonica/mistica";
+import { Box, Boxed, ButtonLink, Drawer, Inline, Stack, Tag, Text1, skinVars, useTheme } from "@telefonica/mistica";
 import { FindingId, FindingRoute } from "@/components/threat-model/FindingIdentity";
 import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import { propPositive } from "@/lib/api/adapters";
@@ -127,14 +127,13 @@ function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, onClose
                     <Stack space={12}>
                       <Inline space={8} alignItems="center" wrap verticalSpace={4}>
                         {onShowRoute ? (
-                          <Touchable
+                          <ButtonLink
+                            small
                             aria-label={t("showRoute", { id: findingLabelById.get(f.id) ?? f.ruleId })}
                             onPress={() => onShowRoute(f.id)}
                           >
-                            <Text1 medium decoration="underline" color={skinVars.colors.textPrimary}>
-                              {findingLabelById.get(f.id) ?? f.ruleId}
-                            </Text1>
-                          </Touchable>
+                            {findingLabelById.get(f.id) ?? f.ruleId}
+                          </ButtonLink>
                         ) : (
                           <Tag type="error" small>{findingLabelById.get(f.id) ?? f.ruleId}</Tag>
                         )}

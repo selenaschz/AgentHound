@@ -19,7 +19,7 @@ test.describe("Drawer route link", () => {
     await item.scrollIntoViewIfNeeded();
     await expect(item).toHaveScreenshot("drawer-with-route-link.png");
 
-    await item.getByRole("button").first().click();
+    await item.getByRole("button", { name: /Show route/ }).click();
     await expect(dialog).toHaveCount(0);
     await settle(page);
 

@@ -30,6 +30,7 @@ import {
   Tag,
   Text1,
   Text2,
+  Text3,
   Text4,
   Text6,
   Timeline,
@@ -106,7 +107,7 @@ function BeforeAfterCard({ label, Icon, color, rows }: BeforeAfterCardProps) {
             <Circle size={32} backgroundColor={skinVars.colors.neutralLow}>
               <Icon size={18} color={color} />
             </Circle>
-            <Text2 medium color={color}>{label}</Text2>
+            <Text3 medium color={color}>{label}</Text3>
           </Inline>
           <Divider />
           <Stack space={8}>
@@ -638,7 +639,7 @@ function ResultsStep({ result, stepTitle }: ResultsStepProps) {
                     <IconDownloadRegular size={18} color={skinVars.colors.brand} />
                   </Circle>
                   <Stack space={2}>
-                    <Text2 medium>{solved ? t("exportTitleSolution") : t("exportTitleFindings")}</Text2>
+                    <Text3 medium>{solved ? t("exportTitleSolution") : t("exportTitleFindings")}</Text3>
                     <Text1 regular color={skinVars.colors.textSecondary}>
                       {solved ? t("exportDescSolution") : t("exportDescFindings")}
                     </Text1>

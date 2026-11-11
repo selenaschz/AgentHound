@@ -9,7 +9,7 @@ import {
   Inline,
   Stack,
   Text1,
-  Text2,
+  Text3,
   Touchable,
   skinVars,
   useTheme,
@@ -200,7 +200,7 @@ function PrioritizedFindings({ findings, findingLabelById, nodesById, selectedFi
       <Box paddingX={20} paddingY={20}>
         <Stack space={16}>
           <Inline space={12} alignItems="baseline" wrap verticalSpace={2}>
-            <Text2 medium color={skinVars.colors.error}>{t("prioritizedFindings")}</Text2>
+            <Text3 medium color={skinVars.colors.error}>{t("prioritizedFindings")}</Text3>
             <Text1 regular color={skinVars.colors.textSecondary}>
               {t("prioritizedFindingsCount", { findings: findings.length, groups: patternCount })}
             </Text1>

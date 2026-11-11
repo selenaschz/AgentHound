@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Box, Boxed, Inline, Stack, Text1, Text2, IconSearchRegular, skinVars } from "@telefonica/mistica";
+import { Box, Boxed, Inline, Stack, Text1, Text3, IconSearchRegular, skinVars } from "@telefonica/mistica";
 import NodeDetailDrawer from "@/components/threat-model/NodeDetailDrawer";
 import PrioritizedFindings from "@/components/threat-model/PrioritizedFindings";
 import CyberGraph, { type CyberGraphHandle, type GraphHighlight } from "@/components/threat-model/graph/CyberGraph";
@@ -221,7 +221,7 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
             <Stack space={12}>
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 8px" }}>
                 <span style={{ flex: "none", width: 8, height: 8, borderRadius: "50%", background: skinVars.colors.error }} />
-                <Text2 medium color={skinVars.colors.error}>{t("primaryPath")}</Text2>
+                <Text3 medium color={skinVars.colors.error}>{t("primaryPath")}</Text3>
                 <span
                   style={{
                     padding: "1px 7px",

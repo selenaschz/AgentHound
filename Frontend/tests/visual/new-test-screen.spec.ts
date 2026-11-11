@@ -8,7 +8,7 @@ import {
   mockOpsDestructiveAnalysis,
   OPS_DESTRUCTIVE_ID,
 } from "./mocks";
-import { canvas, fillAnalysisName, settle, showGraphedScreen, showWholeScreen } from "./screen";
+import { canvas, fillAnalysisName, settle, showGraphedScreen, showWholeScreen, waitForStreamedContent } from "./screen";
 
 const OPS_DESTRUCTIVE_YAML = path.join(__dirname, "../../../examples/03_ops_destructive/langgraph.yaml");
 
@@ -36,6 +36,7 @@ const elapsedTime = (page: Page) => ({ mask: [page.getByText(/^Elapsed time /)] 
 async function openNewTest(page: Page, copy = EN) {
   await page.goto("/tests/new");
   await page.getByRole("heading", { name: copy.newTest }).waitFor();
+  await waitForStreamedContent(page);
   await settle(page);
 }
 
@@ -71,8 +72,8 @@ test.describe("New test screen", () => {
   test("starts on the configuration step with the CrewAI agents and tasks files", async ({ page }) => {
     await openNewTest(page);
 
-    await expect(page.getByText("agents.yaml").locator("visible=true")).toBeVisible();
-    await expect(page.getByText("tasks.yaml").locator("visible=true")).toBeVisible();
+    await expect(page.getByText("agents.yaml")).toBeVisible();
+    await expect(page.getByText("tasks.yaml")).toBeVisible();
     await expect(page.getByRole("button", { name: "Analyze" })).toBeDisabled();
     await expect(page).toHaveScreenshot("new-test-configuration.png");
   });

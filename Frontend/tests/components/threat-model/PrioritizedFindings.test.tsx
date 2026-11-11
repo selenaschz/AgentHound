@@ -95,8 +95,36 @@ describe("PrioritizedFindings search", () => {
 
   it("groups the severity filters under a label and announces the result count politely", () => {
     expect(box().querySelector('[role="group"][aria-label="Filtrar por severidad"]')).not.toBeNull();
+    const live = box().querySelector('[aria-live="polite"]');
+    expect(live).not.toBeNull();
+    expect(live?.textContent).toBe("");
     press(chip("low"));
-    expect(box().querySelector('[data-testid="findings-match-count"]')?.getAttribute("aria-live")).toBe("polite");
+    expect(box().querySelector('[aria-live="polite"]')).toBe(live);
+    expect(live?.textContent).toBe("1 de 4 hallazgos");
+  });
+
+  it("exposes each severity filter as a checkbox with its state", () => {
+    expect(chip("high").getAttribute("role")).toBe("checkbox");
+    expect(chip("high").getAttribute("aria-checked")).toBe("false");
+    press(chip("high"));
+    expect(chip("high").getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("leaves out the severity group when only one severity is present", () => {
+    view.unmount();
+    view = mount();
+    const critical = findings.filter((f) => f.severity === "critical");
+    view.render(
+      <PrioritizedFindings
+        findings={critical}
+        findingLabelById={labelById}
+        nodesById={nodesById}
+        selectedFindingId={null}
+        onSelectFinding={() => {}}
+      />,
+    );
+    expect(box().querySelector('[role="group"]')).toBeNull();
+    expect(chip("critical")).toBeNull();
   });
 
   it("only offers the severities that exist", () => {

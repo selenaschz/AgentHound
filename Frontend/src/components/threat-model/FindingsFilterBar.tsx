@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import { Chip, Inline, SearchField, Text1, skinVars, useTheme } from "@telefonica/mistica";
+import { Checkbox, Chip, Inline, SearchField, Text1, skinVars, useTheme } from "@telefonica/mistica";
 import type { IconProps } from "@telefonica/mistica";
 import { FILTER_SEVERITIES } from "@/lib/results/findingSearch";
 import { SEVERITY_STYLES, type Severity } from "@/lib/severity";
@@ -48,26 +48,32 @@ function FindingsFilterBar({ query, onQueryChange, severities, severityCounts, o
             fullWidth
           />
         </div>
-        {filtering && (
-          <Text1 regular color={skinVars.colors.textSecondary} aria-live="polite" dataAttributes={{ testid: "findings-match-count" }}>
-            {t("findingsMatching", { count: matching, total })}
-          </Text1>
-        )}
+        <div aria-live="polite">
+          {filtering && (
+            <Text1 regular color={skinVars.colors.textSecondary} dataAttributes={{ testid: "findings-match-count" }}>
+              {t("findingsMatching", { count: matching, total })}
+            </Text1>
+          )}
+        </div>
       </div>
-      <Inline space={8} alignItems="center" wrap verticalSpace={8} role="group" aria-label={t("filterBySeverity")}>
-        {present.length > 1 &&
-          present.map((s) => (
-            <Chip
+      {present.length > 1 && (
+        <Inline space={8} alignItems="center" wrap verticalSpace={8} role="group" aria-label={t("filterBySeverity")}>
+          {present.map((s) => (
+            <Checkbox
               key={s}
-              Icon={SEVERITY_ICONS[s][severities.has(s) ? "active" : "idle"]}
-              active={severities.has(s)}
-              onPress={() => onToggleSeverity(s)}
+              name={`severity-${s}`}
+              checked={severities.has(s)}
+              onChange={() => onToggleSeverity(s)}
               dataAttributes={{ testid: `severity-chip-${s}` }}
-            >
-              {`${tSeverity(s)} ${severityCounts[s]}`}
-            </Chip>
+              render={({ checked }) => (
+                <Chip Icon={SEVERITY_ICONS[s][checked ? "active" : "idle"]} active={checked}>
+                  {`${tSeverity(s)} ${severityCounts[s]}`}
+                </Chip>
+              )}
+            />
           ))}
-      </Inline>
+        </Inline>
+      )}
     </div>
   );
 }

@@ -34,20 +34,27 @@ function FindingsFilterBar({ query, onQueryChange, severities, severityCounts, o
   const tSeverity = useTranslations("overview.severity");
   const present = FILTER_SEVERITIES.filter((s) => severityCounts[s] > 0);
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px 16px" }}>
-      <div style={{ flex: "0 1 320px", minWidth: 0 }}>
-        <SearchField
-          name="findings-search"
-          label={t("searchFindings")}
-          placeholder={t("searchFindingsPlaceholder")}
-          value={query}
-          onChangeValue={onQueryChange}
-          inputMode="search"
-          autoComplete="off"
-          fullWidth
-        />
+    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px 16px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, flex: "1 1 320px", minWidth: 0 }}>
+        <div style={{ flex: "0 1 320px", minWidth: 0 }}>
+          <SearchField
+            name="findings-search"
+            label={t("searchFindings")}
+            placeholder={t("searchFindingsPlaceholder")}
+            value={query}
+            onChangeValue={onQueryChange}
+            inputMode="search"
+            autoComplete="off"
+            fullWidth
+          />
+        </div>
+        {filtering && (
+          <Text1 regular color={skinVars.colors.textSecondary} aria-live="polite" dataAttributes={{ testid: "findings-match-count" }}>
+            {t("findingsMatching", { count: matching, total })}
+          </Text1>
+        )}
       </div>
-      <Inline space={8} alignItems="center" wrap verticalSpace={8}>
+      <Inline space={8} alignItems="center" wrap verticalSpace={8} role="group" aria-label={t("filterBySeverity")}>
         {present.length > 1 &&
           present.map((s) => (
             <Chip
@@ -61,11 +68,6 @@ function FindingsFilterBar({ query, onQueryChange, severities, severityCounts, o
             </Chip>
           ))}
       </Inline>
-      {filtering && (
-        <Text1 regular color={skinVars.colors.textSecondary} aria-live="polite" dataAttributes={{ testid: "findings-match-count" }}>
-          {t("findingsMatching", { count: matching, total })}
-        </Text1>
-      )}
     </div>
   );
 }

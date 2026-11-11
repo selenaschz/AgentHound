@@ -18,7 +18,7 @@ import SeverityBadge from "@/components/threat-model/SeverityBadge";
 import FindingsFilterBar from "@/components/threat-model/FindingsFilterBar";
 import { ShowMoreOccurrences, useCappedOccurrences } from "@/components/threat-model/CappedOccurrences";
 import { capped, groupFindings, routeSummary, type FindingPattern, type NodesById } from "@/lib/results/findingDisplay";
-import { filterFindings, isFiltering } from "@/lib/results/findingSearch";
+import { buildSearchIndex, filterFindings, isFiltering } from "@/lib/results/findingSearch";
 import type { Severity } from "@/lib/severity";
 import { usePatternTitle } from "@/lib/results/usePatternTitle";
 import { severityAccentColor } from "@/lib/threatModelColors";
@@ -170,10 +170,11 @@ function PrioritizedFindings({ findings, findingLabelById, nodesById, selectedFi
     for (const f of findings) counts[f.severity] += 1;
     return counts;
   }, [findings]);
-  const matching = useMemo(
-    () => filterFindings(findings, filter, findingLabelById, nodesById),
-    [findings, filter, findingLabelById, nodesById],
+  const searchIndex = useMemo(
+    () => buildSearchIndex(findings, findingLabelById, nodesById),
+    [findings, findingLabelById, nodesById],
   );
+  const matching = useMemo(() => filterFindings(findings, filter, searchIndex), [findings, filter, searchIndex]);
   const listed = useMemo(() => {
     if (!selectedFindingId || matching.some((f) => f.id === selectedFindingId)) return matching;
     const shown = new Set(matching);

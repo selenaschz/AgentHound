@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterFindings, isFiltering, normalizeSearch } from "./findingSearch";
+import { buildSearchIndex, filterFindings, isFiltering, normalizeSearch } from "./findingSearch";
 import type { Finding } from "@/types/ThreatModel";
 
 const make = (over: Partial<Finding>): Finding => ({
@@ -23,9 +23,10 @@ const findings = [
 ];
 const labels = new Map([["f1", "FH-011 #1"], ["f2", "FH-011 #2"], ["f3", "FH-019"]]);
 const nodes = new Map([["a", { label: "ticket_intake" }], ["b", { label: "Customer Records" }]]);
+const index = buildSearchIndex(findings, labels, nodes);
 const none = new Set<never>();
 const run = (query: string, severities: ReadonlySet<Finding["severity"]> = none) =>
-  filterFindings(findings, { query, severities }, labels, nodes).map((f) => f.id);
+  filterFindings(findings, { query, severities }, index).map((f) => f.id);
 
 describe("filterFindings", () => {
   it("returns everything without a query or severity", () => {
@@ -51,6 +52,11 @@ describe("filterFindings", () => {
     expect(run("fh-011 customer")).toEqual(["f1", "f2"]);
     expect(run("fh-011 sensitive")).toEqual([]);
     expect(normalizeSearch("Ruta Crítica")).toBe("ruta critica");
+    expect(normalizeSearch("Auditoría ÚNICA")).toBe("auditoria unica");
+  });
+
+  it("leaves the severity to the filters instead of the untranslated text", () => {
+    expect(run("critical")).toEqual([]);
   });
 
   it("combines the text with the severity filter", () => {

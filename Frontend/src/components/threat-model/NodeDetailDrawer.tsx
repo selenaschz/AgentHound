@@ -131,19 +131,14 @@ function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, onClose
                             aria-label={t("showRoute", { id: findingLabelById.get(f.id) ?? f.ruleId })}
                             onPress={() => onShowRoute(f.id)}
                           >
-                            <Inline space={8} alignItems="center">
-                              <Text1 medium decoration="underline" color={skinVars.colors.textPrimary}>
-                                {findingLabelById.get(f.id) ?? f.ruleId}
-                              </Text1>
-                              <Text1 regular decoration="underline" color={skinVars.colors.textPrimary}>{f.id}</Text1>
-                            </Inline>
+                            <Text1 medium decoration="underline" color={skinVars.colors.textPrimary}>
+                              {findingLabelById.get(f.id) ?? f.ruleId}
+                            </Text1>
                           </Touchable>
                         ) : (
-                          <>
-                            <Tag type="error" small>{findingLabelById.get(f.id) ?? f.ruleId}</Tag>
-                            <FindingId id={f.id} />
-                          </>
+                          <Tag type="error" small>{findingLabelById.get(f.id) ?? f.ruleId}</Tag>
                         )}
+                        <FindingId id={f.id} />
                         <Tag type="inactive" small>{formatSnakeCase(f.category)}</Tag>
                         <SeverityBadge severity={f.severity} small>{tSeverity(f.severity)}</SeverityBadge>
                         <Text1 medium color={severityAccentColor(f.severity, isDarkMode)}>{f.score}</Text1>

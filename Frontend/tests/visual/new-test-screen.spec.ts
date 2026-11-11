@@ -71,8 +71,8 @@ test.describe("New test screen", () => {
   test("starts on the configuration step with the CrewAI agents and tasks files", async ({ page }) => {
     await openNewTest(page);
 
-    await expect(page.getByText("agents.yaml")).toBeVisible();
-    await expect(page.getByText("tasks.yaml")).toBeVisible();
+    await expect(page.getByText("agents.yaml").locator("visible=true")).toBeVisible();
+    await expect(page.getByText("tasks.yaml").locator("visible=true")).toBeVisible();
     await expect(page.getByRole("button", { name: "Analyze" })).toBeDisabled();
     await expect(page).toHaveScreenshot("new-test-configuration.png");
   });

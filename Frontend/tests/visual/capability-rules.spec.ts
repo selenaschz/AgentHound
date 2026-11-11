@@ -26,8 +26,14 @@ async function openAgentEditor(page: Page) {
   await page.goto("/tests/new");
   await fillAnalysisName(page, "Analysis name", "IT Ops");
   const uploads = page.locator("input[type=file]");
-  await uploads.nth(0).setInputFiles({ name: "agents.yaml", ...YAML });
-  await uploads.nth(0).setInputFiles({ name: "tasks.yaml", ...YAML });
+  await expect(async () => {
+    await uploads.nth(0).setInputFiles({ name: "agents.yaml", ...YAML });
+    await expect(page.getByText(/Agent definitions/)).toHaveCount(0, { timeout: 2000 });
+  }).toPass();
+  await expect(async () => {
+    await uploads.nth(0).setInputFiles({ name: "tasks.yaml", ...YAML });
+    await expect(page.getByRole("button", { name: "Analyze" })).toBeEnabled({ timeout: 2000 });
+  }).toPass();
   await page.getByRole("button", { name: "Analyze" }).click();
   await page.getByText("Capability extraction complete").waitFor();
   await page.getByRole("button", { name: "Next" }).click();

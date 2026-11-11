@@ -128,3 +128,35 @@ describe("PrioritizedFindings search", () => {
     expect(box().textContent).toContain("FH-004");
   });
 });
+
+describe("PrioritizedFindings search with a selected finding", () => {
+  beforeEach(() => {
+    view.unmount();
+    view = mount();
+    view.render(
+      <PrioritizedFindings
+        findings={findings}
+        findingLabelById={labelById}
+        nodesById={nodesById}
+        selectedFindingId="f3"
+        onSelectFinding={() => {}}
+      />,
+    );
+  });
+
+  const selectedRow = () => box().querySelector('[aria-current="true"]');
+
+  it("keeps the selected finding listed when the search leaves it out", () => {
+    type("HY-002");
+    expect(matchCount()).toBe("1 de 4 hallazgos");
+    expect(selectedRow()?.textContent).toContain("FH-004");
+    expect(box().textContent).toContain("HY-002");
+    expect(box().textContent).not.toContain("FH-001");
+  });
+
+  it("keeps it listed next to the empty state when nothing matches", () => {
+    type("zzzz");
+    expect(empty()).not.toBeNull();
+    expect(selectedRow()?.textContent).toContain("FH-004");
+  });
+});

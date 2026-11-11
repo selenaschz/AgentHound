@@ -174,7 +174,12 @@ function PrioritizedFindings({ findings, findingLabelById, nodesById, selectedFi
     () => filterFindings(findings, filter, findingLabelById, nodesById),
     [findings, filter, findingLabelById, nodesById],
   );
-  const groups = useMemo(() => groupFindings(matching), [matching]);
+  const listed = useMemo(() => {
+    if (!selectedFindingId || matching.some((f) => f.id === selectedFindingId)) return matching;
+    const shown = new Set(matching);
+    return findings.filter((f) => shown.has(f) || f.id === selectedFindingId);
+  }, [findings, matching, selectedFindingId]);
+  const groups = useMemo(() => groupFindings(listed), [listed]);
   const patternCount = useMemo(() => groupFindings(findings).length, [findings]);
   const [showAll, setShowAll] = useState(false);
   const openByDefault = deferredQuery.trim() !== "";
@@ -215,7 +220,7 @@ function PrioritizedFindings({ findings, findingLabelById, nodesById, selectedFi
             total={findings.length}
             filtering={filtering}
           />
-          {groups.length === 0 && (
+          {matching.length === 0 && (
             <Stack space={4} dataAttributes={{ testid: "findings-empty" }}>
               <Text1 regular color={skinVars.colors.textSecondary}>{t("noFindingsMatch")}</Text1>
               <Box>

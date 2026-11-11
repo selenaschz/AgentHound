@@ -318,7 +318,7 @@
     "findingsTableTitle": "Hallazgos inferidos",
     "searchFindings": "Buscar hallazgos",
     "searchFindingsPlaceholder": "FH-001, título, nodo…",
-    "findingsMatching": "{count} de {total} hallazgos",
+    "findingsMatching": "{count} de {total, plural, one {# hallazgo} other {# hallazgos}}",
     "filterBySeverity": "Filtrar por severidad",
     "noFindingsMatch": "Ningún hallazgo coincide con la búsqueda",
     "clearFilters": "Borrar búsqueda y filtros",

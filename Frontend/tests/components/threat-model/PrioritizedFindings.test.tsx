@@ -188,3 +188,21 @@ describe("PrioritizedFindings search with a selected finding", () => {
     expect(selectedRow()?.textContent).toContain("FH-004");
   });
 });
+
+describe("PrioritizedFindings match count", () => {
+  it("uses the singular when there is a single finding", () => {
+    view.unmount();
+    view = mount();
+    view.render(
+      <PrioritizedFindings
+        findings={findings.slice(0, 1)}
+        findingLabelById={labelById}
+        nodesById={nodesById}
+        selectedFindingId={null}
+        onSelectFinding={() => {}}
+      />,
+    );
+    type("FH-001");
+    expect(matchCount()).toBe("1 de 1 hallazgo");
+  });
+});

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { Box, Boxed, Drawer, Inline, Stack, Tag, Text1, skinVars, useTheme } from "@telefonica/mistica";
+import { Box, Boxed, Drawer, Inline, Stack, Tag, Text1, Text2, TextLink, skinVars, useTheme } from "@telefonica/mistica";
 import { FindingId, FindingRoute } from "@/components/threat-model/FindingIdentity";
 import { nodeFindingId } from "@/components/threat-model/graph/toReactFlow";
 import SeverityBadge from "@/components/threat-model/SeverityBadge";
@@ -17,6 +17,7 @@ interface NodeDetailDrawerProps {
   nodesById: Map<string, Pick<GraphNode, "label">>;
   edges: GraphEdge[];
   onClose: () => void;
+  onShowRoute?: (findingId: string) => void;
 }
 
 function formatProperty(value: unknown): string {
@@ -31,18 +32,31 @@ interface NodeFindingCardProps {
   finding: Finding;
   label: string;
   nodesById: Map<string, Pick<GraphNode, "label">>;
+  onShowRoute?: (findingId: string) => void;
 }
 
-function NodeFindingCard({ finding: f, label, nodesById }: NodeFindingCardProps) {
+function NodeFindingCard({ finding: f, label, nodesById, onShowRoute }: NodeFindingCardProps) {
   const t = useTranslations("node");
   const tSeverity = useTranslations("overview.severity");
   const { isDarkMode } = useTheme();
   return (
-    <Boxed key={f.id} dataAttributes={{ testid: "node-finding" }}>
-      <Box padding={12}>
-        <Stack space={4}>
+    <Boxed dataAttributes={{ testid: "node-finding" }}>
+      <Box padding={16}>
+        <Stack space={12}>
           <Inline space={8} alignItems="center" wrap verticalSpace={4}>
-            <Tag type="error" small>{label}</Tag>
+            {onShowRoute ? (
+              <Text2 medium>
+                <TextLink
+                  style={{ color: skinVars.colors.textPrimary }}
+                  aria-label={t("showRoute", { id: label })}
+                  onPress={() => onShowRoute(f.id)}
+                >
+                  {label}
+                </TextLink>
+              </Text2>
+            ) : (
+              <Tag type="error" small>{label}</Tag>
+            )}
             <FindingId id={f.id} />
             <Tag type="inactive" small>{formatSnakeCase(f.category)}</Tag>
             <SeverityBadge severity={f.severity} small>{tSeverity(f.severity)}</SeverityBadge>
@@ -56,7 +70,7 @@ function NodeFindingCard({ finding: f, label, nodesById }: NodeFindingCardProps)
             {f.mitre?.map((tag) => <Tag key={tag} small type="inactive">{tag}</Tag>)}
           </Inline>
           {f.evidence && Object.keys(f.evidence).length > 0 && (
-            <Stack space={2}>
+            <Stack space={4}>
               <Text1 medium color={skinVars.colors.textSecondary}>{t("evidence")}</Text1>
               {Object.entries(f.evidence).map(([key, value]) => (
                 <Inline key={key} space={8}>
@@ -78,9 +92,10 @@ interface FindingSectionProps {
   findingLabelById: Map<string, string>;
   nodesById: Map<string, Pick<GraphNode, "label">>;
   testId: string;
+  onShowRoute?: (findingId: string) => void;
 }
 
-function FindingSection({ title, findings, findingLabelById, nodesById, testId }: FindingSectionProps) {
+function FindingSection({ title, findings, findingLabelById, nodesById, testId, onShowRoute }: FindingSectionProps) {
   if (findings.length === 0) return null;
   return (
     <Stack space={8} dataAttributes={{ testid: testId }}>
@@ -90,14 +105,14 @@ function FindingSection({ title, findings, findingLabelById, nodesById, testId }
       </Inline>
       <Stack space={8}>
         {findings.map((f) => (
-          <NodeFindingCard key={f.id} finding={f} label={findingLabelById.get(f.id) ?? f.ruleId} nodesById={nodesById} />
+          <NodeFindingCard key={f.id} finding={f} label={findingLabelById.get(f.id) ?? f.ruleId} nodesById={nodesById} onShowRoute={onShowRoute} />
         ))}
       </Stack>
     </Stack>
   );
 }
 
-function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, edges, onClose }: NodeDetailDrawerProps) {
+function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, edges, onClose, onShowRoute }: NodeDetailDrawerProps) {
   const t = useTranslations("node");
   const { isDarkMode } = useTheme();
 
@@ -203,6 +218,7 @@ function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, edges, 
           findingLabelById={findingLabelById}
           nodesById={nodesById}
           testId="node-own-findings"
+          onShowRoute={onShowRoute}
         />
 
         <FindingSection
@@ -211,6 +227,7 @@ function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, edges, 
           findingLabelById={findingLabelById}
           nodesById={nodesById}
           testId="node-through-findings"
+          onShowRoute={onShowRoute}
         />
 
         {controls.length > 0 && (

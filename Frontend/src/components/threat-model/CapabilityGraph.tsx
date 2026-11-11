@@ -180,6 +180,19 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
     isolateError: t("isolateError"),
   }), [t, tNode, attacks]);
 
+  const closeDrawer = useCallback(() => {
+    setFocusedNode(null);
+    graphRef.current?.restoreFullscreen();
+  }, []);
+
+  const showRoute = useCallback(
+    (id: string) => {
+      onSelectFinding(id);
+      closeDrawer();
+    },
+    [onSelectFinding, closeDrawer],
+  );
+
   const toggleIsolated = useCallback(() => setIsolated((v) => !v), []);
 
   return (
@@ -274,10 +287,8 @@ function CapabilityGraph({ analysisId, solved, nodes, edges, findings, attacks, 
           findingLabelById={findingLabelById}
           nodesById={nodesById}
           edges={edges}
-          onClose={() => {
-            setFocusedNode(null);
-            graphRef.current?.restoreFullscreen();
-          }}
+          onClose={closeDrawer}
+          onShowRoute={solved ? undefined : showRoute}
         />
       )}
     </Stack>

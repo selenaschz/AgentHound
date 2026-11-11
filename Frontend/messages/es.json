@@ -316,6 +316,11 @@
       "riskReductionByGroup": "Reducción por causa"
     },
     "findingsTableTitle": "Hallazgos inferidos",
+    "searchFindings": "Buscar hallazgos",
+    "searchFindingsPlaceholder": "FH-001, título, nodo…",
+    "findingsMatching": "{count} de {total} hallazgos",
+    "noFindingsMatch": "Ningún hallazgo coincide con la búsqueda",
+    "clearFilters": "Borrar búsqueda y filtros",
     "attackFindingsTitle": "Rutas de ataque",
     "hygieneTitle": "Higiene y cumplimiento",
     "tableHeaders": {

@@ -316,6 +316,11 @@
       "riskReductionByGroup": "Reduction by cause"
     },
     "findingsTableTitle": "Inferred Findings",
+    "searchFindings": "Search findings",
+    "searchFindingsPlaceholder": "FH-001, title, node…",
+    "findingsMatching": "{count} of {total} findings",
+    "noFindingsMatch": "No findings match your search",
+    "clearFilters": "Clear search and filters",
     "attackFindingsTitle": "Attack Paths",
     "hygieneTitle": "Hygiene & Compliance",
     "tableHeaders": {

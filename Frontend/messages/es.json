@@ -354,6 +354,7 @@
     "absent": "ausente",
     "deleteNode": "Eliminar nodo",
     "riskScore": "Puntuación de riesgo",
-    "evidence": "Evidencia"
+    "evidence": "Evidencia",
+    "showRoute": "Mostrar la ruta {id} en el grafo"
   }
 }

@@ -32,13 +32,15 @@ interface NodeFindingCardProps {
   finding: Finding;
   label: string;
   nodesById: Map<string, Pick<GraphNode, "label">>;
+  withRoute: boolean;
   onShowRoute?: (findingId: string) => void;
 }
 
-function NodeFindingCard({ finding: f, label, nodesById, onShowRoute }: NodeFindingCardProps) {
+function NodeFindingCard({ finding: f, label, nodesById, withRoute, onShowRoute }: NodeFindingCardProps) {
   const t = useTranslations("node");
   const tSeverity = useTranslations("overview.severity");
   const { isDarkMode } = useTheme();
+  const tags = [...(f.owaspAgentic ?? []).map((tag) => `OWASP ${tag}`), ...(f.owaspLlm ?? []), ...(f.mitre ?? [])];
   return (
     <Boxed dataAttributes={{ testid: "node-finding" }}>
       <Box padding={16}>
@@ -63,12 +65,12 @@ function NodeFindingCard({ finding: f, label, nodesById, onShowRoute }: NodeFind
             <Text1 medium color={severityAccentColor(f.severity, isDarkMode)}>{f.score}</Text1>
           </Inline>
           <Text1 regular color={skinVars.colors.textSecondary}>{f.title}</Text1>
-          <FindingRoute path={f.path} nodesById={nodesById} />
-          <Inline space={4} wrap verticalSpace={4}>
-            {f.owaspAgentic?.map((tag) => <Tag key={tag} small type="inactive">{`OWASP ${tag}`}</Tag>)}
-            {f.owaspLlm?.map((tag) => <Tag key={tag} small type="inactive">{tag}</Tag>)}
-            {f.mitre?.map((tag) => <Tag key={tag} small type="inactive">{tag}</Tag>)}
-          </Inline>
+          {withRoute && <FindingRoute path={f.path} nodesById={nodesById} />}
+          {tags.length > 0 && (
+            <Inline space={4} wrap verticalSpace={4}>
+              {tags.map((tag) => <Tag key={tag} small type="inactive">{tag}</Tag>)}
+            </Inline>
+          )}
           {f.evidence && Object.keys(f.evidence).length > 0 && (
             <Stack space={4}>
               <Text1 medium color={skinVars.colors.textSecondary}>{t("evidence")}</Text1>
@@ -92,10 +94,11 @@ interface FindingSectionProps {
   findingLabelById: Map<string, string>;
   nodesById: Map<string, Pick<GraphNode, "label">>;
   testId: string;
+  withRoute: boolean;
   onShowRoute?: (findingId: string) => void;
 }
 
-function FindingSection({ title, findings, findingLabelById, nodesById, testId, onShowRoute }: FindingSectionProps) {
+function FindingSection({ title, findings, findingLabelById, nodesById, testId, withRoute, onShowRoute }: FindingSectionProps) {
   if (findings.length === 0) return null;
   return (
     <Stack space={8} dataAttributes={{ testid: testId }}>
@@ -105,7 +108,7 @@ function FindingSection({ title, findings, findingLabelById, nodesById, testId, 
       </Inline>
       <Stack space={8}>
         {findings.map((f) => (
-          <NodeFindingCard key={f.id} finding={f} label={findingLabelById.get(f.id) ?? f.ruleId} nodesById={nodesById} onShowRoute={onShowRoute} />
+          <NodeFindingCard key={f.id} finding={f} label={findingLabelById.get(f.id) ?? f.ruleId} nodesById={nodesById} withRoute={withRoute} onShowRoute={onShowRoute} />
         ))}
       </Stack>
     </Stack>
@@ -218,6 +221,7 @@ function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, edges, 
           findingLabelById={findingLabelById}
           nodesById={nodesById}
           testId="node-own-findings"
+          withRoute={false}
           onShowRoute={onShowRoute}
         />
 
@@ -227,6 +231,7 @@ function NodeDetailDrawer({ node, findings, findingLabelById, nodesById, edges, 
           findingLabelById={findingLabelById}
           nodesById={nodesById}
           testId="node-through-findings"
+          withRoute
           onShowRoute={onShowRoute}
         />
 

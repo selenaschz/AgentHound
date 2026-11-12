@@ -223,6 +223,7 @@
       "nodeFindings": "Node findings",
       "nodeFinding": "Top score and number of findings",
       "nodeFindingSample": "max",
+      "nodeFindingCountSample": "N findings",
       "nodeTypes": "Node types",
       "node": {
         "input": "Entry point",

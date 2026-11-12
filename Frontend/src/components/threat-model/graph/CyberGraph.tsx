@@ -88,6 +88,7 @@ export interface CyberGraphProps {
     legendNodeFindings: string;
     legendNodeFinding: string;
     legendNodeFindingSample: string;
+    legendNodeFindingCountSample: string;
     legendNodeTypes: string;
     nodeTypeLabel: Record<Exclude<NodeType, "control">, string>;
     recommendedControls: string;
@@ -606,7 +607,7 @@ const Flow = forwardRef<CyberGraphHandle, CyberGraphProps>(function Flow(
                     <Tag type="inactive" small>{labels.legendNodeFindingSample}</Tag>
                   </span>
                   <span style={{ display: "inline-flex", zoom: LEGEND_SAMPLE_ZOOM }}>
-                    <Tag type="inactive" small>N</Tag>
+                    <Tag type="inactive" small>{labels.legendNodeFindingCountSample}</Tag>
                   </span>
                   {labels.legendNodeFinding}
                 </div>

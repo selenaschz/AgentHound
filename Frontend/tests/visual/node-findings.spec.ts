@@ -30,7 +30,7 @@ test.describe("Node findings", () => {
     await expect(badge(page, "tool_sales_database_read")).toHaveCount(0);
     await expect(badge(page, "tool_python_interpreter").locator("..")).toHaveAttribute("aria-hidden", "true");
     await expect(canvas(page).getByText("Node findings")).toBeVisible();
-    await expect(canvas(page).getByTestId("legend-node-finding")).toHaveText("maxNTop score and number of findings");
+    await expect(canvas(page).getByTestId("legend-node-finding")).toHaveText("maxN findingsTop score and number of findings");
     await expect(canvas(page)).toHaveScreenshot("graph-node-findings.png", WITHOUT_GLOW);
   });
 

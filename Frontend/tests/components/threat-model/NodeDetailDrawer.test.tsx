@@ -103,6 +103,11 @@ describe("NodeDetailDrawer — the node's own findings", () => {
     expect(count("node-through-findings")).toBe("3");
   });
 
+  it("leaves out the route of the node's own findings, which is the node itself", () => {
+    expect(ids("node-own-findings").join("|")).not.toContain("Planner");
+    expect(ids("node-through-findings")[0]).toContain("Email entrante → Planner → CRM");
+  });
+
   it("lists as its own the same findings the node mark counts", () => {
     expect(ids("node-own-findings")).toHaveLength(nodeFindingMarks(findings, edges).get("planner")!.count);
   });

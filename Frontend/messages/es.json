@@ -223,6 +223,7 @@
       "nodeFindings": "Hallazgos en nodos",
       "nodeFinding": "Puntuación máx. y nº de hallazgos",
       "nodeFindingSample": "máx.",
+      "nodeFindingCountSample": "N hallazgos",
       "nodeTypes": "Tipos de nodo",
       "node": {
         "input": "Punto de entrada",

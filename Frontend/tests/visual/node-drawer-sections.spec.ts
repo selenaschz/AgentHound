@@ -29,6 +29,7 @@ test.describe("Node drawer sections", () => {
     await expect(own).toHaveScreenshot("node-drawer-own-findings.png");
     await through.scrollIntoViewIfNeeded();
     await expect(through.getByTestId("node-finding").first()).toBeVisible();
+    await expect(through).toHaveScreenshot("node-drawer-through-findings.png");
   });
 
   test("lists the own findings before the routes through the node", async ({ page }) => {

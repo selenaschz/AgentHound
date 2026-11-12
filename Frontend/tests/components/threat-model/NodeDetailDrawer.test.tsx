@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import NodeDetailDrawer from "@/components/threat-model/NodeDetailDrawer";
+import { nodeFindingMarks } from "@/components/threat-model/graph/toReactFlow";
 import { findingLabels } from "@/lib/results/findingDisplay";
 import type { Finding } from "@/types/ThreatModel";
-import { mount } from "../test-utils";
+import { mount, press } from "../test-utils";
 import { edges, findings as baseFindings, nodes } from "./fixtures";
 
 const nodesById = new Map(nodes.map((n) => [n.id, n]));
@@ -27,7 +28,7 @@ const findings: Finding[] = [
   onNode({ id: "n2", ruleId: "FH-022", severity: "high", score: 7.4, title: "Agente sin aprobación" }),
 ];
 
-function open(list: Finding[] = findings) {
+function open(list: Finding[] = findings, onShowRoute?: (findingId: string) => void) {
   view = mount();
   view.render(
     <NodeDetailDrawer
@@ -37,6 +38,7 @@ function open(list: Finding[] = findings) {
       nodesById={nodesById}
       edges={edges}
       onClose={() => {}}
+      onShowRoute={onShowRoute}
     />,
   );
 }
@@ -96,8 +98,31 @@ describe("NodeDetailDrawer — the node's own findings", () => {
   });
 
   it("shows how many findings each section holds", () => {
-    expect(section("node-own-findings")?.textContent).toContain("2");
-    expect(section("node-through-findings")?.textContent).toContain("3");
+    const count = (id: string) => section(id)?.querySelector('[data-testid="node-findings-count"]')?.textContent;
+    expect(count("node-own-findings")).toBe("2");
+    expect(count("node-through-findings")).toBe("3");
+  });
+
+  it("lists as its own the same findings the node mark counts", () => {
+    expect(ids("node-own-findings")).toHaveLength(nodeFindingMarks(findings, edges).get("planner")!.count);
+  });
+});
+
+describe("NodeDetailDrawer — route link", () => {
+  const link = (id: string, label: string) => section(id)?.querySelector(`[aria-label="Mostrar la ruta ${label} en el grafo"]`);
+
+  it("asks to show the route of a finding from either section", () => {
+    const onShowRoute = vi.fn();
+    open(findings, onShowRoute);
+    press(link("node-through-findings", "FH-004")!);
+    press(link("node-own-findings", "FH-022")!);
+    expect(onShowRoute.mock.calls).toEqual([["f3"], ["n2"]]);
+  });
+
+  it("shows the label as a plain tag when routes cannot be shown", () => {
+    open();
+    expect(body().querySelector('[aria-label^="Mostrar la ruta"]')).toBeNull();
+    expect(ids("node-own-findings")[0]).toContain("FH-022");
   });
 });
 

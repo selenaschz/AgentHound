@@ -101,7 +101,7 @@ function FindingSection({ title, findings, findingLabelById, nodesById, testId, 
     <Stack space={8} dataAttributes={{ testid: testId }}>
       <Inline space={8} alignItems="center">
         <Text1 medium color={skinVars.colors.textSecondary}>{title}</Text1>
-        <Tag type="inactive" small>{`${findings.length}`}</Tag>
+        <Tag type="inactive" small dataAttributes={{ testid: "node-findings-count" }}>{`${findings.length}`}</Tag>
       </Inline>
       <Stack space={8}>
         {findings.map((f) => (
